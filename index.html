@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מנהל טורניר דו-שלבי - Two-Stage Tournament Manager</title>
+    <meta name="description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
+    <meta property="og:title" content="Two-Stage Tournament Manager" />
+    <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body class="role-owner">
+    <!-- הודעות התראה ומערכת -->
+    <div id="tournament-alert" class="tournament-alert hidden" role="alert"></div>
+
+    <!-- ==========================================
+         עמוד נחיתה ראשון: מסך כניסה והרשאות (Login)
+         ========================================== -->
+    <section id="screen-login" class="login-landing-container">
+        <div class="login-card">
+            <div class="login-icon-box">🏆</div>
+            <h1>מנהל טורניר דו-שלבי</h1>
+            <p class="subtitle">מערכת חכמה לניהול לוחות משחקים, טבלאות דירוג ועצי נוקאאוט</p>
+
+            <form class="login-form" onsubmit="event.preventDefault(); app.handleLogin();">
+                <div class="login-field">
+                    <label for="loginEmail">📧 כתובת אימייל לכניסה:</label>
+                    <input type="email" id="loginEmail" class="login-input" value="noamsee@gmail.com" placeholder="name@example.com" autofocus autocomplete="email">
+                </div>
+
+                <div class="login-field" id="loginTournamentPickerGroup">
+                    <label for="loginTournamentSelect">🏆 בחר טורניר לצפייה:</label>
+                    <select id="loginTournamentSelect" class="login-tournament-select">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <button type="submit" class="login-btn-primary">
+                    🚀 כניסה למערכת
+                </button>
+
+                <button type="button" class="login-btn-guest" onclick="app.loginAsGuest()">
+                    👁️ כניסה כאורח (Guest)
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         מסך המערכת הראשי (נחשף לאחר התחברות)
+         ========================================== -->
+    <div id="screen-main" class="app-container hidden">
+        <header>
+            <h1>🏆 מנהל טורניר דו-שלבי</h1>
+            
+            <div class="user-session-bar">
+                <!-- תג פרסונה פעילה -->
+                <span id="currentUserBadge" class="user-badge user-badge-viewer">
+                    👁️ אורח (Guest)
+                </span>
+
+                <!-- בחירת טורניר לצפייה (פעיל או ארכיון) -->
+                <div class="tournament-select-wrap">
+                    <label for="headerTournamentSelect">🏆 טורניר:</label>
+                    <select id="headerTournamentSelect" onchange="app.switchTournament(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <!-- כפתורי ייצוא -->
+                <button class="btn-csv btn-sm" onclick="app.exportToCSV()" title="הורד גיליון CSV ל-Excel">
+                    📊 Excel
+                </button>
+                <button class="btn-github btn-sm" onclick="app.exportToGitHub()" title="ייצא תיעוד ל-GitHub">
+                    📦 GitHub
+                </button>
+
+                <!-- כפתור התנתקות -->
+                <button class="btn-logout" onclick="app.logout()">
+                    🚪 התנתק
+                </button>
+            </div>
+        </header>
+
+        <!-- באנר התראה כשצופים בארכיון עבר -->
+        <div id="archiveBanner" class="archive-banner hidden">
+            <span>📜 <strong>שים לב:</strong> אתה צופה בתוצאות ארכיון של טורניר עבר (מצב קריאה בלבד).</span>
+            <button class="btn-secondary btn-sm" onclick="app.switchToActiveTournament()">חזור לטורניר הפעיל</button>
+        </div>
+
+        <!-- ניווט טאבים (גלוי לכולם) -->
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="app.switchTab('setup')">⚙️ הגדרת טורניר</button>
+            <button class="tab-btn" onclick="app.switchTab('group-stage')">⚽ שלב הבתים</button>
+            <button class="tab-btn" onclick="app.switchTab('playoffs')">🌳 שלב הפלייאוף</button>
+            <button class="tab-btn owner-only" onclick="app.switchTab('users')">👥 ניהול מערכת (Owner)</button>
+        </nav>
+
+        <main class="content-area">
+            <!-- טאב 1: הגדרת טורניר -->
+            <section id="tab-setup" class="tab-section">
+                <div class="card">
+                    <h2>הזנת קבוצות הטורניר (15 קבוצות)</h2>
+                    <p class="role-notice admin-editable">מיועד ל-Admin/Owner בלבד. הזן או עדכן שמות ל-15 קבוצות הטורניר (מחולקות ל-3 בתים של 5 קבוצות):</p>
+                    
+                    <div id="teams-input-container" class="teams-grid">
+                        <!-- ייווצר דינמית ע"י ה-JS -->
+                    </div>
+
+                    <div class="actions-bar">
+                        <button id="btn-generate-groups" class="btn-primary admin-editable" onclick="app.generateTournamentGroups()">
+                            ⚡ ייצר לוח משחקים לשלב הבתים (30 משחקים)
+                        </button>
+                        <button type="button" class="btn-secondary admin-editable" onclick="app.fillDefaultTeamNames()">
+                            🔄 שחזר שמות קבוצות לדוגמה
+                        </button>
+                        <button type="button" class="btn-github admin-editable" onclick="app.exportToGitHub()">
+                            📦 ייצא README.md ל-GitHub
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- טאב 2: שלב הבתים -->
+            <section id="tab-group-stage" class="tab-section hidden">
+                <!-- סרגל פעולות עזר לשלב הבתים -->
+                <div class="actions-bar">
+                    <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
+                        📊 הורד נתונים וטבלאות (CSV)
+                    </button>
+                    <button class="btn-secondary btn-sm admin-editable" onclick="app.fillSampleScores()">
+                        🎲 מלא תוצאות לדוגמה (לבדיקה מהירה)
+                    </button>
+                    <button class="btn-secondary btn-sm admin-editable" onclick="app.resetAllScores()">
+                        🧹 אפס את כל תוצאות הבתים
+                    </button>
+                </div>
+
+                <div class="tournament-layout">
+                    <!-- לוח משחקים -->
+                    <div class="matches-column">
+                        <h2>📅 לוח משחקים ותוצאות</h2>
+                        
+                        <!-- סינון לפי בית -->
+                        <div class="filter-tabs">
+                            <button class="filter-chip active" onclick="app.filterMatches('all', this)">כל הבתים (30)</button>
+                            <button class="filter-chip" onclick="app.filterMatches('Group A', this)">בית א' (10)</button>
+                            <button class="filter-chip" onclick="app.filterMatches('Group B', this)">בית ב' (10)</button>
+                            <button class="filter-chip" onclick="app.filterMatches('Group C', this)">בית ג' (10)</button>
+                        </div>
+
+                        <div id="group-matches-container">
+                            <p class="placeholder-text">אנא הזן קבוצות ולחץ על "ייצר לוח משחקים" בטאב ההגדרות.</p>
+                        </div>
+                    </div>
+
+                    <!-- טבלאות דירוג -->
+                    <div class="standings-column">
+                        <h2>📊 טבלאות דירוג (בזמן אמת)</h2>
+                        
+                        <div class="standings-legend">
+                            <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה (מקומות 1-2)</span>
+                            <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #f59e0b;"></span> מועמד (מקום 3 הטוב ביותר)</span>
+                        </div>
+
+                        <div id="group-standings-container">
+                            <!-- ייווצר דינמית ע"י ה-JS -->
+                        </div>
+
+                        <button id="btn-seed-playoffs" class="btn-success admin-editable hidden" style="width: 100%; margin-top: 15px;" onclick="app.seedPlayoffs()">
+                            🚀 נעל שלב בתים ושבץ פלייאוף (8 הגדולות)
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- טאב 3: פלייאוף -->
+            <section id="tab-playoffs" class="tab-section hidden">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <h2>🌳 עץ פלייאוף נוקאאוט (8 הגדולות)</h2>
+                        <div class="actions-bar" style="margin-bottom: 0;">
+                            <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
+                                📊 הורד פלייאוף (CSV)
+                            </button>
+                            <button class="btn-secondary btn-sm admin-editable" onclick="app.simulatePlayoffs()">
+                                🎲 סמלץ משחקי פלייאוף
+                            </button>
+                            <button class="btn-secondary btn-sm admin-editable" onclick="app.resetPlayoffs()">
+                                🔄 אפס תוצאות פלייאוף
+                            </button>
+                        </div>
+                    </div>
+                    <p class="section-subtitle">שיטת ההצלבות: 1 נגד 8, 4 נגד 5, 3 נגד 6, 2 נגד 7. המנצחות מעפילות אוטומטית לחצאי הגמר ולגמר!</p>
+
+                    <div id="playoff-bracket-container" class="bracket-view">
+                        <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- טאב 4: ניהול משתמשים וטורנירים (Owner Only) -->
+            <section id="tab-users" class="tab-section hidden">
+                <div class="card">
+                    <h2>👑 פאנל ניהול בעלים (Owner Dashboard)</h2>
+                    <p class="role-notice">אזור זה מורשה ונגיש אך ורק עבור <strong>noamsee@gmail.com</strong>.</p>
+                    
+                    <!-- חלק 1: ניהול מנהלי מערכת (Admins) -->
+                    <div class="admin-management-box">
+                        <h3>🛡️ הגדרת מנהלים מורשים (Admins Management)</h3>
+                        <p style="font-size:0.9rem; color:#64748b;">
+                            מנהלים מוגדרים יכולים לערוך שמות קבוצות, להזין תוצאות משחקים ולנעול פלייאוף:
+                        </p>
+                        <form class="admin-add-form" onsubmit="event.preventDefault(); app.addAdmin();">
+                            <input type="email" id="newAdminEmailInput" placeholder="הזן כתובת אימייל למנהל חדש (למשל: admin@tournament.com)" required>
+                            <button type="submit" class="btn-primary">➕ הוסף מנהל חדש</button>
+                        </form>
+
+                        <table class="admins-table">
+                            <thead>
+                                <tr>
+                                    <th>אימייל מנהל</th>
+                                    <th>סטטוס הרשאה</th>
+                                    <th>תאריך הוספה</th>
+                                    <th style="width: 80px; text-align: center;">פעולה</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminsListTableBody">
+                                <!-- ייווצר דינמית ע"י ה-JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid #e2e8f0; margin: 30px 0;">
+
+                    <!-- חלק 2: ניהול טורנירים וארכיון תוצאות -->
+                    <div class="tournament-management-box">
+                        <h3>🏆 ניהול טורנירים וארכיון תוצאות עבר</h3>
+                        <p style="font-size:0.9rem; color:#64748b;">
+                            באפשרותך לפתוח טורניר חדש או להעביר את הטורניר הפעיל לארכיון לצפיית אורחים:
+                        </p>
+                        
+                        <div class="admin-add-form">
+                            <input type="text" id="newTournamentNameInput" placeholder="שם הטורניר החדש (למשל: טורניר אביב 2026)">
+                            <button type="button" class="btn-success" onclick="app.createNewTournament()">✨ צור טורניר חדש</button>
+                            <button type="button" class="btn-secondary" onclick="app.archiveCurrentTournament()">📦 ארכב טורניר נוכחי</button>
+                        </div>
+
+                        <div id="ownerTournamentsList">
+                            <!-- ייווצר דינמית ע"י ה-JS -->
+                        </div>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid #e2e8f0; margin: 30px 0;">
+
+                    <!-- חלק 3: פעולות קריטיות -->
+                    <div>
+                        <h3 style="color:#dc2626;">⚠️ פעולות קריטיות</h3>
+                        <p style="font-size:0.9rem; color:#64748b;">איפוס כולל ימחק את תוצאות המשחקים ויאתחל את הטורניר למצב התחלתי.</p>
+                        <button class="btn-danger" onclick="app.hardReset()">⚠️ אפס טורניר לחלוטין (Hard Reset)</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- מודאל מדריך להעלאה ל-GitHub -->
+    <div id="github-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="app.closeGitHubModal()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                📦 ייצוא הפרויקט ל-GitHub
+            </h2>
+            <p style="color:#475569; font-size:0.95rem; margin-bottom: 12px;">
+                קובץ <strong>README.md</strong> מעודכן נוצר והורד למחשבך עם כל נתוני הקבוצות, תוצאות המשחקים וטבלאות הדירוג בזמן אמת!
+            </p>
+            <hr style="border:none; border-top:1px solid #e2e8f0; margin:16px 0;">
+            <h3 style="font-size:1.05rem; color:#0f172a; margin-bottom:8px;">🚀 פקודות Git להעלאה למאגר חדש ב-GitHub:</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">
+                פתח טרמינל בתיקיית הפרויקט במחשב והרץ את הרצף הבא (החלף את הכתובת בכתובת המאגר שלך):
+            </p>
+            <div class="code-block-wrap">
+                <pre class="code-block" id="git-commands-block">git init
+git add .
+git commit -m "Initial commit: Two-Stage Tournament Manager"
+git branch -M main
+git remote add origin https://github.com/&lt;YOUR_USERNAME&gt;/&lt;YOUR_REPO_NAME&gt;.git
+git push -u origin main</pre>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+                <button class="btn-primary" onclick="app.copyGitCommands()">📋 העתק פקודות Git</button>
+                <button class="btn-secondary" onclick="app.closeGitHubModal()">סגור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- טעינת סקריפט האפליקציה המלא -->
+    <script src="./app.js"></script>
+</body>
+</html>
