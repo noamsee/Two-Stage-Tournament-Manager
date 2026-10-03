@@ -16,7 +16,7 @@
     <div id="tournament-alert" class="tournament-alert hidden" role="alert"></div>
 
     <!-- ==========================================
-         עמוד נחיתה ראשון: מסך כניסה והרשאות (Login)
+         עמוד נחיתה ראשון: מסך כניסה והרשאות (Login & Sign-Up)
          ========================================== -->
     <section id="screen-login" class="login-landing-container">
         <div class="login-card">
@@ -24,10 +24,43 @@
             <h1>מנהל טורניר דו-שלבי</h1>
             <p class="subtitle">מערכת חכמה לניהול לוחות משחקים, טבלאות דירוג ועצי נוקאאוט</p>
 
-            <form class="login-form" onsubmit="event.preventDefault(); app.handleLogin();">
+            <!-- לשוניות מעבר: כניסה / הרשמה (Login vs Sign-Up) -->
+            <div class="auth-tabs" role="tablist">
+                <button type="button" id="tabBtnLogin" class="auth-tab active" onclick="app.switchAuthMode('login')" role="tab" aria-selected="true">
+                    🔑 כניסה (Login)
+                </button>
+                <button type="button" id="tabBtnSignup" class="auth-tab" onclick="app.switchAuthMode('signup')" role="tab" aria-selected="false">
+                    ✨ הרשמה (Sign-in / Sign-up)
+                </button>
+            </div>
+
+            <!-- כפתור כניסה מהיר באמצעות Google / Gmail -->
+            <div class="google-auth-wrapper">
+                <button type="button" class="btn-google-auth" onclick="app.openGoogleAuthModal()" id="googleAuthBtn" title="התחברות ישירה באמצעות חשבון Google/Gmail">
+                    <svg class="google-icon" viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span id="googleAuthBtnText">התחבר באמצעות Google / Gmail</span>
+                </button>
+            </div>
+
+            <div class="auth-divider">
+                <span id="authDividerText">או באמצעות כתובת אימייל</span>
+            </div>
+
+            <!-- טופס 1: כניסה למשתמש קיים (Login) -->
+            <form id="form-login" class="login-form" onsubmit="event.preventDefault(); app.handleLogin();">
                 <div class="login-field">
-                    <label for="loginEmail">📧 כתובת אימייל לכניסה:</label>
+                    <label for="loginEmail">📧 כתובת אימייל:</label>
                     <input type="email" id="loginEmail" class="login-input" value="noamsee@gmail.com" placeholder="name@example.com" autofocus autocomplete="email">
+                </div>
+
+                <div class="login-field">
+                    <label for="loginPassword">🔒 סיסמה:</label>
+                    <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" autocomplete="current-password">
                 </div>
 
                 <div class="login-field" id="loginTournamentPickerGroup">
@@ -42,8 +75,46 @@
                 </button>
 
                 <button type="button" class="login-btn-guest" onclick="app.loginAsGuest()">
-                    👁️ כניסה כאורח (Guest)
+                    👁️ כניסה מהירה כאורח (Guest)
                 </button>
+            </form>
+
+            <!-- טופס 2: הרשמה למשתמש חדש (Sign Up / New Sign-in) -->
+            <form id="form-signup" class="login-form hidden" onsubmit="event.preventDefault(); app.handleSignUp();">
+                <div class="login-field">
+                    <label for="signupName">👤 שם מלא:</label>
+                    <input type="text" id="signupName" class="login-input" placeholder="למשל: יובל כהן" autocomplete="name">
+                </div>
+
+                <div class="login-field">
+                    <label for="signupEmail">📧 כתובת אימייל (או Gmail):</label>
+                    <input type="email" id="signupEmail" class="login-input" placeholder="user@gmail.com" autocomplete="email">
+                </div>
+
+                <div class="login-field">
+                    <label for="signupPassword">🔒 בחר סיסמה:</label>
+                    <input type="password" id="signupPassword" class="login-input" placeholder="לפחות 6 תווים" autocomplete="new-password">
+                </div>
+
+                <div class="login-field">
+                    <label for="signupPasswordConfirm">🔒 אימות סיסמה:</label>
+                    <input type="password" id="signupPasswordConfirm" class="login-input" placeholder="חזור שוב על הסיסמה" autocomplete="new-password">
+                </div>
+
+                <div class="login-field">
+                    <label for="signupTournamentSelect">🏆 בחר טורניר ראשוני לצפייה:</label>
+                    <select id="signupTournamentSelect" class="login-tournament-select">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <button type="submit" class="login-btn-primary login-btn-signup">
+                    ✨ צור חשבון חדש והיכנס
+                </button>
+
+                <p class="auth-switch-note">
+                    כבר יש לך חשבון? <a href="javascript:void(0)" onclick="app.switchAuthMode('login')">עבור למסך כניסה</a>
+                </p>
             </form>
         </div>
     </section>
@@ -286,6 +357,59 @@ git push -u origin main</pre>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
                 <button class="btn-primary" onclick="app.copyGitCommands()">📋 העתק פקודות Git</button>
                 <button class="btn-secondary" onclick="app.closeGitHubModal()">סגור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל בחירת חשבון Google / Gmail -->
+    <div id="google-auth-modal" class="modal-overlay hidden">
+        <div class="modal-card google-modal-card">
+            <button class="modal-close-btn" onclick="app.closeGoogleAuthModal()">✕</button>
+            
+            <div class="google-modal-header">
+                <svg viewBox="0 0 48 48" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                <h2 id="googleModalTitle">כניסה באמצעות Google</h2>
+                <p class="google-modal-sub">בחר חשבון Google/Gmail להמשך אל <strong>מנהל טורניר דו-שלבי</strong></p>
+            </div>
+
+            <div class="google-accounts-list">
+                <!-- חשבון ראשי מזוהה: noamsee@gmail.com -->
+                <div class="google-account-item" onclick="app.selectGoogleAccount('noamsee@gmail.com', 'נועם סלע', '👑 בעלים (Owner)')">
+                    <div class="google-avatar google-avatar-primary">נ</div>
+                    <div class="google-account-info">
+                        <div class="google-account-name">נועם סלע <span class="google-owner-tag">👑 Owner</span></div>
+                        <div class="google-account-email">noamsee@gmail.com</div>
+                    </div>
+                    <div class="google-account-arrow">←</div>
+                </div>
+
+                <!-- חשבון אחר -->
+                <div class="google-account-item google-account-custom" onclick="app.toggleCustomGoogleInput()">
+                    <div class="google-avatar google-avatar-other">👤</div>
+                    <div class="google-account-info">
+                        <div class="google-account-name">התחבר עם חשבון Google / Gmail אחר...</div>
+                        <div class="google-account-email">הזן כתובת Gmail שונה</div>
+                    </div>
+                    <div class="google-account-arrow">←</div>
+                </div>
+
+                <!-- שדה הזנת Gmail אחר (נפתח בלחיצה) -->
+                <div id="customGoogleInputBox" class="custom-google-box hidden">
+                    <label for="customGoogleEmail">כתובת Gmail:</label>
+                    <div style="display:flex; gap:8px; margin-top:6px;">
+                        <input type="email" id="customGoogleEmail" class="login-input" placeholder="myname@gmail.com" style="flex:1;">
+                        <button type="button" class="btn-primary btn-sm" onclick="app.submitCustomGoogleAccount()">אישור</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="google-modal-footer">
+                <p>🔒 Google תעביר למערכת את פרטי הפרופיל שלך (שם, אימייל ותמונה). לא נדרשת הזנת סיסמה.</p>
             </div>
         </div>
     </div>

@@ -972,6 +972,277 @@ body.role-admin .tab-btn.owner-only {
     color: #0f172a;
 }
 
+/* לשוניות מעבר: כניסה / הרשמה (Auth Tabs) */
+.auth-tabs {
+    display: flex;
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 20px;
+    gap: 4px;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+    background: #ffffff;
+    color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.auth-tab:hover:not(.active) {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* כפתור כניסה באמצעות Google / Gmail */
+.google-auth-wrapper {
+    margin-bottom: 16px;
+}
+
+.btn-google-auth {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #ffffff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    font-size: 0.96rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
+    transition: all 0.2s ease;
+}
+
+.btn-google-auth:hover {
+    background: #f8fafc;
+    border-color: #c2c7d0;
+    box-shadow: 0 2px 6px rgba(60, 64, 67, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-google-auth:active {
+    background: #f1f5f9;
+    transform: translateY(0);
+}
+
+.google-icon {
+    flex-shrink: 0;
+}
+
+/* מפריד או במייל */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 16px 0 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid #e2e8f0;
+}
+
+.auth-divider span {
+    padding: 0 12px;
+}
+
+.auth-switch-note {
+    font-size: 0.86rem;
+    color: #64748b;
+    margin-top: 14px;
+    text-align: center;
+}
+
+.auth-switch-note a {
+    color: var(--primary-color);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.auth-switch-note a:hover {
+    text-decoration: underline;
+}
+
+.login-btn-signup {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+}
+
+.login-btn-signup:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+/* מודאל Google Authentication */
+.google-modal-card {
+    max-width: 440px;
+    padding: 32px 28px;
+    border-radius: 18px;
+    text-align: center;
+}
+
+.google-modal-header {
+    margin-bottom: 22px;
+}
+
+.google-modal-header svg {
+    margin-bottom: 10px;
+}
+
+.google-modal-header h2 {
+    font-size: 1.35rem;
+    color: #0f172a;
+    margin: 0 0 6px;
+    font-weight: 800;
+}
+
+.google-modal-sub {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.google-accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.google-account-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #ffffff;
+    text-align: right;
+}
+
+.google-account-item:hover {
+    background: #f8fafc;
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
+}
+
+.google-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+}
+
+.google-avatar-primary {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.google-avatar-other {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.google-account-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.google-account-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.google-owner-tag {
+    font-size: 0.72rem;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 800;
+    border: 1px solid #fcd34d;
+}
+
+.google-account-email {
+    font-size: 0.82rem;
+    color: #64748b;
+    direction: ltr;
+    text-align: right;
+}
+
+.google-account-arrow {
+    color: #94a3b8;
+    font-size: 1.1rem;
+    transition: transform 0.2s;
+}
+
+.google-account-item:hover .google-account-arrow {
+    color: var(--primary-color);
+    transform: translateX(-4px);
+}
+
+.custom-google-box {
+    margin-top: 10px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    text-align: right;
+}
+
+.custom-google-box label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.google-modal-footer {
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.google-modal-footer p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
 .login-role-guide {
     margin-top: 24px;
     padding: 14px;

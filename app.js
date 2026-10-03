@@ -106,9 +106,160 @@ class TournamentApp {
         this.switchTab('setup');
     }
 
+    /* ========================================================
+       ניהול אימות, הרשמה, כניסה ו-Google Auth (Login & Sign-Up)
+       ======================================================== */
+
+    switchAuthMode(mode = 'login') {
+        this.currentAuthMode = mode;
+        const tabLogin = document.getElementById('tabBtnLogin');
+        const tabSignup = document.getElementById('tabBtnSignup');
+        const formLogin = document.getElementById('form-login');
+        const formSignup = document.getElementById('form-signup');
+        const googleAuthBtnText = document.getElementById('googleAuthBtnText');
+        const authDividerText = document.getElementById('authDividerText');
+
+        if (mode === 'signup') {
+            if (tabLogin) { tabLogin.classList.remove('active'); tabLogin.setAttribute('aria-selected', 'false'); }
+            if (tabSignup) { tabSignup.classList.add('active'); tabSignup.setAttribute('aria-selected', 'true'); }
+            if (formLogin) formLogin.classList.add('hidden');
+            if (formSignup) formSignup.classList.remove('hidden');
+            if (googleAuthBtnText) googleAuthBtnText.textContent = 'הרשמה מהירה באמצעות Google / Gmail';
+            if (authDividerText) authDividerText.textContent = 'או הרשמה באמצעות כתובת אימייל';
+        } else {
+            if (tabLogin) { tabLogin.classList.add('active'); tabLogin.setAttribute('aria-selected', 'true'); }
+            if (tabSignup) { tabSignup.classList.remove('active'); tabSignup.setAttribute('aria-selected', 'false'); }
+            if (formLogin) formLogin.classList.remove('hidden');
+            if (formSignup) formSignup.classList.add('hidden');
+            if (googleAuthBtnText) googleAuthBtnText.textContent = 'התחבר באמצעות Google / Gmail';
+            if (authDividerText) authDividerText.textContent = 'או באמצעות כתובת אימייל';
+        }
+    }
+
+    openGoogleAuthModal() {
+        const modal = document.getElementById('google-auth-modal');
+        const title = document.getElementById('googleModalTitle');
+        if (title) {
+            title.textContent = (this.currentAuthMode === 'signup') ? 'הרשמה באמצעות Google' : 'כניסה באמצעות Google';
+        }
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeGoogleAuthModal() {
+        const modal = document.getElementById('google-auth-modal');
+        if (modal) modal.classList.add('hidden');
+        const customBox = document.getElementById('customGoogleInputBox');
+        if (customBox) customBox.classList.add('hidden');
+    }
+
+    toggleCustomGoogleInput() {
+        const customBox = document.getElementById('customGoogleInputBox');
+        if (customBox) {
+            customBox.classList.toggle('hidden');
+            if (!customBox.classList.contains('hidden')) {
+                const input = document.getElementById('customGoogleEmail');
+                if (input) input.focus();
+            }
+        }
+    }
+
+    submitCustomGoogleAccount() {
+        const input = document.getElementById('customGoogleEmail');
+        const email = input ? input.value.trim().toLowerCase() : '';
+        if (!email || !email.includes('@')) {
+            this.showAlert("אנא הזן כתובת Google / Gmail חוקית", "error");
+            return;
+        }
+
+        const username = email.split('@')[0];
+        const formattedName = username.charAt(0).toUpperCase() + username.slice(1);
+        this.selectGoogleAccount(email, formattedName, 'משתמש Google');
+    }
+
+    selectGoogleAccount(email, name, roleLabel) {
+        this.closeGoogleAuthModal();
+
+        // החלפת טורניר אם נבחר
+        const tourneySelect = (this.currentAuthMode === 'signup') 
+            ? document.getElementById('signupTournamentSelect') 
+            : document.getElementById('loginTournamentSelect');
+        if (tourneySelect && tourneySelect.value) {
+            this.switchTournament(tourneySelect.value, false);
+        }
+
+        this.showAlert(`מתחבר באמצעות חשבון Google (${email})...`, "info");
+        setTimeout(() => {
+            this.authenticateUser(email, true, name, 'google');
+        }, 300);
+    }
+
+    handleSignUp() {
+        const nameInput = document.getElementById('signupName');
+        const emailInput = document.getElementById('signupEmail');
+        const passInput = document.getElementById('signupPassword');
+        const passConfirmInput = document.getElementById('signupPasswordConfirm');
+
+        const name = nameInput ? nameInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+        const pass = passInput ? passInput.value : '';
+        const passConfirm = passConfirmInput ? passConfirmInput.value : '';
+
+        if (!name) {
+            this.showAlert("אנא הזן את שמך המלא להרשמה.", "error");
+            return;
+        }
+        if (!email || !email.includes('@')) {
+            this.showAlert("אנא הזן כתובת אימייל חוקית.", "error");
+            return;
+        }
+        if (pass.length < 4) {
+            this.showAlert("הסיסמה חייבת להכיל לפחות 4 תווים.", "error");
+            return;
+        }
+        if (pass !== passConfirm) {
+            this.showAlert("אימות הסיסמה אינו תואם. אנא נסה שוב.", "error");
+            return;
+        }
+
+        // שמירת משתמש רשום ב-localStorage
+        const users = this.getRegisteredUsers();
+        const existing = users.find(u => u.email.toLowerCase() === email);
+        if (existing) {
+            this.showAlert("כתובת אימייל זו כבר רשומה במערכת! מעביר למסך כניסה...", "warning");
+            this.switchAuthMode('login');
+            const loginEmail = document.getElementById('loginEmail');
+            if (loginEmail) loginEmail.value = email;
+            return;
+        }
+
+        users.push({
+            name,
+            email,
+            registeredAt: new Date().toLocaleDateString('he-IL'),
+            provider: 'email'
+        });
+        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+
+        const tourneySelect = document.getElementById('signupTournamentSelect');
+        if (tourneySelect && tourneySelect.value) {
+            this.switchTournament(tourneySelect.value, false);
+        }
+
+        this.authenticateUser(email, true, name, 'email');
+    }
+
+    getRegisteredUsers() {
+        try {
+            const raw = localStorage.getItem('tournament_registered_users');
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    }
+
     handleLogin() {
         const emailInput = document.getElementById('loginEmail');
-        const enteredEmail = emailInput ? emailInput.value.trim() : '';
+        const enteredEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
 
         // קבלת הטורניר שנבחר בלוגין
         const tourneySelect = document.getElementById('loginTournamentSelect');
@@ -116,8 +267,17 @@ class TournamentApp {
             this.switchTournament(tourneySelect.value, false);
         }
 
-        // בשלב ראשון: התעלמות ממה שהוכנס וכל אחד נכנס כ-noamsee@gmail.com (Owner)
-        this.authenticateUser(this.OWNER_EMAIL, true, enteredEmail);
+        // חיפוש שם המשתמש אם נרשם בעבר
+        let displayName = null;
+        if (enteredEmail === this.OWNER_EMAIL.toLowerCase()) {
+            displayName = 'נועם סלע';
+        } else {
+            const registeredUsers = this.getRegisteredUsers();
+            const found = registeredUsers.find(u => u.email.toLowerCase() === enteredEmail);
+            if (found) displayName = found.name;
+        }
+
+        this.authenticateUser(enteredEmail || this.OWNER_EMAIL, true, displayName, 'email');
     }
 
     loginAsGuest() {
@@ -127,19 +287,32 @@ class TournamentApp {
             this.switchTournament(tourneySelect.value, false);
         }
 
-        // בשלב ראשון: גם כניסה כאורח מקבלת הרשאות Owner כ-noamsee@gmail.com
-        this.authenticateUser(this.OWNER_EMAIL, true, 'אורח');
+        this.authenticateUser('guest@tournament.local', true, 'אורח', 'guest');
     }
 
-    authenticateUser(email, showNotification = true, typedEmail = null) {
-        // בשלב ראשון: כל כניסה מקבלת הרשאות Owner מלאות (noamsee@gmail.com)
-        const role = 'owner';
-        const displayLabel = typedEmail ? `👑 בעלים (${typedEmail})` : `👑 בעלים (${this.OWNER_EMAIL})`;
+    authenticateUser(email, showNotification = true, displayName = null, provider = 'email') {
+        const cleanEmail = (email || this.OWNER_EMAIL).trim().toLowerCase();
+        let role = 'viewer';
+        let displayLabel = '';
 
-        this.currentUser = { email: this.OWNER_EMAIL, role, displayName: displayLabel };
+        if (cleanEmail === this.OWNER_EMAIL.toLowerCase()) {
+            role = 'owner';
+            displayLabel = displayName ? `👑 בעלים (${displayName})` : `👑 בעלים (${this.OWNER_EMAIL})`;
+        } else if (this.adminsList.some(a => a.email.toLowerCase() === cleanEmail)) {
+            role = 'admin';
+            displayLabel = displayName ? `⚡ מנהל (${displayName})` : `⚡ מנהל (${cleanEmail})`;
+        } else if (provider === 'guest' || cleanEmail.includes('guest')) {
+            role = 'viewer';
+            displayLabel = '👁️ אורח (Guest)';
+        } else {
+            role = 'viewer';
+            displayLabel = displayName ? `👁️ ${displayName}` : `👁️ ${cleanEmail}`;
+        }
+
+        this.currentUser = { email: cleanEmail, role, displayName: displayLabel, provider };
         sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
 
-        this.switchRole('owner');
+        this.switchRole(role);
         this.updateUserSessionUI();
         this.showMainScreen();
 
@@ -147,7 +320,14 @@ class TournamentApp {
         this.renderOwnerTournamentsList();
 
         if (showNotification) {
-            this.showAlert(`ברוך הבא! נכנסת כמנהל על (Owner - noamsee@gmail.com) עם גישה מלאה.`, "success");
+            const providerText = (provider === 'google') ? 'באמצעות Google / Gmail' : '';
+            if (role === 'owner') {
+                this.showAlert(`ברוך הבא! נכנסת כמנהל על (Owner - ${cleanEmail}) ${providerText} עם גישה מלאה.`, "success");
+            } else if (role === 'admin') {
+                this.showAlert(`שלום! נכנסת כמנהל מורשה (Admin - ${cleanEmail}) ${providerText}.`, "success");
+            } else {
+                this.showAlert(`שלום ${displayName || cleanEmail}! נכנסת למערכת הטורניר ${providerText}.`, "info");
+            }
         }
     }
 
@@ -166,7 +346,10 @@ class TournamentApp {
     updateUserSessionUI() {
         const badge = document.getElementById('currentUserBadge');
         if (badge && this.currentUser) {
-            badge.textContent = this.currentUser.displayName;
+            const googleIconHtml = (this.currentUser.provider === 'google') 
+                ? `<svg viewBox="0 0 48 48" width="14" height="14" style="vertical-align:middle; margin-left:4px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>` 
+                : '';
+            badge.innerHTML = `${googleIconHtml}${this.currentUser.displayName}`;
             badge.className = `user-badge user-badge-${this.currentUser.role}`;
         }
     }
@@ -450,6 +633,7 @@ class TournamentApp {
 
     populateTournamentSelectors() {
         const loginSelect = document.getElementById('loginTournamentSelect');
+        const signupSelect = document.getElementById('signupTournamentSelect');
         const headerSelect = document.getElementById('headerTournamentSelect');
         const pickerGroup = document.getElementById('loginTournamentPickerGroup');
 
@@ -465,6 +649,7 @@ class TournamentApp {
         `).join('');
 
         if (loginSelect) loginSelect.innerHTML = optionsHtml;
+        if (signupSelect) signupSelect.innerHTML = optionsHtml;
         if (headerSelect) headerSelect.innerHTML = optionsHtml;
     }
 
