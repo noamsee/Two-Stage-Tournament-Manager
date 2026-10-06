@@ -139,6 +139,11 @@
                     ✨ טורניר חדש
                 </button>
 
+                <!-- כפתור עריכת מבנה טורניר קיים -->
+                <button class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת מבנה הטורניר הנוכחי (סוג, בתים, קבוצות, נקודות)">
+                    ⚙️ ערוך טורניר
+                </button>
+
                 <!-- כפתורי ייצוא -->
                 <button class="btn-csv btn-sm" onclick="app.exportToCSV()" title="הורד גיליון CSV ל-Excel">
                     📊 Excel
@@ -176,9 +181,14 @@
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
                         <h2 id="setup-header-title" style="margin: 0;">הזנת קבוצות הטורניר</h2>
-                        <button type="button" class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()">
-                            ✨ אשף פתיחת טורניר חדש (Wizard)
-                        </button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()">
+                                ⚙️ ערוך מבנה טורניר
+                            </button>
+                            <button type="button" class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()">
+                                ✨ אשף טורניר חדש
+                            </button>
+                        </div>
                     </div>
                     <p id="setup-header-subtitle" class="role-notice admin-editable">מיועד ל-Admin/Owner בלבד. הזן או עדכן את שמות הקבוצות:</p>
                     
@@ -262,25 +272,37 @@
 
             <!-- טאב 3: פלייאוף -->
             <section id="tab-playoffs" class="tab-section hidden">
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                        <h2 id="playoff-header-title">🌳 עץ פלייאוף נוקאאוט</h2>
-                        <div class="actions-bar" style="margin-bottom: 0;">
-                            <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
-                                📊 הורד פלייאוף (CSV)
-                            </button>
-                            <button class="btn-secondary btn-sm admin-editable" onclick="app.simulatePlayoffs()">
-                                🎲 סמלץ משחקי פלייאוף
-                            </button>
-                            <button class="btn-secondary btn-sm admin-editable" onclick="app.resetPlayoffs()">
-                                🔄 אפס תוצאות פלייאוף
-                            </button>
-                        </div>
-                    </div>
-                    <p id="playoff-header-subtitle" class="section-subtitle">שיטת ההצלבות ועץ הנוקאאוט. המנצחות מעפילות אוטומטית לשלב הבא!</p>
+                <!-- הודעת טורניר בתים בלבד (מופיעה כשהטורניר ללא פלייאוף) -->
+                <div id="playoff-groups-only-notice" class="card hidden" style="text-align: center; padding: 36px 16px; margin-bottom: 20px;">
+                    <div style="font-size: 2.2rem; margin-bottom: 8px;">⚽🏆</div>
+                    <h3 style="margin-top: 0; color: #0f172a; font-size: 1.3rem;">טורניר שלב בתים בלבד (ללא פלייאוף)</h3>
+                    <p style="color: #64748b; max-width: 520px; margin: 0 auto 16px auto; line-height: 1.5;">
+                        טורניר זה הוגדר במתכונת שלב בתים בלבד (ללא שלב נוקאאוט). האלופה של כל בית מוכרזת ישירות בטבלת הדירוג על פי נקודות והפרש שערים/סלים!
+                    </p>
+                    <button class="btn-primary" onclick="app.switchTab('group-stage')">⚽ עבור לטבלאות שלב הבתים</button>
+                </div>
 
-                    <div id="playoff-bracket-container" class="bracket-view">
-                        <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
+                <div id="playoff-main-content">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <h2 id="playoff-header-title">🌳 עץ פלייאוף נוקאאוט</h2>
+                            <div class="actions-bar" style="margin-bottom: 0;">
+                                <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
+                                    📊 הורד פלייאוף (CSV)
+                                </button>
+                                <button class="btn-secondary btn-sm admin-editable" onclick="app.simulatePlayoffs()">
+                                    🎲 סמלץ משחקי פלייאוף
+                                </button>
+                                <button class="btn-secondary btn-sm admin-editable" onclick="app.resetPlayoffs()">
+                                    🔄 אפס תוצאות פלייאוף
+                                </button>
+                            </div>
+                        </div>
+                        <p id="playoff-header-subtitle" class="section-subtitle">שיטת ההצלבות ועץ הנוקאאוט. המנצחות מעפילות אוטומטית לשלב הבא!</p>
+
+                        <div id="playoff-bracket-container" class="bracket-view">
+                            <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -517,15 +539,15 @@ git push -u origin main</pre>
         </div>
     </div>
 
-    <!-- מודאל אשף יצירת טורניר דינמי (Tournament Creation Wizard) -->
+    <!-- מודאל אשף יצירת ועריכת טורניר דינמי (Tournament Creation & Edit Wizard) -->
     <div id="new-tournament-wizard-modal" class="modal-overlay hidden">
         <div class="modal-card wizard-modal-card">
             <button class="modal-close-btn" onclick="app.closeTournamentWizard()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 id="wizardModalTitle" style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
                 ✨ אשף הקמת טורניר חדש
             </h2>
-            <p style="font-size:0.9rem; color:#64748b; margin-bottom:14px;">
-                הגדר את מבנה הטורניר באופן דינמי: שלב בתים משולב פלייאוף או טורניר נוקאאוט ישיר, עם שליטה מלאה על כמות הבתים והקבוצות.
+            <p id="wizardModalSubtitle" style="font-size:0.9rem; color:#64748b; margin-bottom:14px;">
+                הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר, עם שליטה מלאה על שיטת הניקוד והדירוג.
             </p>
 
             <form onsubmit="event.preventDefault(); app.submitTournamentWizard();">
@@ -535,60 +557,84 @@ git push -u origin main</pre>
                     <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ 2026" required>
                 </div>
 
-                <!-- שלב 2: סוג המבנה -->
+                <!-- שלב 2: סוג המבנה (3 אפשרויות לבחירה) -->
                 <div class="login-field">
-                    <label>🎯 בחר מבנה טורניר:</label>
+                    <label>🎯 בחר שיטת מבנה לטורניר:</label>
                     <div class="wizard-format-options">
                         <label class="wizard-format-card active" id="cardFormatGroups">
                             <input type="radio" name="wizardFormat" value="groups_and_playoff" checked onchange="app.onWizardFormatChange()">
-                            <div class="wizard-card-icon">⚽ + 🌳</div>
+                            <div class="wizard-card-icon">⚽+🌳</div>
                             <div class="wizard-card-title">בתים + פלייאוף</div>
-                            <div class="wizard-card-desc">שלב בתים Round-Robin ולאחריו הצלבות ופלייאוף נוקאאוט</div>
+                            <div class="wizard-card-desc">שלב בתים Round-Robin ולאחריו הצלבות ונוקאאוט</div>
+                        </label>
+
+                        <label class="wizard-format-card" id="cardFormatGroupsOnly">
+                            <input type="radio" name="wizardFormat" value="groups_only" onchange="app.onWizardFormatChange()">
+                            <div class="wizard-card-icon">⚽</div>
+                            <div class="wizard-card-title">שלב בתים בלבד</div>
+                            <div class="wizard-card-desc">ליגת בתים בלבד (ללא פלייאוף), דירוג ואלופות לפי נקודות והפרש</div>
                         </label>
 
                         <label class="wizard-format-card" id="cardFormatKnockout">
                             <input type="radio" name="wizardFormat" value="knockout_only" onchange="app.onWizardFormatChange()">
                             <div class="wizard-card-icon">⚔️</div>
                             <div class="wizard-card-title">נוקאאוט בלבד</div>
-                            <div class="wizard-card-desc">עץ נוקאאוט ישיר ללא שלב בתים (הפסדת - יצאת)</div>
+                            <div class="wizard-card-desc">עץ נוקאאוט ישיר בלבד ללא שלב בתים</div>
                         </label>
                     </div>
                 </div>
 
-                <!-- הגדרות בתים + פלייאוף -->
+                <!-- הגדרות בתים (משמש עבור בתים + פלייאוף וגם עבור שלב בתים בלבד) -->
                 <div id="wizardGroupsSettings" class="wizard-settings-box">
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                         <div class="login-field">
-                            <label for="wizardNumGroups">🏠 כמות בתים (Houses):</label>
+                            <label for="wizardNumGroups">🏠 כמות בתים:</label>
                             <select id="wizardNumGroups" class="login-input" onchange="app.updateWizardSummary()">
-                                <option value="1">1 בית (בית יחיד)</option>
-                                <option value="2">2 בתים (א', ב')</option>
-                                <option value="3" selected>3 בתים (א', ב', ג')</option>
-                                <option value="4">4 בתים (א', ב', ג', ד')</option>
-                                <option value="5">5 בתים</option>
-                                <option value="6">6 בתים</option>
+                                <option value="1">&rlm;1 - בית יחיד</option>
+                                <option value="2">&rlm;2 - בתים (א', ב')</option>
+                                <option value="3" selected>&rlm;3 - בתים (א', ב', ג')</option>
+                                <option value="4">&rlm;4 - בתים (א', ב', ג', ד')</option>
+                                <option value="5">&rlm;5 - בתים (א' עד ה')</option>
+                                <option value="6">&rlm;6 - בתים (א' עד ו')</option>
                             </select>
                         </div>
 
                         <div class="login-field">
-                            <label for="wizardTeamsPerGroup">👥 קבוצות בכל בית:</label>
+                            <label for="wizardTeamsPerGroup">👥 כמות קבוצות בכל בית:</label>
                             <select id="wizardTeamsPerGroup" class="login-input" onchange="app.updateWizardSummary()">
-                                <option value="3">3 קבוצות בבית</option>
-                                <option value="4">4 קבוצות בבית</option>
-                                <option value="5" selected>5 קבוצות בבית</option>
-                                <option value="6">6 קבוצות בבית</option>
-                                <option value="7">7 קבוצות בבית</option>
-                                <option value="8">8 קבוצות בבית</option>
+                                <option value="2">&rlm;2 קבוצות בכל בית</option>
+                                <option value="3">&rlm;3 קבוצות בכל בית</option>
+                                <option value="4">&rlm;4 קבוצות בכל בית</option>
+                                <option value="5" selected>&rlm;5 קבוצות בכל בית</option>
+                                <option value="6">&rlm;6 קבוצות בכל בית</option>
+                                <option value="7">&rlm;7 קבוצות בכל בית</option>
+                                <option value="8">&rlm;8 קבוצות בכל בית</option>
+                                <option value="9">&rlm;9 קבוצות בכל בית</option>
+                                <option value="10">&rlm;10 קבוצות בכל בית</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="login-field" style="margin-top:10px;">
+                    <!-- שיטת הניקוד: נקודות לניצחון ונקודות לתיקו -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:10px;">
+                        <div class="login-field">
+                            <label for="wizardPointsWin">🥇 נקודות לניצחון במשחק:</label>
+                            <input type="number" id="wizardPointsWin" class="login-input" min="1" max="10" value="3" onchange="app.updateWizardSummary()">
+                        </div>
+                        <div class="login-field">
+                            <label for="wizardPointsDraw">🤝 נקודות לתיקו במשחק:</label>
+                            <input type="number" id="wizardPointsDraw" class="login-input" min="0" max="10" value="1" onchange="app.updateWizardSummary()">
+                        </div>
+                    </div>
+
+                    <!-- גודל עץ הפלייאוף (מוסתר כשהמבנה הוא שלב בתים בלבד) -->
+                    <div id="wizardPlayoffSizeGroup" class="login-field" style="margin-top:10px;">
                         <label for="wizardPlayoffSize">🌳 גודל עץ הפלייאוף (קבוצות עולות):</label>
                         <select id="wizardPlayoffSize" class="login-input" onchange="app.updateWizardSummary()">
-                            <option value="4">4 קבוצות (חצי גמר + גמר)</option>
-                            <option value="8" selected>8 קבוצות (רבע גמר, חצי גמר, גמר)</option>
-                            <option value="16">16 קבוצות (שמינית גמר, רבע גמר, חצי גמר, גמר)</option>
+                            <option value="2">&rlm;2 קבוצות (משחק גמר בלבד)</option>
+                            <option value="4">&rlm;4 קבוצות (חצי גמר וגמר)</option>
+                            <option value="8" selected>&rlm;8 קבוצות (רבע גמר, חצי גמר וגמר)</option>
+                            <option value="16">&rlm;16 קבוצות (שמינית, רבע, חצי וגמר)</option>
                         </select>
                     </div>
                 </div>
@@ -598,9 +644,10 @@ git push -u origin main</pre>
                     <div class="login-field">
                         <label for="wizardKnockoutTeams">👥 כמות קבוצות בעץ הנוקאאוט:</label>
                         <select id="wizardKnockoutTeams" class="login-input" onchange="app.updateWizardSummary()">
-                            <option value="4">4 קבוצות (חצי גמר + משחק גמר)</option>
-                            <option value="8" selected>8 קבוצות (רבע גמר + חצי גמר + גמר)</option>
-                            <option value="16">16 קבוצות (שמינית גמר + רבע גמר + חצי גמר + גמר)</option>
+                            <option value="2">&rlm;2 קבוצות (משחק גמר בלבד)</option>
+                            <option value="4">&rlm;4 קבוצות (חצי גמר + גמר)</option>
+                            <option value="8" selected>&rlm;8 קבוצות (רבע גמר + חצי גמר + גמר)</option>
+                            <option value="16">&rlm;16 קבוצות (שמינית + רבע + חצי + גמר)</option>
                         </select>
                     </div>
                 </div>
@@ -611,7 +658,7 @@ git push -u origin main</pre>
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px;">
-                    <button type="submit" class="btn-primary" style="padding:10px 20px; font-size:1rem; font-weight:800;">
+                    <button type="submit" id="wizardSubmitBtn" class="btn-primary" style="padding:10px 20px; font-size:1rem; font-weight:800;">
                         🚀 צור טורניר והפעל לוח משחקים
                     </button>
                     <button type="button" class="btn-secondary" onclick="app.closeTournamentWizard()">
@@ -623,7 +670,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=2.4"></script>
+    <script src="./app.js?v=2.5"></script>
 </body>
 </html>
 

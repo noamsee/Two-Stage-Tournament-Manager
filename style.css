@@ -1424,22 +1424,26 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .wizard-format-options {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 12px;
     margin-top: 8px;
 }
 
 .wizard-format-card {
-    flex: 1;
     border: 2px solid #cbd5e1;
     border-radius: 12px;
-    padding: 14px 12px;
+    padding: 14px 10px;
     cursor: pointer;
     background: #ffffff;
     transition: all 0.2s ease;
     text-align: center;
     position: relative;
     user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .wizard-format-card input[type="radio"] {
@@ -1493,9 +1497,10 @@ body.role-admin .tab-btn.owner-only {
     margin-top: 16px;
     font-size: 0.9rem;
     color: #166534;
-    text-align: center;
+    text-align: right;
     font-weight: 700;
     line-height: 1.5;
+    direction: rtl;
 }
 
 .btn-edit-user {
@@ -1512,6 +1517,69 @@ body.role-admin .tab-btn.owner-only {
 
 .btn-edit-user:hover {
     background: #dbeafe;
+}
+
+/* יישור מספרים מימין בעברית: תגיות מספר בראש השורה */
+.team-label-rtl {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    direction: rtl !important;
+    text-align: right !important;
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+
+.team-num-prefix {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.8rem;
+    min-width: 28px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+    flex-shrink: 0;
+}
+
+/* תוצאת תיקו במשחק */
+.match-team-row.draw-match {
+    background-color: #f8fafc !important;
+    border-right: 4px solid #94a3b8;
+}
+
+.match-team-row.draw-match .team-name::after {
+    content: " 🤝";
+    font-size: 0.85rem;
+}
+
+/* עמודת נקודות בטבלת הדירוג */
+.standings-table th.pts-th {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 800;
+}
+
+.standings-table td.pts-td {
+    background: #f0f9ff;
+    color: #0369a1;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+/* אלופת הבית (טורניר בתים בלבד) */
+.rank-champion {
+    background: #eab308;
+    color: #ffffff;
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+}
+
+.row-champion {
+    background-color: #fefce8 !important;
 }
 
 

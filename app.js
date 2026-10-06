@@ -1159,14 +1159,21 @@ class TournamentApp {
         this.numGroups = tData.numGroups || (tData.groups ? Object.keys(tData.groups).length : 3);
         this.teamsPerGroup = tData.teamsPerGroup || 5;
         this.playoffSize = tData.playoffSize || 8;
+        this.pointsPerWin = (tData.pointsPerWin !== undefined) ? tData.pointsPerWin : 3;
+        this.pointsPerDraw = (tData.pointsPerDraw !== undefined) ? tData.pointsPerDraw : 1;
         this.teams = tData.teams ? [...tData.teams] : [...this.defaultTeams];
 
         const knockoutNotice = document.getElementById('group-knockout-notice');
         const groupMainContent = document.getElementById('group-stage-main-content');
+        const seedPlayoffsBtn = document.getElementById('btn-seed-playoffs');
+        const playoffGroupsOnlyNotice = document.getElementById('playoff-groups-only-notice');
+        const playoffMainContent = document.getElementById('playoff-main-content');
 
         if (this.format === 'knockout_only') {
             if (knockoutNotice) knockoutNotice.classList.remove('hidden');
             if (groupMainContent) groupMainContent.classList.add('hidden');
+            if (playoffGroupsOnlyNotice) playoffGroupsOnlyNotice.classList.add('hidden');
+            if (playoffMainContent) playoffMainContent.classList.remove('hidden');
 
             this.groups = {};
             this.matches = [];
@@ -1176,9 +1183,33 @@ class TournamentApp {
 
             this.renderTeamInputs();
             this.renderPlayoffBracket();
-        } else {
+        } else if (this.format === 'groups_only') {
             if (knockoutNotice) knockoutNotice.classList.add('hidden');
             if (groupMainContent) groupMainContent.classList.remove('hidden');
+            if (seedPlayoffsBtn) seedPlayoffsBtn.classList.add('hidden');
+            if (playoffGroupsOnlyNotice) playoffGroupsOnlyNotice.classList.remove('hidden');
+            if (playoffMainContent) playoffMainContent.classList.add('hidden');
+
+            if (tData.matches && tData.matches.length > 0) {
+                this.groups = tData.groups || {};
+                this.matches = tData.matches || [];
+                this.standings = tData.standings || {};
+                this.playoffSeeds = [];
+                this.playoffMatches = null;
+                this.renderTeamInputs();
+                this.renderMatches();
+                this.renderStandings();
+            } else {
+                this.renderTeamInputs();
+                this.generateTournamentGroups(false);
+            }
+        } else {
+            // groups_and_playoff
+            if (knockoutNotice) knockoutNotice.classList.add('hidden');
+            if (groupMainContent) groupMainContent.classList.remove('hidden');
+            if (seedPlayoffsBtn) seedPlayoffsBtn.classList.remove('hidden');
+            if (playoffGroupsOnlyNotice) playoffGroupsOnlyNotice.classList.add('hidden');
+            if (playoffMainContent) playoffMainContent.classList.remove('hidden');
 
             if (tData.matches && tData.matches.length > 0) {
                 this.groups = tData.groups || {};
@@ -1220,6 +1251,8 @@ class TournamentApp {
             this.tournaments[idx].numGroups = this.numGroups;
             this.tournaments[idx].teamsPerGroup = this.teamsPerGroup;
             this.tournaments[idx].playoffSize = this.playoffSize;
+            this.tournaments[idx].pointsPerWin = this.pointsPerWin;
+            this.tournaments[idx].pointsPerDraw = this.pointsPerDraw;
             this.tournaments[idx].teams = [...this.teams];
             this.tournaments[idx].groups = this.groups;
             this.tournaments[idx].matches = this.matches;
@@ -1259,24 +1292,74 @@ class TournamentApp {
     }
 
     /* ========================================================
-       אשף פתיחת טורניר דינמי (Dynamic Tournament Wizard)
+       אשף פתיחת ועריכת טורניר דינמי (Dynamic Tournament Wizard)
        ======================================================== */
 
-    openTournamentWizard() {
+    openTournamentWizard(isEdit = false, targetTourneyId = null) {
         if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי לפתוח טורניר חדש!", "error");
+            this.showAlert("רק Owner רשאי להקים או לערוך טורניר!", "error");
             return;
         }
-        const modal = document.getElementById('new-tournament-wizard-modal');
-        const nameInp = document.getElementById('wizardTourneyName');
-        if (nameInp) nameInp.value = `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
 
-        const radGroups = document.querySelector('input[name="wizardFormat"][value="groups_and_playoff"]');
-        if (radGroups) radGroups.checked = true;
+        this.wizardMode = isEdit ? 'edit' : 'create';
+        this.wizardEditingTourneyId = isEdit ? (targetTourneyId || this.activeTournamentId) : null;
+
+        const modal = document.getElementById('new-tournament-wizard-modal');
+        const modalTitle = document.getElementById('wizardModalTitle');
+        const modalSub = document.getElementById('wizardModalSubtitle');
+        const submitBtn = document.getElementById('wizardSubmitBtn');
+        const nameInp = document.getElementById('wizardTourneyName');
+        const numGroupsSelect = document.getElementById('wizardNumGroups');
+        const teamsPerGroupSelect = document.getElementById('wizardTeamsPerGroup');
+        const playoffSizeSelect = document.getElementById('wizardPlayoffSize');
+        const knockoutTeamsSelect = document.getElementById('wizardKnockoutTeams');
+        const pointsWinInp = document.getElementById('wizardPointsWin');
+        const pointsDrawInp = document.getElementById('wizardPointsDraw');
+
+        if (isEdit) {
+            const tourney = this.tournaments.find(t => t.id === this.wizardEditingTourneyId) || this.tournaments.find(t => t.id === this.activeTournamentId);
+            if (!tourney) return;
+
+            if (modalTitle) modalTitle.innerHTML = `⚙️ עריכת מבנה טורניר: ${tourney.name}`;
+            if (modalSub) modalSub.textContent = `באפשרותך לעדכן את סוג המבנה (בתים בלבד, בתים + פלייאוף, או נוקאאוט), לשנות את מספר הקבוצות והבתים, ולקבוע נקודות לניצחון ותיקו. שמות הקבוצות הקיימות יישמרו.`;
+            if (submitBtn) submitBtn.innerHTML = `💾 שמור שינויים ועדכן מבנה טורניר`;
+
+            if (nameInp) nameInp.value = tourney.name;
+            const fmt = tourney.format || 'groups_and_playoff';
+            const rad = document.querySelector(`input[name="wizardFormat"][value="${fmt}"]`);
+            if (rad) rad.checked = true;
+
+            if (numGroupsSelect) numGroupsSelect.value = String(tourney.numGroups || 3);
+            if (teamsPerGroupSelect) teamsPerGroupSelect.value = String(tourney.teamsPerGroup || 5);
+            if (playoffSizeSelect) playoffSizeSelect.value = String(tourney.playoffSize || 8);
+            if (knockoutTeamsSelect) knockoutTeamsSelect.value = String(tourney.teams?.length || 8);
+            if (pointsWinInp) pointsWinInp.value = String(tourney.pointsPerWin !== undefined ? tourney.pointsPerWin : 3);
+            if (pointsDrawInp) pointsDrawInp.value = String(tourney.pointsPerDraw !== undefined ? tourney.pointsPerDraw : 1);
+        } else {
+            if (modalTitle) modalTitle.innerHTML = `✨ אשף הקמת טורניר חדש`;
+            if (modalSub) modalSub.textContent = `הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר, עם שליטה מלאה על שיטת הניקוד והדירוג.`;
+            if (submitBtn) submitBtn.innerHTML = `🚀 צור טורניר והפעל לוח משחקים`;
+
+            if (nameInp) nameInp.value = `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
+            const rad = document.querySelector('input[name="wizardFormat"][value="groups_and_playoff"]');
+            if (rad) rad.checked = true;
+
+            if (numGroupsSelect) numGroupsSelect.value = '3';
+            if (teamsPerGroupSelect) teamsPerGroupSelect.value = '5';
+            if (playoffSizeSelect) playoffSizeSelect.value = '8';
+            if (knockoutTeamsSelect) knockoutTeamsSelect.value = '8';
+            if (pointsWinInp) pointsWinInp.value = '3';
+            if (pointsDrawInp) pointsDrawInp.value = '1';
+        }
+
         this.onWizardFormatChange();
         this.updateWizardSummary();
 
         if (modal) modal.classList.remove('hidden');
+    }
+
+    openEditTournamentModal(tourneyId = null) {
+        this.openTournamentWizard(true, tourneyId);
     }
 
     closeTournamentWizard() {
@@ -1289,21 +1372,30 @@ class TournamentApp {
         const format = radFormat ? radFormat.value : 'groups_and_playoff';
 
         const cardGroups = document.getElementById('cardFormatGroups');
+        const cardGroupsOnly = document.getElementById('cardFormatGroupsOnly');
         const cardKnockout = document.getElementById('cardFormatKnockout');
         const boxGroups = document.getElementById('wizardGroupsSettings');
         const boxKnockout = document.getElementById('wizardKnockoutSettings');
+        const playoffSizeGroup = document.getElementById('wizardPlayoffSizeGroup');
 
-        if (format === 'groups_and_playoff') {
-            if (cardGroups) cardGroups.classList.add('active');
-            if (cardKnockout) cardKnockout.classList.remove('active');
-            if (boxGroups) boxGroups.classList.remove('hidden');
-            if (boxKnockout) boxKnockout.classList.add('hidden');
-        } else {
-            if (cardGroups) cardGroups.classList.remove('active');
-            if (cardKnockout) cardKnockout.classList.add('active');
+        if (cardGroups) cardGroups.classList.toggle('active', format === 'groups_and_playoff');
+        if (cardGroupsOnly) cardGroupsOnly.classList.toggle('active', format === 'groups_only');
+        if (cardKnockout) cardKnockout.classList.toggle('active', format === 'knockout_only');
+
+        if (format === 'knockout_only') {
             if (boxGroups) boxGroups.classList.add('hidden');
             if (boxKnockout) boxKnockout.classList.remove('hidden');
+        } else if (format === 'groups_only') {
+            if (boxGroups) boxGroups.classList.remove('hidden');
+            if (boxKnockout) boxKnockout.classList.add('hidden');
+            if (playoffSizeGroup) playoffSizeGroup.classList.add('hidden');
+        } else {
+            // groups_and_playoff
+            if (boxGroups) boxGroups.classList.remove('hidden');
+            if (boxKnockout) boxKnockout.classList.add('hidden');
+            if (playoffSizeGroup) playoffSizeGroup.classList.remove('hidden');
         }
+
         this.updateWizardSummary();
     }
 
@@ -1313,7 +1405,22 @@ class TournamentApp {
         const summaryBox = document.getElementById('wizardSummaryBox');
         if (!summaryBox) return;
 
-        if (format === 'groups_and_playoff') {
+        const pointsWin = parseInt(document.getElementById('wizardPointsWin')?.value || '3', 10);
+        const pointsDraw = parseInt(document.getElementById('wizardPointsDraw')?.value || '1', 10);
+
+        if (format === 'groups_only') {
+            const numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
+            const teamsPerGroup = parseInt(document.getElementById('wizardTeamsPerGroup')?.value || '5', 10);
+            const totalTeams = numGroups * teamsPerGroup;
+            const matchesPerGroup = (teamsPerGroup * (teamsPerGroup - 1)) / 2;
+            const totalGroupMatches = numGroups * matchesPerGroup;
+
+            summaryBox.innerHTML = `
+                📊 <strong>סיכום מבנה הטורניר:</strong> <bdi>${totalTeams}</bdi> קבוצות (<bdi>${numGroups}</bdi> בתים של <bdi>${teamsPerGroup}</bdi> קבוצות) | 
+                ⚽ <bdi>${totalGroupMatches}</bdi> משחקים (ללא פלייאוף) | 
+                🥇 <bdi>${pointsWin}</bdi> נק' לניצחון, 🤝 <bdi>${pointsDraw}</bdi> נק' לתיקו (הדירוג והאלופה נקבעים לפי נקודות והפרש שערים)
+            `;
+        } else if (format === 'groups_and_playoff') {
             const numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
             const teamsPerGroup = parseInt(document.getElementById('wizardTeamsPerGroup')?.value || '5', 10);
             const playoffSize = parseInt(document.getElementById('wizardPlayoffSize')?.value || '8', 10);
@@ -1321,56 +1428,92 @@ class TournamentApp {
             const matchesPerGroup = (teamsPerGroup * (teamsPerGroup - 1)) / 2;
             const totalGroupMatches = numGroups * matchesPerGroup;
 
+            const playoffDesc = (playoffSize === 2) ? 'משחק גמר בלבד' :
+                                (playoffSize === 4) ? 'חצי גמר וגמר' :
+                                (playoffSize === 8) ? 'רבע גמר, חצי גמר וגמר' : 'שמינית, רבע, חצי וגמר';
+
             summaryBox.innerHTML = `
-                📊 <strong>סיכום מבנה הטורניר:</strong> ${totalTeams} קבוצות (${numGroups} בתים של ${teamsPerGroup} קבוצות) | 
-                ⚽ ${totalGroupMatches} משחקים בשלב הבתים (${matchesPerGroup} משחקים לכל בית) | 
-                🌳 ${playoffSize} עולות לפלייאוף (${playoffSize === 4 ? 'חצי גמר וגמר' : playoffSize === 8 ? 'רבע גמר, חצי גמר וגמר' : 'שמינית, רבע, חצי וגמר'})
+                📊 <strong>סיכום מבנה הטורניר:</strong> <bdi>${totalTeams}</bdi> קבוצות (<bdi>${numGroups}</bdi> בתים של <bdi>${teamsPerGroup}</bdi> קבוצות) | 
+                ⚽ <bdi>${totalGroupMatches}</bdi> משחקים בשלב הבתים | 
+                🌳 <bdi>${playoffSize}</bdi> עולות לפלייאוף (${playoffDesc}) | 
+                🥇 <bdi>${pointsWin}</bdi> נק' לניצחון, 🤝 <bdi>${pointsDraw}</bdi> לתיקו
             `;
         } else {
             const totalTeams = parseInt(document.getElementById('wizardKnockoutTeams')?.value || '8', 10);
             const totalMatches = totalTeams - 1;
-            const roundStart = totalTeams === 4 ? 'חצי גמר' : totalTeams === 8 ? 'רבע גמר' : 'שמינית גמר';
+            const roundStart = (totalTeams === 2) ? 'משחק גמר ישיר' :
+                               (totalTeams === 4) ? 'חצי גמר' :
+                               (totalTeams === 8) ? 'רבע גמר' : 'שמינית גמר';
             summaryBox.innerHTML = `
-                ⚔️ <strong>סיכום מבנה הטורניר:</strong> נוקאאוט ישיר ל-${totalTeams} קבוצות (ללא שלב בתים) | 
-                סה"כ ${totalMatches} משחקי נוקאאוט עד להכרעת האלופה (מתחיל מ-${roundStart})
+                ⚔️ <strong>סיכום מבנה הטורניר:</strong> נוקאאוט ישיר ל-<bdi>${totalTeams}</bdi> קבוצות (ללא שלב בתים) | 
+                סה"כ <bdi>${totalMatches}</bdi> משחקי נוקאאוט עד להכרעת האלופה (מתחיל מ-${roundStart})
             `;
         }
     }
 
     submitTournamentWizard() {
         if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי להקים טורניר חדש!", "error");
+            this.showAlert("רק Owner רשאי להקים או לערוך טורניר!", "error");
             return;
         }
+
+        const isEdit = (this.wizardMode === 'edit');
+        const targetId = isEdit ? (this.wizardEditingTourneyId || this.activeTournamentId) : `tourney_${Date.now()}`;
+        const existingTourney = isEdit ? this.tournaments.find(t => t.id === targetId) : null;
 
         const nameInp = document.getElementById('wizardTourneyName');
         const tourneyName = (nameInp && nameInp.value.trim()) ? nameInp.value.trim() : `טורניר ${new Date().toLocaleDateString('he-IL')}`;
 
         const radFormat = document.querySelector('input[name="wizardFormat"]:checked');
         const format = radFormat ? radFormat.value : 'groups_and_playoff';
+        const pointsPerWin = parseInt(document.getElementById('wizardPointsWin')?.value || '3', 10);
+        const pointsPerDraw = parseInt(document.getElementById('wizardPointsDraw')?.value || '1', 10);
 
-        const newId = `tourney_${Date.now()}`;
-        let newTournament = null;
+        let totalTeams = 0;
+        let numGroups = 0;
+        let teamsPerGroup = 0;
+        let playoffSize = 0;
 
-        if (format === 'groups_and_playoff') {
-            const numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
-            const teamsPerGroup = parseInt(document.getElementById('wizardTeamsPerGroup')?.value || '5', 10);
-            const playoffSize = parseInt(document.getElementById('wizardPlayoffSize')?.value || '8', 10);
-            const totalTeams = numGroups * teamsPerGroup;
+        if (format === 'knockout_only') {
+            totalTeams = parseInt(document.getElementById('wizardKnockoutTeams')?.value || '8', 10);
+            playoffSize = totalTeams;
+        } else {
+            numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
+            teamsPerGroup = parseInt(document.getElementById('wizardTeamsPerGroup')?.value || '5', 10);
+            totalTeams = numGroups * teamsPerGroup;
+            playoffSize = (format === 'groups_only') ? 0 : parseInt(document.getElementById('wizardPlayoffSize')?.value || '8', 10);
+        }
 
-            const teams = [];
-            for (let i = 0; i < totalTeams; i++) {
-                if (i < this.defaultTeams.length) {
-                    teams.push(this.defaultTeams[i]);
-                } else {
-                    teams.push(`קבוצה ${i + 1}`);
-                }
+        // שימור שמות קבוצות קיימות
+        const prevTeams = (isEdit && existingTourney?.teams) ? existingTourney.teams : (this.teams || []);
+        const teams = [];
+        for (let i = 0; i < totalTeams; i++) {
+            if (i < prevTeams.length && prevTeams[i]) {
+                teams.push(prevTeams[i]);
+            } else if (i < this.defaultTeams.length) {
+                teams.push(this.defaultTeams[i]);
+            } else {
+                teams.push(`קבוצה ${i + 1}`);
             }
+        }
 
+        let groups = {};
+        let standings = {};
+        let matches = [];
+        let playoffSeeds = [];
+        let playoffMatches = null;
+
+        if (format === 'knockout_only') {
+            playoffSeeds = teams.map((name, i) => ({
+                seed: i + 1,
+                teamIndex: i,
+                teamName: name,
+                origin: `מדורגת #${i + 1}`,
+                wins: 0, pointDiff: 0, pts: 0
+            }));
+            playoffMatches = this.buildInitialKnockoutBracket(playoffSeeds, totalTeams);
+        } else {
             const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            const groups = {};
-            const standings = {};
-
             for (let g = 0; g < numGroups; g++) {
                 const grpKey = `Group ${groupLetters[g]}`;
                 const startIndex = g * teamsPerGroup;
@@ -1384,84 +1527,63 @@ class TournamentApp {
                     teamIndex: item.index,
                     teamName: teams[item.index],
                     group: grpKey,
-                    played: 0, wins: 0, losses: 0,
+                    played: 0, wins: 0, draws: 0, losses: 0,
                     pointsFor: 0, pointsAgainst: 0, pointDiff: 0,
-                    groupRank: 0
+                    pts: 0, groupRank: 0
                 }));
             }
-
-            const matches = this.generateDynamicRoundRobin(groups, teams, teamsPerGroup);
-
-            newTournament = {
-                id: newId,
-                name: `${tourneyName} (פעיל)`,
-                format: 'groups_and_playoff',
-                numGroups,
-                teamsPerGroup,
-                playoffSize,
-                createdAt: new Date().toLocaleDateString('he-IL'),
-                isArchived: false,
-                teams,
-                groups,
-                matches,
-                standings,
-                playoffSeeds: [],
-                playoffMatches: this.createEmptyPlayoffMatches(playoffSize)
-            };
-        } else {
-            const totalTeams = parseInt(document.getElementById('wizardKnockoutTeams')?.value || '8', 10);
-            const teams = [];
-            for (let i = 0; i < totalTeams; i++) {
-                if (i < this.defaultTeams.length) {
-                    teams.push(this.defaultTeams[i]);
-                } else {
-                    teams.push(`קבוצה ${i + 1}`);
-                }
+            matches = this.generateDynamicRoundRobin(groups, teams, teamsPerGroup);
+            if (format === 'groups_and_playoff') {
+                playoffMatches = this.createEmptyPlayoffMatches(playoffSize);
             }
-
-            const playoffSeeds = teams.map((name, i) => ({
-                seed: i + 1,
-                teamIndex: i,
-                teamName: name,
-                origin: `מדורגת #${i + 1}`,
-                wins: 0, pointDiff: 0
-            }));
-
-            const playoffMatches = this.buildInitialKnockoutBracket(playoffSeeds, totalTeams);
-
-            newTournament = {
-                id: newId,
-                name: `${tourneyName} (נוקאאוט)`,
-                format: 'knockout_only',
-                numGroups: 0,
-                teamsPerGroup: 0,
-                playoffSize: totalTeams,
-                createdAt: new Date().toLocaleDateString('he-IL'),
-                isArchived: false,
-                teams,
-                groups: {},
-                matches: [],
-                standings: {},
-                playoffSeeds,
-                playoffMatches
-            };
         }
 
-        this.saveActiveTournamentData();
-        this.tournaments.unshift(newTournament);
-        this.saveTournamentsList();
+        let tournamentObj = {
+            id: targetId,
+            name: tourneyName,
+            format,
+            numGroups,
+            teamsPerGroup,
+            playoffSize,
+            pointsPerWin,
+            pointsPerDraw,
+            createdAt: existingTourney?.createdAt || new Date().toLocaleDateString('he-IL'),
+            isArchived: existingTourney?.isArchived || false,
+            teams,
+            groups,
+            matches,
+            standings,
+            playoffSeeds,
+            playoffMatches
+        };
 
+        if (isEdit) {
+            const idx = this.tournaments.findIndex(t => t.id === targetId);
+            if (idx !== -1) {
+                this.tournaments[idx] = tournamentObj;
+            }
+        } else {
+            this.saveActiveTournamentData();
+            this.tournaments.unshift(tournamentObj);
+        }
+
+        this.saveTournamentsList();
         this.closeTournamentWizard();
-        this.activeTournamentId = newId;
-        this.loadTournamentData(newId);
+        this.activeTournamentId = targetId;
+        this.loadTournamentData(targetId);
+        this.populateTournamentSelectors();
         this.renderOwnerTournamentsList();
 
         if (format === 'knockout_only') {
             this.switchTab('playoffs');
-            this.showAlert(`טורניר הנוקאאוט '${tourneyName}' הוקם בהצלחה! שובצו ${newTournament.teams.length} קבוצות בעץ הפלייאוף.`, "success");
         } else {
             this.switchTab('setup');
-            this.showAlert(`הטורניר '${tourneyName}' הוקם בהצלחה עם ${newTournament.teams.length} קבוצות ב-${newTournament.numGroups} בתים!`, "success");
+        }
+
+        if (isEdit) {
+            this.showAlert(`מבנה הטורניר '${tourneyName}' עודכן בהצלחה! (${teams.length} קבוצות)`, "success");
+        } else {
+            this.showAlert(`הטורניר '${tourneyName}' הוקם בהצלחה עם ${teams.length} קבוצות!`, "success");
         }
     }
 
@@ -1520,6 +1642,17 @@ class TournamentApp {
 
     buildInitialKnockoutBracket(playoffSeeds, totalTeams) {
         const getSeed = (num) => playoffSeeds.find(s => s.seed === num) || null;
+
+        if (totalTeams === 2) {
+            return {
+                final: {
+                    id: 'final', roundName: '🏆 משחק הגמר',
+                    seed1: 1, seed2: 2,
+                    team1: getSeed(1), team2: getSeed(2),
+                    score1: null, score2: null, winner: null
+                }
+            };
+        }
 
         if (totalTeams === 4) {
             return {
@@ -1673,6 +1806,8 @@ class TournamentApp {
                     ${this.tournaments.map(t => {
                         const fmtBadge = (t.format === 'knockout_only') 
                             ? `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚔️ נוקאאוט</span>`
+                            : (t.format === 'groups_only')
+                            ? `<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚽ בתים בלבד</span>`
                             : `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚽ בתים + פלייאוף</span>`;
 
                         return `
@@ -1686,9 +1821,14 @@ class TournamentApp {
                                 </td>
                                 <td style="color:#64748b; font-size:0.85rem;">${t.createdAt || '-'}</td>
                                 <td style="text-align:center;">
-                                    <button class="btn-secondary btn-sm" onclick="app.switchTournament('${t.id}')">
-                                        ${t.id === this.activeTournamentId ? '✅ פעיל כעת' : 'צפה בטורניר'}
-                                    </button>
+                                    <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
+                                        <button class="btn-secondary btn-sm" onclick="app.switchTournament('${t.id}')">
+                                            ${t.id === this.activeTournamentId ? '✅ פעיל כעת' : 'צפה בטורניר'}
+                                        </button>
+                                        <button class="btn-edit-user btn-sm" onclick="app.openEditTournamentModal('${t.id}')" title="עריכת מבנה טורניר">
+                                            ⚙️ ערוך
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         `;
@@ -1755,7 +1895,10 @@ class TournamentApp {
                 const div = document.createElement('div');
                 div.className = 'team-input-group';
                 div.innerHTML = `
-                    <label>קבוצה מדורגת #${index + 1}</label>
+                    <label class="team-label-rtl">
+                        <span class="team-num-prefix">${index + 1}</span>
+                        <span>קבוצה מדורגת #${index + 1}</span>
+                    </label>
                     <input type="text" value="${teamName}" data-index="${index}" 
                            onchange="app.updateTeamName(${index}, this.value)"
                            placeholder="הזן שם קבוצה">
@@ -1779,7 +1922,10 @@ class TournamentApp {
                 const div = document.createElement('div');
                 div.className = 'team-input-group';
                 div.innerHTML = `
-                    <label>בית ${groupHe} - קבוצה ${posInGroup}</label>
+                    <label class="team-label-rtl">
+                        <span class="team-num-prefix">${index + 1}</span>
+                        <span>בית ${groupHe} - קבוצה ${posInGroup}</span>
+                    </label>
                     <input type="text" value="${teamName}" data-index="${index}" 
                            onchange="app.updateTeamName(${index}, this.value)"
                            placeholder="הזן שם קבוצה">
@@ -2022,16 +2168,10 @@ class TournamentApp {
 
         if (match.score1 !== null && match.score2 !== null) {
             if (match.score1 === match.score2) {
-                this.showAlert("⚠️ חוק הטורניר: חל איסור מוחלט על תוצאת תיקו! יש להכריע את המשחק.", "error");
-                inputElement.value = '';
-                if (teamNum === 1) match.score1 = null;
-                else match.score2 = null;
-                match.winner = null;
-                this.updateMatchRowWinners(match);
-                this.calculateStandings();
-                return;
+                match.winner = 'draw';
+            } else {
+                match.winner = (match.score1 > match.score2) ? 'team1' : 'team2';
             }
-            match.winner = (match.score1 > match.score2) ? 'team1' : 'team2';
         } else {
             match.winner = null;
         }
@@ -2045,10 +2185,16 @@ class TournamentApp {
         const row1 = document.getElementById(`row-${match.id}-1`);
         const row2 = document.getElementById(`row-${match.id}-2`);
         if (row1 && row2) {
-            row1.classList.remove('winner');
-            row2.classList.remove('winner');
-            if (match.winner === 'team1') row1.classList.add('winner');
-            else if (match.winner === 'team2') row2.classList.add('winner');
+            row1.classList.remove('winner', 'draw-match');
+            row2.classList.remove('winner', 'draw-match');
+            if (match.winner === 'team1') {
+                row1.classList.add('winner');
+            } else if (match.winner === 'team2') {
+                row2.classList.add('winner');
+            } else if (match.winner === 'draw') {
+                row1.classList.add('draw-match');
+                row2.classList.add('draw-match');
+            }
         }
     }
 
@@ -2065,6 +2211,8 @@ class TournamentApp {
         };
 
         const calculatedStandings = {};
+        const ptsWin = (this.pointsPerWin !== undefined) ? this.pointsPerWin : 3;
+        const ptsDraw = (this.pointsPerDraw !== undefined) ? this.pointsPerDraw : 1;
 
         Object.keys(this.groups).forEach(grpKey => {
             const teamsInGroup = this.groups[grpKey] || [];
@@ -2072,8 +2220,14 @@ class TournamentApp {
                 teamIndex: t.index,
                 teamName: this.teams[t.index],
                 group: grpKey,
-                played: 0, wins: 0, losses: 0,
-                pointsFor: 0, pointsAgainst: 0, pointDiff: 0
+                played: 0,
+                wins: 0,
+                draws: 0,
+                losses: 0,
+                pointsFor: 0,
+                pointsAgainst: 0,
+                pointDiff: 0,
+                pts: 0
             }));
 
             const groupMatches = this.matches.filter(m => m.groupId === grpKey);
@@ -2085,18 +2239,32 @@ class TournamentApp {
                         t1.played++; t2.played++;
                         t1.pointsFor += m.score1; t1.pointsAgainst += m.score2;
                         t2.pointsFor += m.score2; t2.pointsAgainst += m.score1;
-                        if (m.winner === 'team1') { t1.wins++; t2.losses++; }
-                        else if (m.winner === 'team2') { t2.wins++; t1.losses++; }
+                        if (m.winner === 'team1') {
+                            t1.wins++;
+                            t1.pts += ptsWin;
+                            t2.losses++;
+                        } else if (m.winner === 'team2') {
+                            t2.wins++;
+                            t2.pts += ptsWin;
+                            t1.losses++;
+                        } else if (m.winner === 'draw') {
+                            t1.draws++;
+                            t2.draws++;
+                            t1.pts += ptsDraw;
+                            t2.pts += ptsDraw;
+                        }
                     }
                 }
             });
 
             stats.forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
 
+            // שובר שוויון מדויק לפי דרישת המשתמש: נקודות -> הפרש שערים -> זכות -> ניצחונות
             stats.sort((a, b) => {
-                if (b.wins !== a.wins) return b.wins - a.wins;
+                if (b.pts !== a.pts) return b.pts - a.pts;
                 if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
                 if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
+                if (b.wins !== a.wins) return b.wins - a.wins;
                 return a.teamName.localeCompare(b.teamName);
             });
 
@@ -2111,6 +2279,21 @@ class TournamentApp {
     renderStandings(groupHeaders) {
         const container = document.getElementById('group-standings-container');
         if (!container) return;
+
+        // עדכון מקרא הטבלה בהתאם לסוג הטורניר
+        const legendContainer = document.querySelector('.standings-legend');
+        if (legendContainer) {
+            if (this.format === 'groups_only') {
+                legendContainer.innerHTML = `
+                    <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #eab308;"></span> 🏆 מקום 1 (אלופת הבית המובילה בדירוג)</span>
+                `;
+            } else {
+                legendContainer.innerHTML = `
+                    <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה (מקומות 1-2)</span>
+                    <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #f59e0b;"></span> מועמד (מקום 3 הטוב ביותר)</span>
+                `;
+            }
+        }
 
         const headers = groupHeaders || {
             'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
@@ -2133,26 +2316,38 @@ class TournamentApp {
                         <table class="standings-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 34px;">מיקום</th>
+                                    <th style="width: 42px;">מיקום</th>
                                     <th style="text-align: right; padding-right: 10px;">קבוצה</th>
                                     <th>מש'</th>
-                                    <th>ניצחונות</th>
-                                    <th>הפסדים</th>
+                                    <th>ניצ'</th>
+                                    <th>תיקו</th>
+                                    <th>הפ'</th>
                                     <th>זכות</th>
                                     <th>חובה</th>
                                     <th>הפרש</th>
+                                    <th class="pts-th">נק'</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${teams.map(t => {
                                     let rowClass = '';
                                     let rankClass = 'rank-out';
-                                    if (t.groupRank <= 2) {
-                                        rowClass = 'row-direct-qualify';
-                                        rankClass = 'rank-top';
-                                    } else if (t.groupRank === 3) {
-                                        rowClass = 'row-candidate-qualify';
-                                        rankClass = 'rank-third';
+                                    let rankDisplay = `${t.groupRank}`;
+
+                                    if (this.format === 'groups_only') {
+                                        if (t.groupRank === 1) {
+                                            rowClass = 'row-champion';
+                                            rankClass = 'rank-champion';
+                                            rankDisplay = `🏆 1`;
+                                        }
+                                    } else {
+                                        if (t.groupRank <= 2) {
+                                            rowClass = 'row-direct-qualify';
+                                            rankClass = 'rank-top';
+                                        } else if (t.groupRank === 3) {
+                                            rowClass = 'row-candidate-qualify';
+                                            rankClass = 'rank-third';
+                                        }
                                     }
 
                                     let diffClass = 'diff-zero';
@@ -2166,14 +2361,16 @@ class TournamentApp {
 
                                     return `
                                         <tr class="${rowClass}">
-                                            <td><span class="rank-indicator ${rankClass}">${t.groupRank}</span></td>
+                                            <td><span class="rank-indicator ${rankClass}">${rankDisplay}</span></td>
                                             <td class="team-cell" title="${t.teamName}">${t.teamName}</td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
+                                            <td style="color:#475569; font-weight:700;">${t.draws || 0}</td>
                                             <td style="color:#dc2626;">${t.losses}</td>
                                             <td>${t.pointsFor}</td>
                                             <td>${t.pointsAgainst}</td>
                                             <td class="${diffClass}">${diffStr}</td>
+                                            <td class="pts-td">${t.pts}</td>
                                         </tr>
                                     `;
                                 }).join('')}
@@ -2207,9 +2404,10 @@ class TournamentApp {
         };
 
         const sortPerformance = (a, b) => {
-            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.pts !== a.pts) return b.pts - a.pts;
             if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
             if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
+            if (b.wins !== a.wins) return b.wins - a.wins;
             return a.teamName.localeCompare(b.teamName);
         };
 
@@ -2472,16 +2670,21 @@ class TournamentApp {
         this.matches.forEach(m => {
             let s1 = 60 + Math.floor(Math.random() * 40);
             let s2 = 60 + Math.floor(Math.random() * 40);
-            if (s1 === s2) s1 += 2;
+            // אפשרות של כ-20% לתוצאת תיקו לבדיקת שיטת הניקוד ושוברי השוויון
+            if (Math.random() < 0.2) s2 = s1;
             m.score1 = s1;
             m.score2 = s2;
-            m.winner = s1 > s2 ? 'team1' : 'team2';
+            if (s1 === s2) {
+                m.winner = 'draw';
+            } else {
+                m.winner = s1 > s2 ? 'team1' : 'team2';
+            }
         });
 
         this.renderMatches();
         this.calculateStandings();
         this.saveActiveTournamentData();
-        this.showAlert(`הוזנו תוצאות לדוגמה לכל ${this.matches.length} המשחקים ללא תוצאות תיקו!`, "success");
+        this.showAlert(`הוזנו תוצאות לדוגמה לכל ${this.matches.length} המשחקים!`, "success");
     }
 
     resetAllScores() {
@@ -2571,10 +2774,12 @@ class TournamentApp {
         };
 
         const rows = [];
-        rows.push([escapeCSV("🏆 מנהל טורניר דו-שלבי - נתוני טורניר וטבלאות דירוג")]);
+        rows.push([escapeCSV("🏆 מנהל טורניר - נתוני טורניר וטבלאות דירוג")]);
         const currentTourney = this.tournaments.find(t => t.id === this.activeTournamentId);
         rows.push([escapeCSV("שם טורניר"), escapeCSV(currentTourney?.name || "טורניר פעיל")]);
-        rows.push([escapeCSV("מבנה טורניר"), escapeCSV(currentTourney?.format === 'knockout_only' ? 'נוקאאוט בלבד' : 'בתים + פלייאוף')]);
+        const formatLabel = (this.format === 'knockout_only') ? 'נוקאאוט בלבד' :
+                            (this.format === 'groups_only') ? 'שלב בתים בלבד' : 'בתים + פלייאוף';
+        rows.push([escapeCSV("מבנה טורניר"), escapeCSV(formatLabel)]);
         rows.push([escapeCSV("תאריך הפקה"), escapeCSV(new Date().toLocaleString('he-IL'))]);
         rows.push([]);
 
@@ -2582,20 +2787,24 @@ class TournamentApp {
             rows.push([escapeCSV("=== טבלאות דירוג שלב הבתים ===")]);
             rows.push([
                 escapeCSV("בית"), escapeCSV("מיקום"), escapeCSV("קבוצה"),
-                escapeCSV("משחקים שוחקו"), escapeCSV("ניצחונות"), escapeCSV("הפסדים"),
+                escapeCSV("משחקים שוחקו"), escapeCSV("ניצחונות"), escapeCSV("תיקו"), escapeCSV("הפסדים"),
                 escapeCSV("נקודות זכות"), escapeCSV("נקודות חובה"), escapeCSV("הפרש נקודות"),
-                escapeCSV("סטטוס העפלה")
+                escapeCSV("נקודות ליגה"), escapeCSV("סטטוס")
             ]);
 
             const groupLabels = { 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'", 'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'" };
             for (const [grpKey, stats] of Object.entries(this.standings)) {
                 stats.forEach(s => {
-                    let statusText = s.groupRank <= 2 ? "עולה ישירה (Top 2)" : s.groupRank === 3 ? "מועמדת לעלייה (מקום 3)" : "הודחה";
+                    let statusText = (this.format === 'groups_only')
+                        ? (s.groupRank === 1 ? "🏆 אלופת הבית (מקום 1)" : `מקום ${s.groupRank}`)
+                        : (s.groupRank <= 2 ? "עולה ישירה (Top 2)" : s.groupRank === 3 ? "מועמדת לעלייה (מקום 3)" : "הודחה");
+
                     rows.push([
                         escapeCSV(groupLabels[grpKey] || grpKey), escapeCSV(s.groupRank), escapeCSV(s.teamName),
-                        escapeCSV(s.played), escapeCSV(s.wins), escapeCSV(s.losses),
+                        escapeCSV(s.played), escapeCSV(s.wins), escapeCSV(s.draws || 0), escapeCSV(s.losses),
                         escapeCSV(s.pointsFor), escapeCSV(s.pointsAgainst),
                         escapeCSV(s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff),
+                        escapeCSV(s.pts || 0),
                         escapeCSV(statusText)
                     ]);
                 });
@@ -2616,7 +2825,11 @@ class TournamentApp {
                 let winnerStr = "";
                 let statusStr = "טרם שוחק";
                 if (hasScores && m.winner) {
-                    winnerStr = m.winner === 'team1' ? m.team1Name : m.team2Name;
+                    if (m.winner === 'draw') {
+                        winnerStr = "תיקו 🤝";
+                    } else {
+                        winnerStr = m.winner === 'team1' ? m.team1Name : m.team2Name;
+                    }
                     statusStr = "הסתיים";
                 }
                 rows.push([
