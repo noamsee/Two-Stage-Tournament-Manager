@@ -13,6 +13,7 @@
 
 class TournamentApp {
     constructor() {
+        this.GOOGLE_CLIENT_ID = "567782172017-trcbislv7ln6aunie8islslkgitl3g96.apps.googleusercontent.com";
         this.OWNER_EMAIL = "noamsee@gmail.com";
         this.currentRole = 'viewer';
         this.currentUser = null;
@@ -69,8 +70,104 @@ class TournamentApp {
             loginEmail.readOnly = false;
         }
 
+        // אתחול Google Identity Services (Sign-In with Google)
+        this.initGoogleIdentityServices();
+
         // הצגת מסך הלוגין כברירת מחדל
         this.showLoginScreen();
+    }
+
+    initGoogleIdentityServices() {
+        const checkGoogleScript = () => {
+            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                try {
+                    google.accounts.id.initialize({
+                        client_id: this.GOOGLE_CLIENT_ID,
+                        callback: (response) => this.handleGoogleCredentialResponse(response),
+                        auto_select: false,
+                        cancel_on_tap_outside: true
+                    });
+
+                    // רינדור כפתור Google Sign-In רשמי במיכל הייעודי
+                    const container = document.getElementById('g_id_signin_container');
+                    if (container) {
+                        google.accounts.id.renderButton(container, {
+                            theme: 'outline',
+                            size: 'large',
+                            type: 'standard',
+                            text: 'signin_with',
+                            shape: 'rectangular',
+                            logo_alignment: 'left',
+                            width: 320
+                        });
+                    }
+
+                    // הצגת One Tap למשתמש
+                    google.accounts.id.prompt();
+                } catch (err) {
+                    console.warn('[GIS] Error initializing Google Sign-In:', err);
+                }
+            } else {
+                setTimeout(checkGoogleScript, 200);
+            }
+        };
+        checkGoogleScript();
+    }
+
+    handleGoogleCredentialResponse(response) {
+        if (!response || !response.credential) {
+            this.showAlert("שגיאה בקבלת אימות מ-Google.", "error");
+            return;
+        }
+
+        try {
+            // פענוח ה-JWT ID Token ישירות בדפדפן
+            const base64Url = response.credential.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            const payload = JSON.parse(jsonPayload);
+            const email = (payload.email || '').toLowerCase();
+            const name = payload.name || payload.given_name || email.split('@')[0];
+            const picture = payload.picture || '';
+
+            if (!email) {
+                this.showAlert("לא התקבלה כתובת אימייל מאומתת מחשבון Google.", "error");
+                return;
+            }
+
+            // סגירת המודאל אם היה פתוח
+            this.closeGoogleAuthModal();
+
+            this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google (${email})`, "success");
+            this.authenticateUser(email, true, name, 'google');
+
+            // שמירת תמונת הפרופיל של Google ב-currentUser
+            if (this.currentUser && picture) {
+                this.currentUser.picture = picture;
+                sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
+                this.updateUserSessionUI();
+            }
+        } catch (err) {
+            console.error('[GIS] Failed to parse Google credential:', err);
+            this.showAlert("שגיאה בפענוח אימות Google.", "error");
+        }
+    }
+
+    triggerRealGoogleSignIn() {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            // בדיקה האם ניתן לפתוח את One Tap / בחירת חשבון ישירות
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    // אם ה-One Tap נחסם (למשל עוגיות צד שלישי או חוסם פרסומות), נפתח את המודאל הידידותי
+                    this.openGoogleAuthModal();
+                }
+            });
+        } else {
+            this.openGoogleAuthModal();
+        }
     }
 
     /* ========================================================
