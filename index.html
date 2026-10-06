@@ -180,6 +180,22 @@
             <button class="tab-btn owner-only" onclick="app.switchTab('users')">👥 ניהול מערכת (Owner)</button>
         </nav>
 
+        <!-- סרגל כפתורי פעולה עליון: בנה, מלא תוצאות, אפס, ונעל שלב בתים ושבץ פלייאוף -->
+        <div class="top-action-toolbar admin-editable">
+            <button type="button" class="btn-primary btn-sm" onclick="app.generateTournamentGroups()" title="בנה / ייצר לוח משחקים לשלב הבתים">
+                ⚡ בנה לוח משחקים
+            </button>
+            <button type="button" class="btn-secondary btn-sm" onclick="app.fillSampleScores()" title="מלא תוצאות לכל המשחקים">
+                🎲 מלא תוצאות
+            </button>
+            <button type="button" class="btn-secondary btn-sm" onclick="app.resetAllScores()" title="אפס את כל התוצאות">
+                🧹 אפס תוצאות
+            </button>
+            <button type="button" id="btn-seed-playoffs-top" class="btn-success btn-sm btn-seed-playoffs-action" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
+                🚀 נעל שלב בתים ושבץ פלייאוף
+            </button>
+        </div>
+
         <main class="content-area">
             <!-- טאב 1: הגדרת טורניר -->
             <section id="tab-setup" class="tab-section">
@@ -230,14 +246,17 @@
 
                     <!-- סרגל פעולות עזר לשלב הבתים -->
                     <div class="actions-bar admin-editable">
-                        <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
-                            📊 הורד נתונים וטבלאות (CSV)
+                        <button type="button" class="btn-primary btn-sm" onclick="app.generateTournamentGroups()" title="בנה / ייצר מחדש לוח משחקים">
+                            ⚡ בנה לוח משחקים
                         </button>
-                        <button class="btn-secondary btn-sm admin-editable" onclick="app.fillSampleScores()">
-                            🎲 מלא תוצאות לדוגמה (לבדיקה מהירה)
+                        <button type="button" class="btn-secondary btn-sm" onclick="app.fillSampleScores()" title="מלא תוצאות לכל המשחקים">
+                            🎲 מלא תוצאות
                         </button>
-                        <button class="btn-secondary btn-sm admin-editable" onclick="app.resetAllScores()">
-                            🧹 אפס את כל תוצאות הבתים
+                        <button type="button" class="btn-secondary btn-sm" onclick="app.resetAllScores()" title="אפס את כל התוצאות">
+                            🧹 אפס תוצאות
+                        </button>
+                        <button type="button" class="btn-success btn-sm btn-seed-playoffs-action" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
+                            🚀 נעל שלב בתים ושבץ פלייאוף
                         </button>
                     </div>
 
@@ -255,7 +274,7 @@
                                 <!-- ייווצר דינמית ע"י ה-JS -->
                             </div>
 
-                            <button id="btn-seed-playoffs" class="btn-success admin-editable hidden" style="width: 100%; margin-top: 15px;" onclick="app.seedPlayoffs()">
+                            <button id="btn-seed-playoffs" class="btn-success admin-editable btn-seed-playoffs-action hidden" style="width: 100%; margin-top: 15px;" onclick="app.seedPlayoffs()">
                                 🚀 נעל שלב בתים ושבץ פלייאוף
                             </button>
                         </div>
@@ -294,9 +313,6 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                             <h2 id="playoff-header-title">🌳 עץ פלייאוף נוקאאוט</h2>
                             <div class="actions-bar" style="margin-bottom: 0;">
-                                <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
-                                    📊 הורד פלייאוף (CSV)
-                                </button>
                                 <button class="btn-secondary btn-sm admin-editable" onclick="app.simulatePlayoffs()">
                                     🎲 סמלץ משחקי פלייאוף
                                 </button>
@@ -722,7 +738,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=2.6"></script>
+    <script src="./app.js?v=2.7"></script>
 </body>
 </html>
 

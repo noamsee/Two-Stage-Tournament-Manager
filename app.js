@@ -1195,7 +1195,7 @@ class TournamentApp {
 
         const knockoutNotice = document.getElementById('group-knockout-notice');
         const groupMainContent = document.getElementById('group-stage-main-content');
-        const seedPlayoffsBtn = document.getElementById('btn-seed-playoffs');
+        const seedPlayoffsBtns = document.querySelectorAll('.btn-seed-playoffs-action');
         const playoffGroupsOnlyNotice = document.getElementById('playoff-groups-only-notice');
         const playoffMainContent = document.getElementById('playoff-main-content');
 
@@ -1204,6 +1204,7 @@ class TournamentApp {
             if (groupMainContent) groupMainContent.classList.add('hidden');
             if (playoffGroupsOnlyNotice) playoffGroupsOnlyNotice.classList.add('hidden');
             if (playoffMainContent) playoffMainContent.classList.remove('hidden');
+            seedPlayoffsBtns.forEach(btn => btn.classList.add('hidden'));
 
             this.groups = {};
             this.matches = [];
@@ -1216,7 +1217,7 @@ class TournamentApp {
         } else if (this.format === 'groups_only') {
             if (knockoutNotice) knockoutNotice.classList.add('hidden');
             if (groupMainContent) groupMainContent.classList.remove('hidden');
-            if (seedPlayoffsBtn) seedPlayoffsBtn.classList.add('hidden');
+            seedPlayoffsBtns.forEach(btn => btn.classList.add('hidden'));
             if (playoffGroupsOnlyNotice) playoffGroupsOnlyNotice.classList.remove('hidden');
             if (playoffMainContent) playoffMainContent.classList.add('hidden');
 
@@ -1237,7 +1238,7 @@ class TournamentApp {
             // groups_and_playoff
             if (knockoutNotice) knockoutNotice.classList.add('hidden');
             if (groupMainContent) groupMainContent.classList.remove('hidden');
-            if (seedPlayoffsBtn) seedPlayoffsBtn.classList.remove('hidden');
+            seedPlayoffsBtns.forEach(btn => btn.classList.remove('hidden'));
             if (playoffGroupsOnlyNotice) playoffGroupsOnlyNotice.classList.add('hidden');
             if (playoffMainContent) playoffMainContent.classList.remove('hidden');
 
@@ -2068,8 +2069,12 @@ class TournamentApp {
         this.calculateStandings();
         this.saveActiveTournamentData();
 
-        const seedBtn = document.getElementById('btn-seed-playoffs');
-        if (seedBtn) seedBtn.classList.remove('hidden');
+        const seedBtns = document.querySelectorAll('.btn-seed-playoffs-action');
+        if (this.format === 'groups_and_playoff') {
+            seedBtns.forEach(btn => btn.classList.remove('hidden'));
+        } else {
+            seedBtns.forEach(btn => btn.classList.add('hidden'));
+        }
 
         if (shouldSwitchTab) {
             this.switchTab('group-stage');

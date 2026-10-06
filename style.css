@@ -161,6 +161,41 @@ header h1 {
     box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
 }
 
+/* סרגל כפתורי פעולה מהירים עליון בראש העמוד */
+.top-action-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.top-action-toolbar .btn-sm {
+    padding: 8px 14px;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+@media (max-width: 640px) {
+    .top-action-toolbar {
+        padding: 8px 6px;
+        gap: 6px;
+        justify-content: stretch;
+    }
+    .top-action-toolbar button {
+        flex: 1 1 calc(50% - 6px);
+        font-size: 0.78rem;
+        padding: 7px 4px;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+
 /* כרטיסים */
 .card {
     background: var(--card-bg);
