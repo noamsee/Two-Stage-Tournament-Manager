@@ -121,19 +121,29 @@ class TournamentApp {
         }
 
         try {
-            // פענוח ה-JWT ID Token ישירות בדפדפן בצורה מוגנת
-            const base64Url = response.credential.split('.')[1];
+            // פענוח ה-JWT ID Token ישירות בדפדפן
+            const parts = response.credential.split('.');
+            if (parts.length < 2) {
+                throw new Error("Invalid JWT token format");
+            }
+
+            let base64Url = parts[1];
             let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             while (base64.length % 4 !== 0) {
                 base64 += '=';
             }
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
+
+            // פענוח מוגן ל-Unicode
+            let jsonPayload = '';
+            try {
+                jsonPayload = decodeURIComponent(escape(window.atob(base64)));
+            } catch (e1) {
+                jsonPayload = atob(base64);
+            }
 
             const payload = JSON.parse(jsonPayload);
             const email = (payload.email || '').toLowerCase();
-            const name = payload.name || payload.given_name || email.split('@')[0];
+            const name = payload.name || payload.given_name || (email ? email.split('@')[0] : 'משתמש Google');
             const picture = payload.picture || '';
 
             if (!email) {
