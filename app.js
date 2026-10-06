@@ -136,9 +136,16 @@ class TournamentApp {
             // פענוח מוגן ל-Unicode
             let jsonPayload = '';
             try {
-                jsonPayload = decodeURIComponent(escape(window.atob(base64)));
+                // תקן מודרני לפענוח Base64Url ל-UTF-8
+                const binString = atob(base64);
+                const bytes = Uint8Array.from(binString, m => m.codePointAt(0));
+                jsonPayload = new TextDecoder().decode(bytes);
             } catch (e1) {
-                jsonPayload = atob(base64);
+                try {
+                    jsonPayload = decodeURIComponent(escape(window.atob(base64)));
+                } catch (e2) {
+                    jsonPayload = atob(base64);
+                }
             }
 
             const payload = JSON.parse(jsonPayload);
@@ -197,6 +204,39 @@ class TournamentApp {
         }
     }
 
+    /* ========================================================
+       ניהול מסכים ותצוגה (Screens: Login vs Main)
+       ======================================================== */
+
+    showLoginScreen() {
+        const loginScreen = document.getElementById('screen-login');
+        const mainScreen = document.getElementById('screen-main');
+        if (loginScreen) loginScreen.classList.remove('hidden');
+        if (mainScreen) mainScreen.classList.add('hidden');
+        this.populateTournamentSelectors();
+        
+        const loginEmail = document.getElementById('loginEmail');
+        if (loginEmail) {
+            loginEmail.disabled = false;
+            loginEmail.readOnly = false;
+        }
+    }
+
+    showMainScreen() {
+        const loginScreen = document.getElementById('screen-login');
+        const mainScreen = document.getElementById('screen-main');
+        if (loginScreen) loginScreen.classList.add('hidden');
+        if (mainScreen) mainScreen.classList.remove('hidden');
+
+        this.renderTeamInputs();
+        this.renderMatches();
+        this.calculateStandings();
+        if (this.playoffSeeds && this.playoffSeeds.length === 8) {
+            this.renderPlayoffBracket();
+        }
+        this.switchTab('setup');
+    }
+
     handleSignUp() {
         const nameInput = document.getElementById('signupName');
         const emailInput = document.getElementById('signupEmail');
@@ -239,6 +279,7 @@ class TournamentApp {
         users.push({
             name,
             email,
+            password: pass,
             registeredAt: new Date().toLocaleDateString('he-IL'),
             provider: 'email'
         });
@@ -261,9 +302,19 @@ class TournamentApp {
         }
     }
 
+    getOwnerPassword() {
+        return localStorage.getItem('tournament_owner_password') || '1234';
+    }
+
+    setOwnerPassword(newPassword) {
+        localStorage.setItem('tournament_owner_password', newPassword);
+    }
+
     handleLogin() {
         const emailInput = document.getElementById('loginEmail');
+        const passInput = document.getElementById('loginPassword');
         const enteredEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+        const enteredPass = passInput ? passInput.value.trim() : '';
 
         // קבלת הטורניר שנבחר בלוגין
         const tourneySelect = document.getElementById('loginTournamentSelect');
@@ -276,17 +327,35 @@ class TournamentApp {
             return;
         }
 
-        // חיפוש שם המשתמש אם נרשם בעבר
-        let displayName = null;
+        // בדיקת סיסמה עבור בעלים (Owner)
         if (enteredEmail === this.OWNER_EMAIL.toLowerCase()) {
-            displayName = 'נועם סלע';
-        } else {
-            const registeredUsers = this.getRegisteredUsers();
-            const found = registeredUsers.find(u => u.email.toLowerCase() === enteredEmail);
-            if (found) displayName = found.name;
+            const ownerPass = this.getOwnerPassword();
+            if (enteredPass !== ownerPass) {
+                this.showAlert(`סיסמה שגויה עבור ${enteredEmail}. (סיסמת ברירת מחדל: 1234)`, "error");
+                return;
+            }
+            this.authenticateUser(enteredEmail, true, 'נועם סלע', 'email');
+            return;
         }
 
-        this.authenticateUser(enteredEmail, true, displayName, 'email');
+        // בדיקת משתמש רשום
+        const registeredUsers = this.getRegisteredUsers();
+        const found = registeredUsers.find(u => u.email.toLowerCase() === enteredEmail);
+        if (found) {
+            if (found.password && enteredPass !== found.password) {
+                this.showAlert("סיסמה שגויה. אנא נסה שוב.", "error");
+                return;
+            }
+            this.authenticateUser(enteredEmail, true, found.name, 'email');
+            return;
+        }
+
+        // משתמש חדש שלא נרשם עדיין דרך טאב הרשמה
+        if (enteredPass !== '1234') {
+            this.showAlert("סיסמה שגויה. עבור משתמשים חדשים הסיסמה הראשונית היא: 1234", "warning");
+            return;
+        }
+        this.authenticateUser(enteredEmail, true, null, 'email');
     }
 
     loginAsGuest() {
@@ -1952,6 +2021,90 @@ class TournamentApp {
         } else {
             this.showAlert("אנא סמן והעתק את הטקסט מתוך התיבה.", "warning");
         }
+    }
+
+    openProfileModal() {
+        if (!this.currentUser) return;
+        const modal = document.getElementById('profile-modal');
+        const emailDisp = document.getElementById('profileEmailDisplay');
+        const nameInput = document.getElementById('profileNameInput');
+        const curPass = document.getElementById('profileCurrentPassword');
+        const newPass = document.getElementById('profileNewPassword');
+
+        if (emailDisp) emailDisp.value = this.currentUser.email || '';
+        if (nameInput) nameInput.value = this.currentUser.displayName.replace(/^[👑⚡👁️]\s*(\([^)]+\))?/, '').trim() || '';
+        if (curPass) curPass.value = '';
+        if (newPass) newPass.value = '';
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeProfileModal() {
+        const modal = document.getElementById('profile-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    saveProfileChanges() {
+        if (!this.currentUser) return;
+        const nameInput = document.getElementById('profileNameInput');
+        const curPassInput = document.getElementById('profileCurrentPassword');
+        const newPassInput = document.getElementById('profileNewPassword');
+
+        const newName = nameInput ? nameInput.value.trim() : '';
+        const curPass = curPassInput ? curPassInput.value.trim() : '';
+        const newPass = newPassInput ? newPassInput.value.trim() : '';
+        const email = this.currentUser.email.toLowerCase();
+
+        // אימות סיסמה נוכחית אם המשתמש מנסה לשנות סיסמה
+        if (newPass) {
+            if (newPass.length < 4) {
+                this.showAlert("סיסמה חדשה חייבת להכיל לפחות 4 תווים.", "error");
+                return;
+            }
+
+            if (email === this.OWNER_EMAIL.toLowerCase()) {
+                const ownerPass = this.getOwnerPassword();
+                if (curPass !== ownerPass) {
+                    this.showAlert("הסיסמה הנוכחית שהזנת שגויה.", "error");
+                    return;
+                }
+                this.setOwnerPassword(newPass);
+            } else {
+                const users = this.getRegisteredUsers();
+                const user = users.find(u => u.email.toLowerCase() === email);
+                if (user && user.password && user.password !== curPass) {
+                    this.showAlert("הסיסמה הנוכחית שהזנת שגויה.", "error");
+                    return;
+                }
+                if (user) {
+                    user.password = newPass;
+                    localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+                }
+            }
+        }
+
+        // עדכון שם
+        if (newName) {
+            const role = this.currentUser.role;
+            let displayLabel = '';
+            if (role === 'owner') displayLabel = `👑 בעלים (${newName})`;
+            else if (role === 'admin') displayLabel = `⚡ מנהל (${newName})`;
+            else displayLabel = `👁️ ${newName}`;
+
+            this.currentUser.displayName = displayLabel;
+            sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
+            this.updateUserSessionUI();
+
+            const users = this.getRegisteredUsers();
+            const user = users.find(u => u.email.toLowerCase() === email);
+            if (user) {
+                user.name = newName;
+                localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+            }
+        }
+
+        this.closeProfileModal();
+        this.showAlert("פרטי הפרופיל והסיסמה עודכנו בהצלחה!", "success");
     }
 }
 

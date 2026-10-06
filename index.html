@@ -139,6 +139,11 @@
                     📊 Excel
                 </button>
 
+                <!-- כפתור שינוי סיסמה ופרופיל -->
+                <button class="btn-profile btn-sm" onclick="app.openProfileModal()" title="עריכת פרטים אישיים ושינוי סיסמה">
+                    ⚙️ פרופיל וסיסמה
+                </button>
+
                 <!-- כפתור התנתקות -->
                 <button class="btn-logout" onclick="app.logout()">
                     🚪 התנתק
@@ -355,7 +360,39 @@ git push -u origin main</pre>
         </div>
     </div>
 
+    <!-- מודאל עריכת פרטים אישיים ושינוי סיסמה -->
+    <div id="profile-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="app.closeProfileModal()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                ⚙️ עריכת פרטים אישיים וסיסמה
+            </h2>
+            <form onsubmit="event.preventDefault(); app.saveProfileChanges();">
+                <div class="login-field" style="margin-top:16px;">
+                    <label for="profileEmailDisplay">📧 אימייל משתמש (לקריאה בלבד):</label>
+                    <input type="email" id="profileEmailDisplay" class="login-input" disabled style="background:#f1f5f9; cursor:not-allowed;">
+                </div>
+                <div class="login-field">
+                    <label for="profileNameInput">👤 שם תצוגה מלא:</label>
+                    <input type="text" id="profileNameInput" class="login-input" placeholder="שם מלא">
+                </div>
+                <div class="login-field">
+                    <label for="profileCurrentPassword">🔒 סיסמה נוכחית:</label>
+                    <input type="password" id="profileCurrentPassword" class="login-input" placeholder="הזן סיסמה נוכחית (ברירת מחדל: 1234)">
+                </div>
+                <div class="login-field">
+                    <label for="profileNewPassword">🔑 סיסמה חדשה (אופציונלי):</label>
+                    <input type="password" id="profileNewPassword" class="login-input" placeholder="השאר ריק אם אינך רוצה לשנות סיסמה">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+                    <button type="submit" class="btn-primary">💾 שמור שינויים</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeProfileModal()">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=2.1"></script>
+    <script src="./app.js?v=2.2"></script>
 </body>
 </html>
