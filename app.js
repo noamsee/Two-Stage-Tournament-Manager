@@ -164,6 +164,29 @@ class TournamentApp {
         }
     }
 
+    switchAuthMode(mode = 'login') {
+        this.currentAuthMode = mode;
+        const tabLogin = document.getElementById('tabBtnLogin');
+        const tabSignup = document.getElementById('tabBtnSignup');
+        const formLogin = document.getElementById('form-login');
+        const formSignup = document.getElementById('form-signup');
+        const authDividerText = document.getElementById('authDividerText');
+
+        if (mode === 'signup') {
+            if (tabLogin) { tabLogin.classList.remove('active'); tabLogin.setAttribute('aria-selected', 'false'); }
+            if (tabSignup) { tabSignup.classList.add('active'); tabSignup.setAttribute('aria-selected', 'true'); }
+            if (formLogin) formLogin.classList.add('hidden');
+            if (formSignup) formSignup.classList.remove('hidden');
+            if (authDividerText) authDividerText.textContent = 'או הרשמה באמצעות כתובת אימייל';
+        } else {
+            if (tabLogin) { tabLogin.classList.add('active'); tabLogin.setAttribute('aria-selected', 'true'); }
+            if (tabSignup) { tabSignup.classList.remove('active'); tabSignup.setAttribute('aria-selected', 'false'); }
+            if (formLogin) formLogin.classList.remove('hidden');
+            if (formSignup) formSignup.classList.add('hidden');
+            if (authDividerText) authDividerText.textContent = 'או באמצעות כתובת אימייל';
+        }
+    }
+
     handleSignUp() {
         const nameInput = document.getElementById('signupName');
         const emailInput = document.getElementById('signupEmail');
