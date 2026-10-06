@@ -1,19 +1,21 @@
 :root {
-    --primary-color: #2563eb;
-    --primary-dark: #1d4ed8;
-    --success-color: #16a34a;
-    --success-dark: #15803d;
+    --primary-color: #334155; /* Slate 700 - Silver Minimal */
+    --primary-dark: #1e293b;  /* Slate 800 */
+    --primary-accent: #2563eb;
+    --success-color: #059669;
+    --success-dark: #047857;
     --danger-color: #dc2626;
     --warning-color: #d97706;
     --bg-light: #f8fafc;
     --card-bg: #ffffff;
-    --text-main: #1e293b;
+    --text-main: #0f172a;
     --text-muted: #64748b;
     --border-color: #e2e8f0;
-    --input-bg: #e1f5fe; /* צבע תכלת מוגדר ב-PRD לתאי קלט */
+    --border-light: #f1f5f9;
+    --input-bg: #f8fafc;
     --neutral-grey: #f1f5f9;
-    --winner-bg: #a4e4a4; /* צבע ירוק מנצח מוגדר ב-PRD */
-    --qualify-bg: #ecfdf5;
+    --winner-bg: #ecfdf5; /* Subtle refined winner tint */
+    --qualify-bg: #f0fdf4;
     --candidate-bg: #fefce8;
 }
 
@@ -33,7 +35,7 @@ body {
 .app-container {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 16px;
+    padding: 20px 16px;
 }
 
 /* התראות מערכת */
@@ -45,35 +47,35 @@ body {
     z-index: 9999;
     min-width: 320px;
     max-width: 90vw;
-    padding: 14px 20px;
-    border-radius: 10px;
+    padding: 12px 18px;
+    border-radius: 12px;
     font-weight: 700;
-    font-size: 0.95rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+    font-size: 0.92rem;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     text-align: center;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tournament-alert.alert-error {
     background-color: #fef2f2;
     color: #991b1b;
-    border: 2px solid #ef4444;
+    border: 1px solid #fecaca;
 }
 
 .tournament-alert.alert-success {
     background-color: #f0fdf4;
     color: #166534;
-    border: 2px solid #22c55e;
+    border: 1px solid #bbf7d0;
 }
 
 .tournament-alert.alert-warning {
     background-color: #fffbeb;
     color: #92400e;
-    border: 2px solid #f59e0b;
+    border: 1px solid #fde68a;
 }
 
 /* Header */
@@ -83,19 +85,20 @@ header {
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 18px;
     margin-bottom: 20px;
 }
 
 header h1 {
     margin: 0;
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: #0f172a;
     display: flex;
     align-items: center;
     gap: 8px;
+    letter-spacing: -0.01em;
 }
 
 .role-selector-zone {
@@ -104,47 +107,50 @@ header h1 {
     gap: 10px;
     background: #ffffff;
     padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border-color);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
 
 .role-selector-zone label {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     font-weight: 600;
     color: var(--text-muted);
 }
 
 .role-selector-zone select {
     padding: 6px 12px;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #cbd5e1;
     background-color: #f8fafc;
     color: var(--text-main);
     cursor: pointer;
 }
 
-/* שורת טאבים */
+/* שורת טאבים (1A Segmented Pill Switcher) */
 .tabs {
-    display: flex;
-    gap: 8px;
+    display: inline-flex;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 14px;
+    gap: 4px;
     margin-bottom: 20px;
     overflow-x: auto;
-    padding-bottom: 4px;
+    border: 1px solid #cbd5e1;
 }
 
 .tab-btn {
-    padding: 10px 18px;
-    font-size: 0.95rem;
+    padding: 8px 18px;
+    font-size: 0.88rem;
     font-weight: 700;
-    background: #e2e8f0;
-    border: none;
-    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
     cursor: pointer;
-    color: #475569;
-    transition: all 0.2s;
+    color: #64748b;
+    transition: all 0.18s ease;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -152,36 +158,62 @@ header h1 {
 }
 
 .tab-btn:hover:not(.active) {
-    background: #cbd5e1;
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.4);
 }
 
 .tab-btn.active {
-    background: var(--primary-color);
-    color: white;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
-/* סרגל כפתורי פעולה מהירים עליון בראש העמוד */
+/* סרגל כפתורי פעולה מהירים עליון בראש העמוד (1A Silver Action Bar) */
 .top-action-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
     background: #ffffff;
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .top-action-toolbar .btn-sm {
-    padding: 8px 14px;
-    font-size: 0.88rem;
+    padding: 7px 14px;
+    font-size: 0.84rem;
     font-weight: 700;
+    border-radius: 10px;
+}
+
+.top-action-toolbar .btn-seed-playoffs-action {
+    background: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    color: #065f46 !important;
+    box-shadow: none !important;
+}
+
+.top-action-toolbar .btn-seed-playoffs-action:hover {
+    background: #d1fae5 !important;
+    border-color: #6ee7b7 !important;
+    color: #047857 !important;
 }
 
 @media (max-width: 640px) {
+    .tabs {
+        width: 100%;
+        display: flex;
+    }
+    .tab-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 6px;
+        font-size: 0.8rem;
+    }
     .top-action-toolbar {
         padding: 8px 6px;
         gap: 6px;
@@ -200,8 +232,8 @@ header h1 {
 .card {
     background: var(--card-bg);
     padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
     border: 1px solid var(--border-color);
 }
 
@@ -265,67 +297,105 @@ header h1 {
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-/* כפתורים כלליים */
-.btn-primary, .btn-success, .btn-danger, .btn-secondary {
-    padding: 10px 20px;
-    font-size: 1rem;
-    font-weight: 700;
-    border: none;
-    border-radius: 8px;
+/* כפתורים כלליים (1A Silver Minimal Button Tokens) */
+.btn-primary, .btn-success, .btn-danger, .btn-secondary, .btn-csv, .btn-profile {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 10px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.18s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 7px;
+    border: 1px solid transparent;
 }
 
 .btn-primary {
-    background: var(--primary-color);
-    color: white;
+    background: #334155;
+    color: #ffffff;
+    border-color: #1e293b;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .btn-primary:hover {
-    background: var(--primary-dark);
-}
-
-.btn-success {
-    background: var(--success-color);
-    color: white;
-}
-
-.btn-success:hover {
-    background: var(--success-dark);
-}
-
-.btn-danger {
-    background: var(--danger-color);
-    color: white;
-}
-
-.btn-danger:hover {
-    background: #b91c1c;
+    background: #1e293b;
+    border-color: #0f172a;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
 }
 
 .btn-secondary {
-    background: #e2e8f0;
+    background: #ffffff;
     color: #334155;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .btn-secondary:hover {
-    background: #cbd5e1;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.btn-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.btn-success:hover {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+    color: #047857;
+}
+
+.btn-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.btn-danger:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.btn-csv {
+    background: #ffffff;
+    color: #065f46;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.btn-csv:hover {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.btn-profile {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-profile:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
 }
 
 .btn-sm {
     padding: 6px 12px;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
 }
 
 /* סרגל כפתורי פעולה מהירים */
 .actions-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 20px;
     align-items: center;
 }
@@ -338,38 +408,49 @@ header h1 {
 }
 
 .matches-column h2, .standings-column h2 {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
+    font-weight: 800;
     margin-top: 0;
     margin-bottom: 14px;
     color: #0f172a;
+    letter-spacing: -0.01em;
 }
 
 /* סרגל סינון משחקים */
 .filter-tabs {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 16px;
     flex-wrap: wrap;
 }
 
 .filter-chip {
     padding: 6px 14px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    background: #e2e8f0;
-    border: none;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 20px;
     cursor: pointer;
-    color: #475569;
-    transition: all 0.15s;
+    color: #64748b;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.filter-chip:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .filter-chip.active {
-    background: var(--primary-color);
-    color: white;
+    background: #334155;
+    color: #ffffff;
+    border-color: #1e293b;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
 }
 
-/* כרטיסי משחק */
+/* כרטיסי משחק (1A Silver Minimal Framing) */
 .matches-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -379,35 +460,40 @@ header h1 {
 
 .match-card {
     background: var(--card-bg);
-    border: 2px solid #3d3d3d;
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     margin-bottom: 0;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 
 .match-card:hover {
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    border-color: #cbd5e1;
 }
 
 .match-header {
-    background: #3d3d3d;
-    color: white;
+    background: #f8fafc;
+    color: #334155;
     text-align: center;
     padding: 8px 12px;
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .match-badge {
-    background: rgba(255,255,255,0.2);
-    font-size: 0.75rem;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.74rem;
+    font-weight: 700;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
 }
 
 .match-team-row {
@@ -415,8 +501,8 @@ header h1 {
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    border-bottom: 1px solid #e2e8f0;
-    transition: background-color 0.2s;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.18s;
 }
 
 .match-team-row:last-child {
@@ -425,7 +511,7 @@ header h1 {
 
 .match-team-row .team-name {
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     color: #1e293b;
     flex: 1;
     overflow: hidden;
@@ -434,11 +520,11 @@ header h1 {
 }
 
 .match-team-row.winner {
-    background-color: var(--winner-bg) !important; /* צבע ירוק מנצח מוגדר ב-PRD */
+    background-color: #f0fdf4 !important;
 }
 
 .match-team-row.winner .team-name {
-    color: #065f46;
+    color: #166534;
 }
 
 .match-team-row.winner .team-name::after {
@@ -447,42 +533,43 @@ header h1 {
 }
 
 .match-team-row input.score-input {
-    width: 55px;
-    height: 38px;
+    width: 52px;
+    height: 36px;
     text-align: center;
     padding: 4px;
-    background-color: var(--input-bg);
+    background-color: #f8fafc;
     border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    border-radius: 8px;
     font-weight: 800;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     color: #0f172a;
-    transition: all 0.2s;
+    transition: all 0.18s ease;
 }
 
 .match-team-row input.score-input:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+    border-color: #64748b;
+    box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
     background-color: #ffffff;
 }
 
-/* טבלאות דירוג (Standings) */
+/* טבלאות דירוג (Standings - 1A Silver Styling) */
 .standings-group-card {
     background: #ffffff;
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     margin-bottom: 20px;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .standings-group-header {
-    background: #0f172a;
-    color: #ffffff;
+    background: #f8fafc;
+    color: #1e293b;
+    border-bottom: 1px solid var(--border-color);
     padding: 10px 14px;
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: 0.92rem;
+    font-weight: 800;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -658,28 +745,36 @@ header h1 {
 }
 
 .round-header {
-    background: #0f172a;
-    color: white;
+    background: #f8fafc;
+    color: #1e293b;
+    border: 1px solid var(--border-color);
     padding: 10px;
     text-align: center;
-    border-radius: 8px;
+    border-radius: 10px;
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 0.95rem;
     margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
 .playoff-match-card {
     background: white;
-    border: 2px solid #3d3d3d;
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.playoff-match-card:hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    border-color: #cbd5e1;
 }
 
 .playoff-match-card.is-final {
     border-color: #f59e0b;
-    border-width: 3px;
-    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+    border-width: 2px;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
 }
 
 .champion-banner {
@@ -866,7 +961,7 @@ body.role-admin .tab-btn.owner-only {
 }
 
 /* ===================================================
-   עמוד נחיתה - כניסה והרשאות (Login Landing Page)
+   עמוד נחיתה - כניסה והרשאות (Login Landing Page - Concept 1A)
    =================================================== */
 .login-landing-container {
     min-height: 100vh;
@@ -874,90 +969,94 @@ body.role-admin .tab-btn.owner-only {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: radial-gradient(circle at top right, #e2e8f0, #f8fafc);
+    background: #f8fafc;
 }
 
 .login-card {
     background: var(--card-bg);
     width: 100%;
-    max-width: 520px;
-    padding: 36px 32px;
-    border-radius: 16px;
-    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(226, 232, 240, 0.8);
+    max-width: 460px;
+    padding: 32px 28px;
+    border-radius: 18px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+    border: 1px solid var(--border-color);
     text-align: center;
 }
 
 .login-icon-box {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 16px;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    border-radius: 16px;
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
-    box-shadow: 0 8px 16px -4px rgba(37, 99, 235, 0.3);
+    font-size: 1.6rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .login-card h1 {
-    font-size: 1.6rem;
+    font-size: 1.45rem;
     font-weight: 800;
     color: #0f172a;
-    margin: 0 0 8px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
 }
 
 .login-card p.subtitle {
     color: var(--text-muted);
-    font-size: 0.95rem;
-    margin: 0 0 24px;
+    font-size: 0.88rem;
+    margin: 0 0 20px;
 }
 
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
     text-align: right;
 }
 
 .login-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
 }
 
 .login-field label {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    color: #334155;
+    color: #475569;
 }
 
 .login-input {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 1rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
     background-color: #f8fafc;
     color: var(--text-main);
-    transition: all 0.2s;
+    transition: all 0.18s ease;
     direction: ltr;
     text-align: left;
 }
 
 .login-input:focus {
     outline: none;
-    border-color: var(--primary-color);
+    border-color: #64748b;
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15);
 }
 
 .login-tournament-select {
     width: 100%;
-    padding: 11px 12px;
+    padding: 10px 12px;
     border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 0.95rem;
+    border-radius: 10px;
+    font-size: 0.92rem;
     font-weight: 600;
     background-color: #f8fafc;
     color: var(--text-main);
@@ -966,67 +1065,70 @@ body.role-admin .tab-btn.owner-only {
 
 .login-btn-primary {
     width: 100%;
-    padding: 12px;
-    font-size: 1.05rem;
-    font-weight: 800;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
+    padding: 11px;
+    font-size: 0.98rem;
+    font-weight: 700;
+    background: #334155;
+    color: #ffffff;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+    transition: background 0.18s, transform 0.1s;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .login-btn-primary:hover {
-    background: var(--primary-dark);
+    background: #1e293b;
 }
 
 .login-btn-guest {
     width: 100%;
-    padding: 11px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    background: #f1f5f9;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.18s ease;
 }
 
 .login-btn-guest:hover {
-    background: #e2e8f0;
+    background: #f8fafc;
     color: #0f172a;
+    border-color: #cbd5e1;
 }
 
-/* לשוניות מעבר: כניסה / הרשמה (Auth Tabs) */
+/* לשוניות מעבר: כניסה / הרשמה (Auth Tabs - 1A Pill Switcher) */
 .auth-tabs {
     display: flex;
     background: #f1f5f9;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 4px;
     margin-bottom: 20px;
     gap: 4px;
+    border: 1px solid #e2e8f0;
 }
 
 .auth-tab {
     flex: 1;
-    padding: 10px 14px;
-    border: none;
+    padding: 8px 12px;
+    border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
     color: #64748b;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
 }
 
 .auth-tab.active {
     background: #ffffff;
-    color: var(--primary-color);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    color: #0f172a;
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .auth-tab:hover:not(.active) {
@@ -1303,24 +1405,24 @@ body.role-admin .tab-btn.owner-only {
     gap: 6px;
     padding: 5px 12px;
     border-radius: 20px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
 }
 
 .user-badge-owner {
-    background: #fef3c7;
+    background: #fffbeb;
     color: #92400e;
-    border: 1px solid #f59e0b;
+    border: 1px solid #fde68a;
 }
 
 .user-badge-admin {
-    background: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #3b82f6;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
 }
 
 .user-badge-viewer {
-    background: #f1f5f9;
+    background: #f8fafc;
     color: #475569;
     border: 1px solid #cbd5e1;
 }
@@ -1329,23 +1431,24 @@ body.role-admin .tab-btn.owner-only {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: white;
+    background: #ffffff;
     padding: 4px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .tournament-select-wrap label {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    color: #475569;
+    color: #64748b;
 }
 
 .tournament-select-wrap select {
     border: none;
     background: transparent;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: #0f172a;
     cursor: pointer;
     outline: none;
@@ -1353,18 +1456,19 @@ body.role-admin .tab-btn.owner-only {
 
 .btn-logout {
     padding: 6px 12px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    background: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
-    border-radius: 6px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    background: #ffffff;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.18s ease;
 }
 
 .btn-logout:hover {
-    background: #fecaca;
+    background: #fef2f2;
+    border-color: #f87171;
 }
 
 /* באנר ארכיון כשצופים בטורניר ישן */
@@ -1654,11 +1758,11 @@ body.role-viewer .guest-only-btn {
 }
 
 /* ==========================================================================
-   מעקב אישי: באנר עליון, הדגשת קבוצה ובלוק משחקים מועדף
+   מעקב אישי: באנר עליון, הדגשת קבוצה ובלוק משחקים מועדף (Concept 1A)
    ========================================================================== */
 .guest-followed-banner {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 2px solid #3b82f6;
+    background: #ffffff;
+    border: 1px solid #bfdbfe;
     border-radius: 12px;
     padding: 12px 18px;
     margin-bottom: 20px;
@@ -1667,9 +1771,9 @@ body.role-viewer .guest-only-btn {
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    box-shadow: 0 3px 10px rgba(59, 130, 246, 0.12);
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.04);
     color: #1e3a8a;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
 }
 
 .guest-followed-banner strong {
@@ -1683,14 +1787,14 @@ body.role-viewer .guest-only-btn {
 }
 
 .row-followed-team {
-    background-color: #fef08a !important; /* הדגשה צהובה בולטת ונעימה */
-    border-right: 5px solid #ca8a04 !important;
+    background-color: #fefce8 !important; /* הדגשה פסטלית עדינה ונעימה */
+    border-right: 4px solid #eab308 !important;
     font-weight: 800 !important;
 }
 
 .row-followed-team td.team-cell {
     color: #854d0e !important;
-    font-weight: 900 !important;
+    font-weight: 800 !important;
 }
 
 .followed-team-star {
@@ -1700,31 +1804,31 @@ body.role-viewer .guest-only-btn {
 }
 
 .followed-matches-container {
-    background: #f0fdf4;
-    border: 2px solid #22c55e;
+    background: #ffffff;
+    border: 1px solid #bbf7d0;
     border-radius: 12px;
-    padding: 18px;
+    padding: 16px;
     margin-bottom: 24px;
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.12);
+    box-shadow: 0 1px 3px rgba(34, 197, 94, 0.04);
 }
 
 .followed-matches-title {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: #166534;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .all-matches-divider {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: #0f172a;
-    margin: 24px 0 14px 0;
+    margin: 22px 0 12px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     gap: 8px;
