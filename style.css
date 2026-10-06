@@ -295,18 +295,11 @@ header h1 {
     align-items: center;
 }
 
-/* פריסת שלב הבתים */
+/* פריסת שלב הבתים - טבלאות דירוג וסיכום ראשונות, ולאחריהן משחקים בגלילה למטה */
 .tournament-layout {
-    display: grid;
-    grid-template-columns: 1.6fr 1fr;
-    gap: 24px;
-    align-items: start;
-}
-
-@media (max-width: 992px) {
-    .tournament-layout {
-        grid-template-columns: 1fr;
-    }
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
 }
 
 .matches-column h2, .standings-column h2 {
@@ -1582,6 +1575,296 @@ body.role-admin .tab-btn.owner-only {
     background-color: #fefce8 !important;
 }
 
+/* ==========================================================================
+   התאמות צפייה וניקיון עבור אורח / צופה (Viewer Clean UI)
+   הסתרת כל כפתורי העריכה, הפרופיל, הסיסמה, והגדרות שאינן רלוונטיות
+   ========================================================================== */
+body.role-viewer .btn-profile,
+body.role-viewer .tab-btn[onclick*="setup"],
+body.role-viewer #tab-setup,
+body.role-viewer .admin-editable,
+body.role-viewer .owner-only,
+body.role-viewer .actions-bar {
+    display: none !important;
+}
 
+body:not(.role-viewer) .guest-only-btn {
+    display: none !important;
+}
 
+body.role-viewer .guest-only-btn {
+    display: inline-flex !important;
+}
 
+/* תצוגת תוצאות נקייה וקריאה במצב צופה (במקום תיבות קלט אפורות) */
+.score-display-viewer {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 36px;
+    padding: 0 6px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #0f172a;
+}
+
+.match-team-row.winner .score-display-viewer {
+    background: #a4e4a4;
+    border-color: #16a34a;
+    color: #065f46;
+}
+
+/* ==========================================================================
+   מעקב אישי: באנר עליון, הדגשת קבוצה ובלוק משחקים מועדף
+   ========================================================================== */
+.guest-followed-banner {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    box-shadow: 0 3px 10px rgba(59, 130, 246, 0.12);
+    color: #1e3a8a;
+    font-size: 0.95rem;
+}
+
+.guest-followed-banner strong {
+    color: #1d4ed8;
+}
+
+.guest-banner-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.row-followed-team {
+    background-color: #fef08a !important; /* הדגשה צהובה בולטת ונעימה */
+    border-right: 5px solid #ca8a04 !important;
+    font-weight: 800 !important;
+}
+
+.row-followed-team td.team-cell {
+    color: #854d0e !important;
+    font-weight: 900 !important;
+}
+
+.followed-team-star {
+    margin-left: 4px;
+    font-size: 0.9rem;
+    display: inline-block;
+}
+
+.followed-matches-container {
+    background: #f0fdf4;
+    border: 2px solid #22c55e;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.12);
+}
+
+.followed-matches-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #166534;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.all-matches-divider {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 24px 0 14px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ==========================================================================
+   מצב שוויון בפלייאוף - תצוגה עדינה שאינה מוחקת נתונים
+   ========================================================================== */
+.playoff-tie-card {
+    border-color: #f59e0b !important;
+}
+
+.tie-badge {
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+    border: 1px solid #fcd34d;
+}
+
+.score-input.score-tie {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+}
+
+/* ==========================================================================
+   התאמות מלאות למסכי סמארטפון / מובייל (Mobile First Responsiveness)
+   מניעת גלילה אופקית, מניעת זום אוטומטי ב-iOS וקריאות מיטבית
+   ========================================================================== */
+html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+@media (max-width: 640px) {
+    .app-container {
+        padding: 8px 6px;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+    }
+
+    header h1 {
+        font-size: 1.25rem;
+        text-align: center;
+        justify-content: center;
+    }
+
+    .user-session-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .tournament-select-wrap {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tournament-select-wrap select {
+        flex: 1;
+        max-width: 220px;
+        font-size: 0.9rem;
+    }
+
+    .tabs {
+        gap: 4px;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 0.84rem;
+        white-space: nowrap;
+    }
+
+    .card {
+        padding: 14px 10px;
+        border-radius: 10px;
+    }
+
+    /* טבלאות דירוג קומפקטיות ונוחות במובייל ללא צורך בזום */
+    .standings-table {
+        font-size: 0.74rem;
+    }
+
+    .standings-table th, .standings-table td {
+        padding: 5px 2px;
+    }
+
+    .standings-table td.team-cell {
+        max-width: 90px;
+        padding-right: 4px;
+        font-size: 0.76rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .rank-indicator {
+        width: 20px;
+        height: 20px;
+        font-size: 0.72rem;
+    }
+
+    /* כרטיסי משחק תופסים 100% רוחב */
+    .matches-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .match-card {
+        width: 100%;
+    }
+
+    .match-team-row {
+        padding: 8px 10px;
+    }
+
+    .match-team-row .team-name {
+        font-size: 0.88rem;
+    }
+
+    /* הגדרת font-size 16px על מנת למנוע זום אוטומטי מציק במכשירי iOS / ספארי */
+    .match-team-row input.score-input {
+        font-size: 16px;
+        width: 48px;
+        height: 38px;
+    }
+
+    /* גלילת עץ פלייאוף במובייל */
+    .bracket-rounds-container {
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 12px;
+        padding-bottom: 12px;
+        scroll-snap-type: x mandatory;
+    }
+
+    .bracket-round-column {
+        min-width: 260px;
+        max-width: 86vw;
+        flex-shrink: 0;
+        scroll-snap-align: start;
+    }
+
+    /* מודאלים מותאמים לרוחב המכשיר */
+    .modal-card, .wizard-modal-card {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        padding: 16px 12px !important;
+        max-height: 92vh;
+        overflow-y: auto;
+    }
+
+    .guest-followed-banner {
+        padding: 10px 12px;
+        font-size: 0.88rem;
+    }
+}

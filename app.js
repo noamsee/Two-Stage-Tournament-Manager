@@ -54,6 +54,13 @@ class TournamentApp {
 
         this.currentFilter = 'all';
         this.alertTimeout = null;
+
+        // העדפות צפייה מותאמות אישית לאורח (בחירת טורניר, בית וקבוצה למעקב)
+        try {
+            this.guestPreferences = JSON.parse(localStorage.getItem('tournament_guest_pref') || 'null');
+        } catch (e) {
+            this.guestPreferences = null;
+        }
     }
 
 
@@ -576,6 +583,13 @@ class TournamentApp {
                 this.showAlert(`שלום ${cleanName}! נכנסת למערכת הטורניר ${providerText}.`, "info");
             }
         }
+
+        // אם המשתמש הוא אורח/צופה - נפתח אוטומטית את אשף התאמת הצפייה האישית
+        if (role === 'viewer') {
+            setTimeout(() => {
+                this.openGuestPreferencesModal();
+            }, 350);
+        }
     }
 
     logout() {
@@ -631,10 +645,26 @@ class TournamentApp {
             btn.disabled = isViewer;
         });
 
+        // ניתוב אוטומטי של צופה/אורח הרחק מטאב ההגדרות או ניהול המשתמשים
+        if (isViewer) {
+            const currentTabBtn = document.querySelector('.tab-btn.active');
+            const currentTabClick = currentTabBtn ? currentTabBtn.getAttribute('onclick') : '';
+            if (!currentTabClick || currentTabClick.includes('setup') || currentTabClick.includes('users')) {
+                const targetTab = (this.format === 'knockout_only') ? 'playoffs' : 'group-stage';
+                this.switchTab(targetTab);
+            }
+        }
+
         const loginEmail = document.getElementById('loginEmail');
         if (loginEmail) {
             loginEmail.disabled = false;
             loginEmail.readOnly = false;
+        }
+
+        this.renderMatches();
+        this.renderStandings();
+        if (this.playoffMatches) {
+            this.renderPlayoffBracket();
         }
     }
 
@@ -2047,6 +2077,48 @@ class TournamentApp {
         }
     }
 
+    renderMatchCardHtml(m, isViewer) {
+        const row1WinnerClass = m.winner === 'team1' ? 'winner' : (m.winner === 'draw' ? 'draw-match' : '');
+        const row2WinnerClass = m.winner === 'team2' ? 'winner' : (m.winner === 'draw' ? 'draw-match' : '');
+        const score1Val = m.score1 !== null ? m.score1 : '';
+        const score2Val = m.score2 !== null ? m.score2 : '';
+
+        const score1Field = isViewer
+            ? `<span class="score-display-viewer">${score1Val !== '' ? score1Val : '-'}</span>`
+            : `<input type="number" min="0" step="1" 
+                      class="score-input" 
+                      value="${score1Val}" 
+                      placeholder="-" 
+                      oninput="app.handleScoreChange('${m.id}', 1, this.value, this)">`;
+
+        const score2Field = isViewer
+            ? `<span class="score-display-viewer">${score2Val !== '' ? score2Val : '-'}</span>`
+            : `<input type="number" min="0" step="1" 
+                      class="score-input" 
+                      value="${score2Val}" 
+                      placeholder="-" 
+                      oninput="app.handleScoreChange('${m.id}', 2, this.value, this)">`;
+
+        return `
+            <div class="match-card" id="card-${m.id}" data-match-id="${m.id}">
+                <div class="match-header">
+                    <span>${m.groupNameHe} • מחזור ${m.round}</span>
+                    <span class="match-badge">משחק #${m.matchNumber}</span>
+                </div>
+                
+                <div class="match-team-row ${row1WinnerClass}" id="row-${m.id}-1">
+                    <span class="team-name" title="${m.team1Name}">${m.team1Name}</span>
+                    ${score1Field}
+                </div>
+
+                <div class="match-team-row ${row2WinnerClass}" id="row-${m.id}-2">
+                    <span class="team-name" title="${m.team2Name}">${m.team2Name}</span>
+                    ${score2Field}
+                </div>
+            </div>
+        `;
+    }
+
     renderMatches() {
         const container = document.getElementById('group-matches-container');
         const filterContainer = document.getElementById('group-filter-container');
@@ -2085,45 +2157,45 @@ class TournamentApp {
 
         const isViewer = (this.currentRole === 'viewer') || (this.tournaments.find(t => t.id === this.activeTournamentId)?.isArchived && this.currentRole !== 'owner');
 
-        container.innerHTML = `
-            <div class="matches-grid">
-                ${filteredMatches.map(m => {
-                    const row1WinnerClass = m.winner === 'team1' ? 'winner' : '';
-                    const row2WinnerClass = m.winner === 'team2' ? 'winner' : '';
-                    const score1Val = m.score1 !== null ? m.score1 : '';
-                    const score2Val = m.score2 !== null ? m.score2 : '';
+        const followedTeam = this.guestPreferences?.teamName;
+        let contentHtml = '';
 
-                    return `
-                        <div class="match-card" id="card-${m.id}" data-match-id="${m.id}">
-                            <div class="match-header">
-                                <span>${m.groupNameHe} • מחזור ${m.round}</span>
-                                <span class="match-badge">משחק #${m.matchNumber}</span>
-                            </div>
-                            
-                            <div class="match-team-row ${row1WinnerClass}" id="row-${m.id}-1">
-                                <span class="team-name" title="${m.team1Name}">${m.team1Name}</span>
-                                <input type="number" min="0" step="1" 
-                                       class="score-input" 
-                                       value="${score1Val}" 
-                                       placeholder="-"
-                                       ${isViewer ? 'disabled' : ''}
-                                       oninput="app.handleScoreChange('${m.id}', 1, this.value, this)">
-                            </div>
+        if (followedTeam) {
+            const followedMatches = filteredMatches.filter(m => m.team1Name === followedTeam || m.team2Name === followedTeam);
+            const otherMatches = filteredMatches.filter(m => m.team1Name !== followedTeam && m.team2Name !== followedTeam);
 
-                            <div class="match-team-row ${row2WinnerClass}" id="row-${m.id}-2">
-                                <span class="team-name" title="${m.team2Name}">${m.team2Name}</span>
-                                <input type="number" min="0" step="1" 
-                                       class="score-input" 
-                                       value="${score2Val}" 
-                                       placeholder="-"
-                                       ${isViewer ? 'disabled' : ''}
-                                       oninput="app.handleScoreChange('${m.id}', 2, this.value, this)">
-                            </div>
+            if (followedMatches.length > 0) {
+                contentHtml += `
+                    <div class="followed-matches-container">
+                        <div class="followed-matches-title">
+                            ⭐ משחקי הקבוצה במעקב: <strong>${followedTeam}</strong> (${followedMatches.length} משחקים)
                         </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
+                        <div class="matches-grid">
+                            ${followedMatches.map(m => this.renderMatchCardHtml(m, isViewer)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (otherMatches.length > 0) {
+                contentHtml += `
+                    <div class="all-matches-divider">
+                        <span>📅 כל שאר משחקי הטורניר (${otherMatches.length})</span>
+                    </div>
+                    <div class="matches-grid">
+                        ${otherMatches.map(m => this.renderMatchCardHtml(m, isViewer)).join('')}
+                    </div>
+                `;
+            }
+        } else {
+            contentHtml = `
+                <div class="matches-grid">
+                    ${filteredMatches.map(m => this.renderMatchCardHtml(m, isViewer)).join('')}
+                </div>
+            `;
+        }
+
+        container.innerHTML = contentHtml;
     }
 
     filterMatches(groupKey, buttonEl) {
@@ -2280,6 +2352,9 @@ class TournamentApp {
         const container = document.getElementById('group-standings-container');
         if (!container) return;
 
+        // עדכון באנר מעקב אישי
+        this.renderGuestFollowedBanner();
+
         // עדכון מקרא הטבלה בהתאם לסוג הטורניר
         const legendContainer = document.querySelector('.standings-legend');
         if (legendContainer) {
@@ -2299,9 +2374,31 @@ class TournamentApp {
             'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
             'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
         };
+
+        let entries = Object.entries(this.standings);
+        const followedTeam = this.guestPreferences?.teamName;
+        const followedGroup = this.guestPreferences?.groupKey;
+
+        // אם המשתמש בחר קבוצה או בית למעקב - מציגים את הבית שלו ראשון בראש העמוד
+        if (followedTeam) {
+            entries.sort(([keyA, teamsA], [keyB, teamsB]) => {
+                const hasA = teamsA.some(t => t.teamName === followedTeam);
+                const hasB = teamsB.some(t => t.teamName === followedTeam);
+                if (hasA && !hasB) return -1;
+                if (!hasA && hasB) return 1;
+                return 0;
+            });
+        } else if (followedGroup && followedGroup !== 'all') {
+            entries.sort(([keyA], [keyB]) => {
+                if (keyA === followedGroup && keyB !== followedGroup) return -1;
+                if (keyA !== followedGroup && keyB === followedGroup) return 1;
+                return 0;
+            });
+        }
+
         let html = '';
 
-        for (const [grpKey, teams] of Object.entries(this.standings)) {
+        for (const [grpKey, teams] of entries) {
             const grpMatches = this.matches.filter(m => m.groupId === grpKey);
             const grpPlayed = grpMatches.filter(m => m.score1 !== null && m.score2 !== null).length;
             const totalMatchesInGroup = grpMatches.length;
@@ -2350,6 +2447,11 @@ class TournamentApp {
                                         }
                                     }
 
+                                    const isFollowed = (followedTeam && t.teamName === followedTeam);
+                                    if (isFollowed) {
+                                        rowClass += ' row-followed-team';
+                                    }
+
                                     let diffClass = 'diff-zero';
                                     let diffStr = `${t.pointDiff}`;
                                     if (t.pointDiff > 0) {
@@ -2362,7 +2464,10 @@ class TournamentApp {
                                     return `
                                         <tr class="${rowClass}">
                                             <td><span class="rank-indicator ${rankClass}">${rankDisplay}</span></td>
-                                            <td class="team-cell" title="${t.teamName}">${t.teamName}</td>
+                                            <td class="team-cell" title="${t.teamName}">
+                                                ${isFollowed ? '<span class="followed-team-star">⭐</span>' : ''}
+                                                ${t.teamName}
+                                            </td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
                                             <td style="color:#475569; font-weight:700;">${t.draws || 0}</td>
@@ -2487,34 +2592,50 @@ class TournamentApp {
             const score2Val = m.score2 !== null ? m.score2 : '';
             const disabledInputs = isViewer || !m.team1 || !m.team2;
 
+            const isTie = (m.score1 !== null && m.score2 !== null && m.score1 === m.score2);
+            const tieBadge = isTie ? '<span class="tie-badge" title="שוויון - נדרשת הכרעה">⚖️ שוויון</span>' : '';
+
             return `
-                <div class="match-card playoff-match-card ${isFinal ? 'is-final' : ''}" id="playoff-card-${m.id}">
+                <div class="match-card playoff-match-card ${isFinal ? 'is-final' : ''} ${isTie ? 'playoff-tie-card' : ''}" id="playoff-card-${m.id}">
                     <div class="match-header" style="${isFinal ? 'background: #b45309;' : ''}">
                         <span>${m.roundName}</span>
+                        ${tieBadge}
                     </div>
 
                     <div class="match-team-row ${row1Winner}" id="prow-${m.id}-1">
                         <span class="team-name" title="${team1Name}">
                             ${team1Name} <small style="font-weight:normal; opacity:0.8;">${team1Seed}</small>
                         </span>
-                        <input type="number" min="0" step="1" 
-                               class="score-input" 
-                               value="${score1Val}" 
-                               placeholder="-"
-                               ${disabledInputs ? 'disabled' : ''}
-                               oninput="app.handlePlayoffScore('${m.id}', 1, this.value, this)">
+                        ${isViewer ? `
+                            <span class="score-display-viewer">${score1Val !== '' ? score1Val : '-'}</span>
+                        ` : `
+                            <input type="number" min="0" step="1" 
+                                   id="playoff-score-${m.id}-1"
+                                   class="score-input ${isTie ? 'score-tie' : ''}" 
+                                   value="${score1Val}" 
+                                   placeholder="-"
+                                   ${disabledInputs ? 'disabled' : ''}
+                                   oninput="app.handlePlayoffScore('${m.id}', 1, this.value, this)"
+                                   onchange="app.checkPlayoffDrawOnBlur('${m.id}')">
+                        `}
                     </div>
 
                     <div class="match-team-row ${row2Winner}" id="prow-${m.id}-2">
                         <span class="team-name" title="${team2Name}">
                             ${team2Name} <small style="font-weight:normal; opacity:0.8;">${team2Seed}</small>
                         </span>
-                        <input type="number" min="0" step="1" 
-                               class="score-input" 
-                               value="${score2Val}" 
-                               placeholder="-"
-                               ${disabledInputs ? 'disabled' : ''}
-                               oninput="app.handlePlayoffScore('${m.id}', 2, this.value, this)">
+                        ${isViewer ? `
+                            <span class="score-display-viewer">${score2Val !== '' ? score2Val : '-'}</span>
+                        ` : `
+                            <input type="number" min="0" step="1" 
+                                   id="playoff-score-${m.id}-2"
+                                   class="score-input ${isTie ? 'score-tie' : ''}" 
+                                   value="${score2Val}" 
+                                   placeholder="-"
+                                   ${disabledInputs ? 'disabled' : ''}
+                                   oninput="app.handlePlayoffScore('${m.id}', 2, this.value, this)"
+                                   onchange="app.checkPlayoffDrawOnBlur('${m.id}')">
+                        `}
                     </div>
                 </div>
             `;
@@ -2577,14 +2698,44 @@ class TournamentApp {
         `;
     }
 
+    findPlayoffMatch(matchId) {
+        if (!this.playoffMatches) return null;
+        if (matchId.startsWith('r16')) return this.playoffMatches.r16?.find(m => m.id === matchId);
+        if (matchId.startsWith('qf')) return this.playoffMatches.qf?.find(m => m.id === matchId);
+        if (matchId.startsWith('sf')) return this.playoffMatches.sf?.find(m => m.id === matchId);
+        if (matchId === 'final') return this.playoffMatches.final;
+        return null;
+    }
+
+    renderPlayoffBracketWithFocus(preferredId) {
+        const activeEl = document.activeElement;
+        const activeId = preferredId || (activeEl ? activeEl.id : null);
+        let selStart = null;
+        let selEnd = null;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            try {
+                selStart = activeEl.selectionStart;
+                selEnd = activeEl.selectionEnd;
+            } catch (e) {}
+        }
+
+        this.renderPlayoffBracket();
+
+        if (activeId) {
+            const restored = document.getElementById(activeId);
+            if (restored) {
+                restored.focus();
+                if (selStart !== null && selEnd !== null && typeof restored.setSelectionRange === 'function') {
+                    try {
+                        restored.setSelectionRange(selStart, selEnd);
+                    } catch (e) {}
+                }
+            }
+        }
+    }
+
     handlePlayoffScore(matchId, teamNum, rawValue, inputElement) {
-        let match = null;
-
-        if (matchId.startsWith('r16')) match = this.playoffMatches.r16?.find(m => m.id === matchId);
-        else if (matchId.startsWith('qf')) match = this.playoffMatches.qf?.find(m => m.id === matchId);
-        else if (matchId.startsWith('sf')) match = this.playoffMatches.sf?.find(m => m.id === matchId);
-        else if (matchId === 'final') match = this.playoffMatches.final;
-
+        let match = this.findPlayoffMatch(matchId);
         if (!match) return;
 
         if (rawValue === '' || rawValue === null || rawValue === undefined) {
@@ -2592,20 +2743,14 @@ class TournamentApp {
             if (teamNum === 2) match.score2 = null;
             match.winner = null;
             this.propagatePlayoffWinner(match, null);
-            this.renderPlayoffBracket();
+            this.renderPlayoffBracketWithFocus(inputElement?.id);
             this.saveActiveTournamentData();
             return;
         }
 
         const parsed = Number(rawValue);
         if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) {
-            this.showAlert("שגיאת תוצאה: יש להזין מספר שלם וחיובי בלבד.", "error");
-            inputElement.value = '';
-            if (teamNum === 1) match.score1 = null;
-            else match.score2 = null;
-            match.winner = null;
-            this.propagatePlayoffWinner(match, null);
-            this.renderPlayoffBracket();
+            // לא מוחקים את הקלט בזמן הקלדה רגילה
             return;
         }
 
@@ -2614,26 +2759,30 @@ class TournamentApp {
 
         if (match.score1 !== null && match.score2 !== null) {
             if (match.score1 === match.score2) {
-                this.showAlert("⚠️ חוק הטורניר: חל איסור מוחלט על תוצאת תיקו בפלייאוף! יש להכריע את המשחק.", "error");
-                inputElement.value = '';
-                if (teamNum === 1) match.score1 = null;
-                else match.score2 = null;
+                // תוצאת תיקו בפלייאוף היא שלב ביניים (למשל בהקלדת מספר דו-ספרתי 11 או בלחיצה על חצים)
+                // לא מוחקים את הנתונים ולא מקפיצים שגיאה מפריעה!
+                // פשוט לא מכריזים על מנצח עד שתושג הכרעה בתוצאה
                 match.winner = null;
                 this.propagatePlayoffWinner(match, null);
-                this.renderPlayoffBracket();
-                return;
+            } else {
+                match.winner = match.score1 > match.score2 ? 'team1' : 'team2';
+                const winnerTeam = match.winner === 'team1' ? match.team1 : match.team2;
+                this.propagatePlayoffWinner(match, winnerTeam);
             }
-
-            match.winner = match.score1 > match.score2 ? 'team1' : 'team2';
-            const winnerTeam = match.winner === 'team1' ? match.team1 : match.team2;
-            this.propagatePlayoffWinner(match, winnerTeam);
         } else {
             match.winner = null;
             this.propagatePlayoffWinner(match, null);
         }
 
-        this.renderPlayoffBracket();
+        this.renderPlayoffBracketWithFocus(inputElement?.id);
         this.saveActiveTournamentData();
+    }
+
+    checkPlayoffDrawOnBlur(matchId) {
+        const match = this.findPlayoffMatch(matchId);
+        if (match && match.score1 !== null && match.score2 !== null && match.score1 === match.score2) {
+            this.showAlert("⚠️ שים לב: המשחק כרגע בתוצאת תיקו. בפלייאוף נדרשת הכרעה לקביעת העולה לשלב הבא.", "warning");
+        }
     }
 
     propagatePlayoffWinner(match, winnerTeam) {
@@ -3124,6 +3273,207 @@ class TournamentApp {
         this.closeProfileModal();
         this.renderUsersManagement();
         this.showAlert("פרטי הפרופיל והסיסמה עודכנו בהצלחה!", "success");
+    }
+
+    /* ========================================================
+       התאמת צפייה אישית לאורח / צופה (Guest Following)
+       ======================================================== */
+
+    openGuestPreferencesModal() {
+        const modal = document.getElementById('guest-preferences-modal');
+        if (!modal) return;
+
+        this.populateGuestPrefTourneySelect();
+        this.updateGuestPrefHousesAndTeams();
+
+        modal.classList.remove('hidden');
+    }
+
+    closeGuestPreferencesModal() {
+        const modal = document.getElementById('guest-preferences-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    populateGuestPrefTourneySelect() {
+        const select = document.getElementById('guestPrefTourneySelect');
+        if (!select) return;
+
+        const currentId = this.guestPreferences?.tourneyId || this.activeTournamentId;
+        select.innerHTML = this.tournaments.map(t => {
+            const formatLabel = (t.format === 'knockout_only') ? 'נוקאאוט' : ((t.format === 'groups_only') ? 'בתים בלבד' : 'בתים+פלייאוף');
+            return `
+                <option value="${t.id}" ${t.id === currentId ? 'selected' : ''}>
+                    ${t.name} (${formatLabel}) ${t.isArchived ? '[ארכיון]' : ''}
+                </option>
+            `;
+        }).join('');
+    }
+
+    onGuestPrefTourneyChange(tourneyId) {
+        this.updateGuestPrefHousesAndTeams(tourneyId);
+    }
+
+    updateGuestPrefHousesAndTeams(selectedTourneyId) {
+        const tourneyId = selectedTourneyId || document.getElementById('guestPrefTourneySelect')?.value || this.activeTournamentId;
+        const tourney = this.tournaments.find(t => t.id === tourneyId) || this.tournaments[0];
+        if (!tourney) return;
+
+        const houseGroup = document.getElementById('guestPrefHouseGroup');
+        const houseSelect = document.getElementById('guestPrefHouseSelect');
+
+        const groupHebrewMap = {
+            'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+            'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
+        };
+
+        if (tourney.format === 'knockout_only') {
+            if (houseGroup) houseGroup.classList.add('hidden');
+        } else {
+            if (houseGroup) houseGroup.classList.remove('hidden');
+            if (houseSelect) {
+                let groupKeys = (tourney.groups && Object.keys(tourney.groups).length > 0)
+                    ? Object.keys(tourney.groups)
+                    : [];
+
+                if (groupKeys.length === 0) {
+                    const n = tourney.numGroups || 3;
+                    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+                    groupKeys = letters.slice(0, n).map(l => `Group ${l}`);
+                }
+
+                const selectedGroup = (this.guestPreferences?.tourneyId === tourneyId) ? (this.guestPreferences?.groupKey || 'all') : 'all';
+                houseSelect.innerHTML = `
+                    <option value="all" ${selectedGroup === 'all' ? 'selected' : ''}>כל הבתים (ללא סינון בית)</option>
+                    ${groupKeys.map(k => `
+                        <option value="${k}" ${selectedGroup === k ? 'selected' : ''}>${groupHebrewMap[k] || k}</option>
+                    `).join('')}
+                `;
+            }
+        }
+
+        this.updateGuestPrefTeams(tourneyId);
+    }
+
+    onGuestPrefHouseChange() {
+        const tourneyId = document.getElementById('guestPrefTourneySelect')?.value || this.activeTournamentId;
+        this.updateGuestPrefTeams(tourneyId);
+    }
+
+    updateGuestPrefTeams(selectedTourneyId) {
+        const tourneyId = selectedTourneyId || document.getElementById('guestPrefTourneySelect')?.value || this.activeTournamentId;
+        const tourney = this.tournaments.find(t => t.id === tourneyId) || this.tournaments[0];
+        const teamSelect = document.getElementById('guestPrefTeamSelect');
+        const houseSelect = document.getElementById('guestPrefHouseSelect');
+        if (!teamSelect || !tourney) return;
+
+        const selectedHouse = houseSelect ? houseSelect.value : 'all';
+        let teamsToDisplay = [];
+
+        if (tourney.groups && selectedHouse !== 'all' && tourney.groups[selectedHouse]) {
+            teamsToDisplay = tourney.groups[selectedHouse].map(t => t.name || t);
+        } else if (tourney.teams && tourney.teams.length > 0) {
+            teamsToDisplay = [...tourney.teams];
+        } else {
+            teamsToDisplay = [...this.defaultTeams];
+        }
+
+        const currentTeam = (this.guestPreferences?.tourneyId === tourneyId) ? (this.guestPreferences?.teamName || '') : '';
+
+        teamSelect.innerHTML = `
+            <option value="">ללא קבוצה מועדפת (הצג הכל כרגיל)</option>
+            ${teamsToDisplay.map(name => `
+                <option value="${name}" ${name === currentTeam ? 'selected' : ''}>⚽ ${name}</option>
+            `).join('')}
+        `;
+    }
+
+    saveAndApplyGuestPreferences() {
+        const tourneySelect = document.getElementById('guestPrefTourneySelect');
+        const houseSelect = document.getElementById('guestPrefHouseSelect');
+        const teamSelect = document.getElementById('guestPrefTeamSelect');
+
+        const tourneyId = tourneySelect ? tourneySelect.value : this.activeTournamentId;
+        const groupKey = houseSelect ? houseSelect.value : 'all';
+        const teamName = teamSelect ? teamSelect.value.trim() : '';
+
+        this.guestPreferences = {
+            tourneyId,
+            groupKey,
+            teamName
+        };
+        localStorage.setItem('tournament_guest_pref', JSON.stringify(this.guestPreferences));
+
+        // מעבר לטורניר הנבחר אם הוא שונה מהפעיל
+        if (tourneyId !== this.activeTournamentId) {
+            this.switchTournament(tourneyId, false);
+        }
+
+        // הגדרת סינון בית
+        if (groupKey && groupKey !== 'all') {
+            this.currentFilter = groupKey;
+        } else {
+            this.currentFilter = 'all';
+        }
+
+        this.closeGuestPreferencesModal();
+        this.renderGuestFollowedBanner();
+        this.renderStandings();
+        this.renderMatches();
+
+        const targetTab = (this.format === 'knockout_only') ? 'playoffs' : 'group-stage';
+        this.switchTab(targetTab);
+
+        if (teamName) {
+            this.showAlert(`המעקב הופעל בהצלחה עבור קבוצת ${teamName}! טבלת הבית ומשחקי הקבוצה מוצגים ראשונים.`, "success");
+        } else {
+            this.showAlert("העדפות הצפייה נשמרו בהצלחה.", "success");
+        }
+    }
+
+    clearGuestPreferences() {
+        this.guestPreferences = null;
+        localStorage.removeItem('tournament_guest_pref');
+        this.currentFilter = 'all';
+
+        this.renderGuestFollowedBanner();
+        this.renderStandings();
+        this.renderMatches();
+
+        this.showAlert("המעקב האישי בוטל. מוצגים כל המשחקים והטבלאות כרגיל.", "info");
+    }
+
+    renderGuestFollowedBanner() {
+        const bannerEl = document.getElementById('guest-followed-banner');
+        if (!bannerEl) return;
+
+        if (!this.guestPreferences || (!this.guestPreferences.teamName && (!this.guestPreferences.groupKey || this.guestPreferences.groupKey === 'all'))) {
+            bannerEl.classList.add('hidden');
+            return;
+        }
+
+        const groupHebrewMap = {
+            'all': 'כל הבתים',
+            'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+            'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
+        };
+
+        const teamText = this.guestPreferences.teamName ? `קבוצה: <strong>${this.guestPreferences.teamName}</strong>` : '';
+        const houseText = (this.guestPreferences.groupKey && this.guestPreferences.groupKey !== 'all')
+            ? `בית: <strong>${groupHebrewMap[this.guestPreferences.groupKey] || this.guestPreferences.groupKey}</strong>`
+            : '';
+        const sep = (teamText && houseText) ? ' • ' : '';
+
+        bannerEl.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span>⭐ <strong>מעקב צפייה אישי פעיל:</strong></span>
+                <span>${teamText}${sep}${houseText}</span>
+            </div>
+            <div class="guest-banner-actions">
+                <button type="button" class="btn-sm btn-secondary" onclick="app.openGuestPreferencesModal()">✏️ החלף מעקב</button>
+                <button type="button" class="btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-weight:700; border-radius:6px; cursor:pointer;" onclick="app.clearGuestPreferences()">✖️ נקה מעקב</button>
+            </div>
+        `;
+        bannerEl.classList.remove('hidden');
     }
 }
 

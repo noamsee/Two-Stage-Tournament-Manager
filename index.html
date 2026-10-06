@@ -145,13 +145,18 @@
                 </button>
 
                 <!-- כפתורי ייצוא -->
-                <button class="btn-csv btn-sm" onclick="app.exportToCSV()" title="הורד גיליון CSV ל-Excel">
+                <button class="btn-csv btn-sm admin-editable" onclick="app.exportToCSV()" title="הורד גיליון CSV ל-Excel">
                     📊 Excel
                 </button>
 
                 <!-- כפתור שינוי סיסמה ופרופיל -->
                 <button class="btn-profile btn-sm" onclick="app.openProfileModal()" title="עריכת פרטים אישיים ושינוי סיסמה">
                     ⚙️ פרופיל וסיסמה
+                </button>
+
+                <!-- כפתור התאמת צפייה אישית לאורח -->
+                <button class="btn-primary btn-sm guest-only-btn" onclick="app.openGuestPreferencesModal()" title="בחר קבוצה ובית למעקב אישי">
+                    ⭐ מעקב אישי
                 </button>
 
                 <!-- כפתור התנתקות -->
@@ -167,9 +172,9 @@
             <button class="btn-secondary btn-sm" onclick="app.switchToActiveTournament()">חזור לטורניר הפעיל</button>
         </div>
 
-        <!-- ניווט טאבים (גלוי לכולם) -->
+        <!-- ניווט טאבים (גלוי לכולם, למעט הגדרות שמוסתר מצופים) -->
         <nav class="tabs">
-            <button class="tab-btn active" onclick="app.switchTab('setup')">⚙️ הגדרת טורניר</button>
+            <button class="tab-btn admin-editable active" onclick="app.switchTab('setup')">⚙️ הגדרת טורניר</button>
             <button class="tab-btn" onclick="app.switchTab('group-stage')">⚽ שלב הבתים</button>
             <button class="tab-btn" onclick="app.switchTab('playoffs')">🌳 שלב הפלייאוף</button>
             <button class="tab-btn owner-only" onclick="app.switchTab('users')">👥 ניהול מערכת (Owner)</button>
@@ -220,8 +225,11 @@
                 </div>
 
                 <div id="group-stage-main-content">
+                    <!-- באנר מעקב אישי לאורח/צופה -->
+                    <div id="guest-followed-banner" class="guest-followed-banner hidden"></div>
+
                     <!-- סרגל פעולות עזר לשלב הבתים -->
-                    <div class="actions-bar">
+                    <div class="actions-bar admin-editable">
                         <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
                             📊 הורד נתונים וטבלאות (CSV)
                         </button>
@@ -234,7 +242,25 @@
                     </div>
 
                     <div class="tournament-layout">
-                        <!-- לוח משחקים -->
+                        <!-- טבלאות דירוג (מוצגות ראשונות בראש העמוד - סיכום מצב) -->
+                        <div class="standings-column">
+                            <h2>📊 טבלאות דירוג הבתים (סיכום תוצאות ומצב)</h2>
+                            
+                            <div class="standings-legend">
+                                <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה (מקומות 1-2)</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #f59e0b;"></span> מועמד (מקום 3 הטוב ביותר)</span>
+                            </div>
+
+                            <div id="group-standings-container">
+                                <!-- ייווצר דינמית ע"י ה-JS -->
+                            </div>
+
+                            <button id="btn-seed-playoffs" class="btn-success admin-editable hidden" style="width: 100%; margin-top: 15px;" onclick="app.seedPlayoffs()">
+                                🚀 נעל שלב בתים ושבץ פלייאוף
+                            </button>
+                        </div>
+
+                        <!-- לוח משחקים ותוצאות (ממשיך למטה בגלילה) -->
                         <div class="matches-column">
                             <h2>📅 לוח משחקים ותוצאות</h2>
                             
@@ -247,26 +273,7 @@
                                 <p class="placeholder-text">אנא הזן קבוצות ולחץ על "ייצר לוח משחקים" בטאב ההגדרות.</p>
                             </div>
                         </div>
-
-
-                    <!-- טבלאות דירוג -->
-                    <div class="standings-column">
-                        <h2>📊 טבלאות דירוג (בזמן אמת)</h2>
-                        
-                        <div class="standings-legend">
-                            <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה (מקומות 1-2)</span>
-                            <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #f59e0b;"></span> מועמד (מקום 3 הטוב ביותר)</span>
-                        </div>
-
-                        <div id="group-standings-container">
-                            <!-- ייווצר דינמית ע"י ה-JS -->
-                        </div>
-
-                        <button id="btn-seed-playoffs" class="btn-success admin-editable hidden" style="width: 100%; margin-top: 15px;" onclick="app.seedPlayoffs()">
-                            🚀 נעל שלב בתים ושבץ פלייאוף
-                        </button>
                     </div>
-                </div>
                 </div> <!-- סגירת group-stage-main-content -->
             </section>
 
@@ -669,8 +676,53 @@ git push -u origin main</pre>
         </div>
     </div>
 
+    <!-- מודאל: התאמת צפייה אישית לאורח/צופה (בחירת טורניר, בית וקבוצה למעקב) -->
+    <div id="guest-preferences-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 520px;">
+            <button class="modal-close-btn" onclick="app.closeGuestPreferencesModal()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                ⭐ התאמת צפייה בטורניר
+            </h2>
+            <p style="color:#64748b; font-size:0.9rem; margin-top:-4px; margin-bottom:18px;">
+                ברוך הבא! בחר את הטורניר, הבית והקבוצה שברצונך לעקוב אחריהם. טבלת הבית ומשחקי הקבוצה שלך יוצגו בראש העמוד:
+            </p>
+
+            <form onsubmit="event.preventDefault(); app.saveAndApplyGuestPreferences();">
+                <div class="login-field">
+                    <label for="guestPrefTourneySelect">🏆 1. איזה טורניר תרצה לראות?</label>
+                    <select id="guestPrefTourneySelect" class="login-input" onchange="app.onGuestPrefTourneyChange(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <div class="login-field" id="guestPrefHouseGroup">
+                    <label for="guestPrefHouseSelect">🏠 2. באיזה בית תרצה לצפות?</label>
+                    <select id="guestPrefHouseSelect" class="login-input" onchange="app.onGuestPrefHouseChange(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <div class="login-field" id="guestPrefTeamGroup">
+                    <label for="guestPrefTeamSelect">⚽ 3. איזו קבוצה תרצה לעקוב אחריה?</label>
+                    <select id="guestPrefTeamSelect" class="login-input">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px; gap:10px; flex-wrap:wrap;">
+                    <button type="submit" class="btn-primary" style="flex:1; min-width:200px;">
+                        ⭐ החל מעקב והצג לוח מותאם
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="app.closeGuestPreferencesModal()">
+                        דלג לצפייה כללית
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=2.5"></script>
+    <script src="./app.js?v=2.6"></script>
 </body>
 </html>
 
