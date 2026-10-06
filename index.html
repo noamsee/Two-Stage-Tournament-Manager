@@ -271,30 +271,36 @@
                     <h2>👑 פאנל ניהול בעלים (Owner Dashboard)</h2>
                     <p class="role-notice">אזור זה מורשה ונגיש אך ורק עבור <strong>noamsee@gmail.com</strong>.</p>
                     
-                    <!-- חלק 1: ניהול מנהלי מערכת (Admins) -->
+                    <!-- חלק 1: ניהול משתמשים כולל (Users Management) -->
                     <div class="admin-management-box">
-                        <h3>🛡️ הגדרת מנהלים מורשים (Admins Management)</h3>
-                        <p style="font-size:0.9rem; color:#64748b;">
-                            מנהלים מוגדרים יכולים לערוך שמות קבוצות, להזין תוצאות משחקים ולנעול פלייאוף:
-                        </p>
-                        <form class="admin-add-form" onsubmit="event.preventDefault(); app.addAdmin();">
-                            <input type="email" id="newAdminEmailInput" placeholder="הזן כתובת אימייל למנהל חדש (למשל: admin@tournament.com)" required>
-                            <button type="submit" class="btn-primary">➕ הוסף מנהל חדש</button>
-                        </form>
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                            <div>
+                                <h3 style="margin: 0;">👥 ניהול משתמשים והרשאות (Users Management)</h3>
+                                <p style="font-size:0.9rem; color:#64748b; margin: 4px 0 0 0;">
+                                    צפייה בכל המשתמשים, הוספת משתמשים חדשים, הגדרת תפקידים (Admin / Viewer), איפוס סיסמאות ומחיקה:
+                                </p>
+                            </div>
+                            <button type="button" class="btn-primary" onclick="app.openAddUserModal()">➕ הוסף משתמש חדש</button>
+                        </div>
 
-                        <table class="admins-table">
-                            <thead>
-                                <tr>
-                                    <th>אימייל מנהל</th>
-                                    <th>סטטוס הרשאה</th>
-                                    <th>תאריך הוספה</th>
-                                    <th style="width: 80px; text-align: center;">פעולה</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminsListTableBody">
-                                <!-- ייווצר דינמית ע"י ה-JS -->
-                            </tbody>
-                        </table>
+                        <!-- טבלת משתמשים -->
+                        <div style="overflow-x: auto;">
+                            <table class="admins-table users-table">
+                                <thead>
+                                    <tr>
+                                        <th>שם המשתמש</th>
+                                        <th>כתובת אימייל</th>
+                                        <th>תפקיד / הרשאה</th>
+                                        <th>ספק התחברות</th>
+                                        <th>תאריך הצטרפות</th>
+                                        <th style="text-align: center; width: 170px;">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersListTableBody">
+                                    <!-- ייווצר דינמית ע"י ה-JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <hr style="border:none; border-top:1px solid #e2e8f0; margin: 30px 0;">
@@ -392,7 +398,67 @@ git push -u origin main</pre>
         </div>
     </div>
 
+    <!-- מודאל הוספת משתמש חדש ע"י ה-Owner -->
+    <div id="add-user-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="app.closeAddUserModal()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                ➕ הוספת משתמש חדש למערכת
+            </h2>
+            <form onsubmit="event.preventDefault(); app.submitAddUser();">
+                <div class="login-field" style="margin-top:16px;">
+                    <label for="newUserNameInput">👤 שם מלא של המשתמש:</label>
+                    <input type="text" id="newUserNameInput" class="login-input" placeholder="למשל: דני לוי" required>
+                </div>
+                <div class="login-field">
+                    <label for="newUserEmailInput">📧 כתובת אימייל:</label>
+                    <input type="email" id="newUserEmailInput" class="login-input" placeholder="user@example.com" required>
+                </div>
+                <div class="login-field">
+                    <label for="newUserRoleSelect">🛡️ תפקיד והרשאה במערכת:</label>
+                    <select id="newUserRoleSelect" class="login-input" style="background:#fff;">
+                        <option value="admin">⚡ מנהל מורשה (Admin - יכול לערוך תוצאות ומשחקים)</option>
+                        <option value="viewer" selected>👁️ צופה בלבד (Viewer / Guest - צפייה בלבד)</option>
+                    </select>
+                </div>
+                <div class="login-field">
+                    <label for="newUserPasswordInput">🔒 סיסמה ראשונית:</label>
+                    <input type="text" id="newUserPasswordInput" class="login-input" value="1234" required placeholder="סיסמה (ברירת מחדל: 1234)">
+                    <small style="color:#64748b; font-size:0.8rem;">המשתמש יוכל לשנות את הסיסמה הזו לאחר שיתחבר.</small>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+                    <button type="submit" class="btn-primary">➕ צור משתמש</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeAddUserModal()">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- מודאל איפוס סיסמה למשתמש ע"י ה-Owner -->
+    <div id="reset-password-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="app.closeResetPasswordModal()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                🔑 איפוס סיסמה למשתמש
+            </h2>
+            <p style="font-size:0.9rem; color:#64748b; margin-bottom:12px;">
+                איפוס סיסמה עבור: <strong id="resetPasswordUserEmailDisplay" style="direction:ltr; display:inline-block;"></strong>
+            </p>
+            <form onsubmit="event.preventDefault(); app.submitResetPassword();">
+                <input type="hidden" id="resetPasswordTargetEmail">
+                <div class="login-field">
+                    <label for="resetPasswordNewInput">🔒 סיסמה חדשה עבור המשתמש:</label>
+                    <input type="text" id="resetPasswordNewInput" class="login-input" value="1234" required placeholder="הזן סיסמה חדשה">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+                    <button type="submit" class="btn-primary">💾 אשר איפוס סיסמה</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeResetPasswordModal()">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=2.2"></script>
+    <script src="./app.js?v=2.3"></script>
 </body>
 </html>

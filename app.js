@@ -500,15 +500,153 @@ class TournamentApp {
         localStorage.setItem('tournament_manager_admins', JSON.stringify(this.adminsList));
     }
 
-    addAdmin() {
-        if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי להוסיף מנהלים!", "error");
+    /* ========================================================
+       ניהול משתמשים כולל ע"י ה-Owner (Comprehensive User Management)
+       ======================================================== */
+
+    getAllUsers() {
+        const registered = this.getRegisteredUsers();
+        const usersMap = new Map();
+
+        // 1. הוספת ה-Owner
+        usersMap.set(this.OWNER_EMAIL.toLowerCase(), {
+            name: 'נועם סלע',
+            email: this.OWNER_EMAIL.toLowerCase(),
+            role: 'owner',
+            provider: 'google/email',
+            registeredAt: 'מנהל ראשי (מייסד)',
+            isProtected: true
+        });
+
+        // 2. הוספת משתמשים רשומים
+        registered.forEach(u => {
+            const email = (u.email || '').toLowerCase();
+            const isAdmin = this.adminsList.some(a => a.email.toLowerCase() === email);
+            usersMap.set(email, {
+                name: u.name || email.split('@')[0],
+                email,
+                role: isAdmin ? 'admin' : (u.role || 'viewer'),
+                provider: u.provider || 'email',
+                registeredAt: u.registeredAt || 'משתמש רשום',
+                password: u.password || '1234',
+                isProtected: false
+            });
+        });
+
+        // 3. הוספת מנהלים שהוגדרו ברשימת המנהלים
+        this.adminsList.forEach(a => {
+            const email = a.email.toLowerCase();
+            if (!usersMap.has(email)) {
+                usersMap.set(email, {
+                    name: a.name || email.split('@')[0],
+                    email,
+                    role: 'admin',
+                    provider: 'email',
+                    registeredAt: a.addedAt || 'הוגדר כמנהל',
+                    password: '1234',
+                    isProtected: false
+                });
+            } else {
+                usersMap.get(email).role = 'admin';
+            }
+        });
+
+        return Array.from(usersMap.values());
+    }
+
+    renderAdminManagement() {
+        // פונקציה זו נקראת גם בשם renderAdminManagement לטובת תאימות קודמת
+        this.renderUsersManagement();
+    }
+
+    renderUsersManagement() {
+        const tbody = document.getElementById('usersListTableBody');
+        if (!tbody) return;
+
+        const users = this.getAllUsers();
+        if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b; padding:16px;">אין משתמשים במערכת.</td></tr>`;
             return;
         }
 
-        const input = document.getElementById('newAdminEmailInput');
-        if (!input) return;
-        const email = input.value.trim().toLowerCase();
+        tbody.innerHTML = users.map(u => {
+            let roleBadge = '';
+            if (u.role === 'owner') {
+                roleBadge = `<span style="background:#fef3c7; color:#92400e; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">👑 בעל המערכת (Owner)</span>`;
+            } else if (u.role === 'admin') {
+                roleBadge = `<span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">⚡ מנהל (Admin)</span>`;
+            } else {
+                roleBadge = `<span style="background:#f1f5f9; color:#475569; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">👁️ צופה (Viewer)</span>`;
+            }
+
+            const isOwnerUser = u.email === this.OWNER_EMAIL.toLowerCase();
+
+            const actionsHtml = isOwnerUser 
+                ? `<span style="color:#64748b; font-size:0.8rem;">חשבון ראשי</span>`
+                : `
+                    <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                        <button type="button" class="btn-sm btn-secondary" onclick="app.openResetPasswordModal('${u.email}')" title="איפוס סיסמה למשתמש זה" style="padding:4px 8px; font-size:0.8rem;">
+                            🔑 איפוס סיסמה
+                        </button>
+                        <button type="button" class="btn-delete-admin" onclick="app.removeUser('${u.email}')" title="מחק משתמש מהמערכת">
+                            🗑️ הסר
+                        </button>
+                    </div>
+                `;
+
+            return `
+                <tr>
+                    <td style="font-weight:700; color:#0f172a;">${u.name}</td>
+                    <td style="direction:ltr; text-align:right; font-family:monospace; color:#334155;">${u.email}</td>
+                    <td>${roleBadge}</td>
+                    <td style="font-size:0.85rem; color:#64748b;">${u.provider === 'google' ? 'Google OAuth' : 'דוא"ל וסיסמה'}</td>
+                    <td style="color:#64748b; font-size:0.85rem;">${u.registeredAt}</td>
+                    <td style="text-align:center;">${actionsHtml}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    openAddUserModal() {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי להוסיף משתמשים!", "error");
+            return;
+        }
+        const modal = document.getElementById('add-user-modal');
+        const nameInp = document.getElementById('newUserNameInput');
+        const emailInp = document.getElementById('newUserEmailInput');
+        const passInp = document.getElementById('newUserPasswordInput');
+        if (nameInp) nameInp.value = '';
+        if (emailInp) emailInp.value = '';
+        if (passInp) passInp.value = '1234';
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeAddUserModal() {
+        const modal = document.getElementById('add-user-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    submitAddUser() {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי להוסיף משתמשים!", "error");
+            return;
+        }
+
+        const nameInp = document.getElementById('newUserNameInput');
+        const emailInp = document.getElementById('newUserEmailInput');
+        const roleSel = document.getElementById('newUserRoleSelect');
+        const passInp = document.getElementById('newUserPasswordInput');
+
+        const name = nameInp ? nameInp.value.trim() : '';
+        const email = emailInp ? emailInp.value.trim().toLowerCase() : '';
+        const role = roleSel ? roleSel.value : 'viewer';
+        const password = passInp ? passInp.value.trim() : '1234';
+
+        if (!name) {
+            this.showAlert("אנא הזן שם עבור המשתמש.", "error");
+            return;
+        }
 
         if (!email || !email.includes('@')) {
             this.showAlert("אנא הזן כתובת אימייל חוקית.", "error");
@@ -516,57 +654,135 @@ class TournamentApp {
         }
 
         if (email === this.OWNER_EMAIL.toLowerCase()) {
-            this.showAlert("כתובת זו שייכת כבר ל-Owner של המערכת.", "warning");
+            this.showAlert("כתובת זו היא כתובת ה-Owner של המערכת.", "warning");
             return;
         }
 
-        if (this.adminsList.some(a => a.email.toLowerCase() === email)) {
-            this.showAlert("מנהל עם אימייל זה כבר מוגדר במערכת!", "warning");
+        const users = this.getRegisteredUsers();
+        if (users.some(u => u.email.toLowerCase() === email)) {
+            this.showAlert("משתמש עם כתובת אימייל זו כבר קיים במערכת!", "warning");
             return;
         }
 
-        this.adminsList.push({
+        // שמירה כמשתמש רשום
+        users.push({
+            name,
             email,
-            addedAt: new Date().toLocaleDateString('he-IL')
+            role,
+            password: password || '1234',
+            registeredAt: new Date().toLocaleDateString('he-IL'),
+            provider: 'email'
         });
+        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
 
-        this.saveAdmins();
-        this.renderAdminManagement();
-        input.value = '';
-        this.showAlert(`מנהל חדש (${email}) נוסף בהצלחה למערכת! כעת הוא יוכל להתחבר כמנהל.`, "success");
+        // אם התפקיד שנבחר הוא Admin, נעדכן גם ברשימת ה-Admins
+        if (role === 'admin') {
+            if (!this.adminsList.some(a => a.email.toLowerCase() === email)) {
+                this.adminsList.push({
+                    name,
+                    email,
+                    addedAt: new Date().toLocaleDateString('he-IL')
+                });
+                this.saveAdmins();
+            }
+        }
+
+        this.closeAddUserModal();
+        this.renderUsersManagement();
+        this.showAlert(`המשתמש ${name} (${email}) נוסף בהצלחה עם תפקיד ${role === 'admin' ? 'מנהל' : 'צופה'}! סיסמה ראשונית: ${password}`, "success");
     }
 
-    removeAdmin(emailToRemove) {
+    removeUser(emailToRemove) {
         if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי להסיר מנהלים!", "error");
+            this.showAlert("רק Owner רשאי למחוק משתמשים!", "error");
             return;
         }
 
-        this.adminsList = this.adminsList.filter(a => a.email.toLowerCase() !== emailToRemove.toLowerCase());
+        const cleanEmail = (emailToRemove || '').trim().toLowerCase();
+        if (cleanEmail === this.OWNER_EMAIL.toLowerCase()) {
+            this.showAlert("לא ניתן למחוק את ה-Owner של המערכת!", "error");
+            return;
+        }
+
+        if (!confirm(`האם אתה בטוח שברצונך להסיר את המשתמש ${cleanEmail} מהמערכת?`)) {
+            return;
+        }
+
+        // הסרה ממשתמשים רשומים
+        let users = this.getRegisteredUsers();
+        users = users.filter(u => u.email.toLowerCase() !== cleanEmail);
+        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+
+        // הסרה מרשימת מנהלים
+        this.adminsList = this.adminsList.filter(a => a.email.toLowerCase() !== cleanEmail);
         this.saveAdmins();
-        this.renderAdminManagement();
-        this.showAlert(`הרשאת המנהל עבור ${emailToRemove} הוסרה.`, "warning");
+
+        this.renderUsersManagement();
+        this.showAlert(`המשתמש ${cleanEmail} הוסר בהצלחה מהמערכת.`, "warning");
     }
 
-    renderAdminManagement() {
-        const tbody = document.getElementById('adminsListTableBody');
-        if (!tbody) return;
-
-        if (this.adminsList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#64748b; padding:16px;">טרם הוגדרו מנהלים נוספים.</td></tr>`;
+    openResetPasswordModal(userEmail) {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי לאפס סיסמאות!", "error");
             return;
         }
 
-        tbody.innerHTML = this.adminsList.map(a => `
-            <tr>
-                <td style="font-weight:700; direction:ltr; text-align:right;">${a.email}</td>
-                <td><span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">מנהל מורשה (Admin)</span></td>
-                <td style="color:#64748b; font-size:0.85rem;">${a.addedAt}</td>
-                <td style="text-align:center;">
-                    <button class="btn-delete-admin" onclick="app.removeAdmin('${a.email}')">הסר הרשאה</button>
-                </td>
-            </tr>
-        `).join('');
+        const modal = document.getElementById('reset-password-modal');
+        const disp = document.getElementById('resetPasswordUserEmailDisplay');
+        const target = document.getElementById('resetPasswordTargetEmail');
+        const newPassInp = document.getElementById('resetPasswordNewInput');
+
+        if (disp) disp.textContent = userEmail;
+        if (target) target.value = userEmail;
+        if (newPassInp) newPassInp.value = '1234';
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeResetPasswordModal() {
+        const modal = document.getElementById('reset-password-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    submitResetPassword() {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי לאפס סיסמאות!", "error");
+            return;
+        }
+
+        const target = document.getElementById('resetPasswordTargetEmail');
+        const newPassInp = document.getElementById('resetPasswordNewInput');
+
+        const email = target ? target.value.trim().toLowerCase() : '';
+        const newPass = newPassInp ? newPassInp.value.trim() : '';
+
+        if (!newPass) {
+            this.showAlert("אנא הזן סיסמה חדשה.", "error");
+            return;
+        }
+
+        // איפוס עבור משתמש
+        const users = this.getRegisteredUsers();
+        const user = users.find(u => u.email.toLowerCase() === email);
+        if (user) {
+            user.password = newPass;
+            localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+        } else {
+            // אם המשתמש היה קיים רק ברשימת ה-admins הישנה, נוסיף אותו לרשומים עם הסיסמה
+            users.push({
+                name: email.split('@')[0],
+                email,
+                role: 'admin',
+                password: newPass,
+                registeredAt: new Date().toLocaleDateString('he-IL'),
+                provider: 'email'
+            });
+            localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+        }
+
+        this.closeResetPasswordModal();
+        this.renderUsersManagement();
+        this.showAlert(`הסיסמה עבור ${email} אופסה בהצלחה ל: ${newPass}`, "success");
     }
 
     /* ========================================================
@@ -947,6 +1163,11 @@ class TournamentApp {
             btn.getAttribute('onclick')?.includes(`'${tabId}'`)
         );
         if (targetBtn) targetBtn.classList.add('active');
+
+        if (tabId === 'users') {
+            this.renderUsersManagement();
+            this.renderOwnerTournamentsList();
+        }
     }
 
     renderTeamInputs() {
