@@ -18,6 +18,9 @@ class TournamentApp {
         this.currentRole = 'viewer';
         this.currentUser = null;
 
+        // אתחול מאגר המשתמשים האחוד (Single Source of Truth)
+        this.initUnifiedUsersStore();
+
         // 15 קבוצות ברירת מחדל
         this.defaultTeams = [
             "מכבי תל אביב",
@@ -37,9 +40,6 @@ class TournamentApp {
             "הפועל עפולה"
         ];
 
-        // רשימת מנהלים מורשים (Admins) נשמרת ב-localStorage
-        this.adminsList = this.loadAdmins();
-
         // מאגר הטורנירים (טורניר פעיל + ארכיון תוצאות עבר)
         this.tournaments = this.loadTournaments();
         this.activeTournamentId = this.tournaments[0]?.id || 'tourney_active_2026';
@@ -55,6 +55,7 @@ class TournamentApp {
         this.currentFilter = 'all';
         this.alertTimeout = null;
     }
+
 
     init() {
         // טעינת הטורניר הנבחר
@@ -237,6 +238,158 @@ class TournamentApp {
         this.switchTab('setup');
     }
 
+    /* ========================================================
+       מאגר משתמשים אחוד (Single Source of Truth: Unified Users Store)
+       ======================================================== */
+
+    initUnifiedUsersStore() {
+        let users = [];
+        try {
+            const raw = localStorage.getItem('tournament_unified_users');
+            if (raw) users = JSON.parse(raw);
+        } catch {}
+
+        if (!Array.isArray(users) || users.length === 0) {
+            let oldRegistered = [];
+            try {
+                const regRaw = localStorage.getItem('tournament_registered_users');
+                if (regRaw) oldRegistered = JSON.parse(regRaw);
+            } catch {}
+
+            let oldAdmins = [];
+            try {
+                const admRaw = localStorage.getItem('tournament_manager_admins');
+                if (admRaw) oldAdmins = JSON.parse(admRaw);
+            } catch {}
+
+            const ownerPass = localStorage.getItem('tournament_owner_password') || '1234';
+
+            users.push({
+                name: 'Noam Seelenfreund',
+                email: this.OWNER_EMAIL.toLowerCase(),
+                role: 'owner',
+                password: ownerPass,
+                provider: 'google/email',
+                registeredAt: 'מנהל ראשי (מייסד)',
+                isProtected: true
+            });
+
+            oldRegistered.forEach(u => {
+                const email = (u.email || '').trim().toLowerCase();
+                if (email && email !== this.OWNER_EMAIL.toLowerCase() && !users.some(x => x.email === email)) {
+                    users.push({
+                        name: u.name || email.split('@')[0],
+                        email,
+                        role: u.role || 'viewer',
+                        password: u.password || '1234',
+                        provider: u.provider || 'email',
+                        registeredAt: u.registeredAt || new Date().toLocaleDateString('he-IL'),
+                        isProtected: false
+                    });
+                }
+            });
+
+            oldAdmins.forEach(a => {
+                const email = (a.email || '').trim().toLowerCase();
+                if (email && email !== this.OWNER_EMAIL.toLowerCase()) {
+                    const existing = users.find(x => x.email === email);
+                    if (existing) {
+                        existing.role = 'admin';
+                    } else {
+                        users.push({
+                            name: a.name || email.split('@')[0],
+                            email,
+                            role: 'admin',
+                            password: '1234',
+                            provider: 'email',
+                            registeredAt: a.addedAt || new Date().toLocaleDateString('he-IL'),
+                            isProtected: false
+                        });
+                    }
+                }
+            });
+
+            localStorage.setItem('tournament_unified_users', JSON.stringify(users));
+        } else {
+            let owner = users.find(u => u.email.toLowerCase() === this.OWNER_EMAIL.toLowerCase());
+            if (!owner) {
+                users.unshift({
+                    name: 'Noam Seelenfreund',
+                    email: this.OWNER_EMAIL.toLowerCase(),
+                    role: 'owner',
+                    password: localStorage.getItem('tournament_owner_password') || '1234',
+                    provider: 'google/email',
+                    registeredAt: 'מנהל ראשי (מייסד)',
+                    isProtected: true
+                });
+                localStorage.setItem('tournament_unified_users', JSON.stringify(users));
+            } else {
+                owner.role = 'owner';
+                owner.isProtected = true;
+                if (!owner.password) owner.password = '1234';
+                if (owner.name === 'נועם סלע') {
+                    owner.name = 'Noam Seelenfreund';
+                    localStorage.setItem('tournament_unified_users', JSON.stringify(users));
+                }
+            }
+        }
+        return users;
+    }
+
+    getUnifiedUsers() {
+        try {
+            const raw = localStorage.getItem('tournament_unified_users');
+            return raw ? JSON.parse(raw) : this.initUnifiedUsersStore();
+        } catch {
+            return this.initUnifiedUsersStore();
+        }
+    }
+
+    saveUnifiedUsers(users) {
+        localStorage.setItem('tournament_unified_users', JSON.stringify(users));
+        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+        const owner = users.find(u => u.email.toLowerCase() === this.OWNER_EMAIL.toLowerCase());
+        if (owner && owner.password) {
+            localStorage.setItem('tournament_owner_password', owner.password);
+        }
+        const admins = users.filter(u => u.role === 'admin').map(u => ({ email: u.email, name: u.name, addedAt: u.registeredAt }));
+        localStorage.setItem('tournament_manager_admins', JSON.stringify(admins));
+    }
+
+    getUserByEmail(email) {
+        if (!email) return null;
+        const clean = email.trim().toLowerCase();
+        const users = this.getUnifiedUsers();
+        return users.find(u => u.email.toLowerCase() === clean) || null;
+    }
+
+    getRegisteredUsers() {
+        return this.getUnifiedUsers();
+    }
+
+    getOwnerPassword() {
+        const owner = this.getUserByEmail(this.OWNER_EMAIL);
+        return owner?.password || '1234';
+    }
+
+    setOwnerPassword(newPassword) {
+        const users = this.getUnifiedUsers();
+        const owner = users.find(u => u.email.toLowerCase() === this.OWNER_EMAIL.toLowerCase());
+        if (owner) {
+            owner.password = newPassword;
+            this.saveUnifiedUsers(users);
+        }
+    }
+
+    loadAdmins() {
+        const users = this.getUnifiedUsers();
+        return users.filter(u => u.role === 'admin').map(u => ({ email: u.email, name: u.name, addedAt: u.registeredAt }));
+    }
+
+    saveAdmins() {
+        // מנוהל אוטומטית דרך saveUnifiedUsers
+    }
+
     handleSignUp() {
         const nameInput = document.getElementById('signupName');
         const emailInput = document.getElementById('signupEmail');
@@ -265,8 +418,7 @@ class TournamentApp {
             return;
         }
 
-        // שמירת משתמש רשום ב-localStorage
-        const users = this.getRegisteredUsers();
+        const users = this.getUnifiedUsers();
         const existing = users.find(u => u.email.toLowerCase() === email);
         if (existing) {
             this.showAlert("כתובת אימייל זו כבר רשומה במערכת! מעביר למסך כניסה...", "warning");
@@ -279,11 +431,13 @@ class TournamentApp {
         users.push({
             name,
             email,
+            role: 'viewer',
             password: pass,
             registeredAt: new Date().toLocaleDateString('he-IL'),
-            provider: 'email'
+            provider: 'email',
+            isProtected: false
         });
-        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+        this.saveUnifiedUsers(users);
 
         const tourneySelect = document.getElementById('signupTournamentSelect');
         if (tourneySelect && tourneySelect.value) {
@@ -293,30 +447,12 @@ class TournamentApp {
         this.authenticateUser(email, true, name, 'email');
     }
 
-    getRegisteredUsers() {
-        try {
-            const raw = localStorage.getItem('tournament_registered_users');
-            return raw ? JSON.parse(raw) : [];
-        } catch {
-            return [];
-        }
-    }
-
-    getOwnerPassword() {
-        return localStorage.getItem('tournament_owner_password') || '1234';
-    }
-
-    setOwnerPassword(newPassword) {
-        localStorage.setItem('tournament_owner_password', newPassword);
-    }
-
     handleLogin() {
         const emailInput = document.getElementById('loginEmail');
         const passInput = document.getElementById('loginPassword');
         const enteredEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
         const enteredPass = passInput ? passInput.value.trim() : '';
 
-        // קבלת הטורניר שנבחר בלוגין
         const tourneySelect = document.getElementById('loginTournamentSelect');
         if (tourneySelect && tourneySelect.value) {
             this.switchTournament(tourneySelect.value, false);
@@ -327,74 +463,107 @@ class TournamentApp {
             return;
         }
 
-        // בדיקת סיסמה עבור בעלים (Owner)
-        if (enteredEmail === this.OWNER_EMAIL.toLowerCase()) {
-            const ownerPass = this.getOwnerPassword();
-            if (enteredPass !== ownerPass) {
+        const user = this.getUserByEmail(enteredEmail);
+        if (user) {
+            const expectedPass = user.password || '1234';
+            if (enteredPass !== expectedPass) {
                 this.showAlert(`סיסמה שגויה עבור ${enteredEmail}. (סיסמת ברירת מחדל: 1234)`, "error");
                 return;
             }
-            this.authenticateUser(enteredEmail, true, 'נועם סלע', 'email');
+            this.authenticateUser(enteredEmail, true, user.name, 'email');
             return;
         }
 
-        // בדיקת משתמש רשום
-        const registeredUsers = this.getRegisteredUsers();
-        const found = registeredUsers.find(u => u.email.toLowerCase() === enteredEmail);
-        if (found) {
-            if (found.password && enteredPass !== found.password) {
-                this.showAlert("סיסמה שגויה. אנא נסה שוב.", "error");
-                return;
-            }
-            this.authenticateUser(enteredEmail, true, found.name, 'email');
-            return;
-        }
-
-        // משתמש חדש שלא נרשם עדיין דרך טאב הרשמה
+        // משתמש חדש לגמרי שנכנס עם סיסמת ברירת מחדל 1234
         if (enteredPass !== '1234') {
-            this.showAlert("סיסמה שגויה. עבור משתמשים חדשים הסיסמה הראשונית היא: 1234", "warning");
+            this.showAlert("משתמש לא נמצא או סיסמה שגויה. עבור משתמשים חדשים הסיסמה הראשונית היא: 1234", "warning");
             return;
         }
-        this.authenticateUser(enteredEmail, true, null, 'email');
+
+        const users = this.getUnifiedUsers();
+        users.push({
+            name: enteredEmail.split('@')[0],
+            email: enteredEmail,
+            role: 'viewer',
+            password: '1234',
+            registeredAt: new Date().toLocaleDateString('he-IL'),
+            provider: 'email',
+            isProtected: false
+        });
+        this.saveUnifiedUsers(users);
+        this.authenticateUser(enteredEmail, true, enteredEmail.split('@')[0], 'email');
     }
 
     loginAsGuest() {
-        // קבלת הטורניר שנבחר בלוגין
         const tourneySelect = document.getElementById('loginTournamentSelect');
         if (tourneySelect && tourneySelect.value) {
             this.switchTournament(tourneySelect.value, false);
         }
-
         this.authenticateUser('guest@tournament.local', true, 'אורח', 'guest');
     }
 
     authenticateUser(email, showNotification = true, displayName = null, provider = 'email') {
         const cleanEmail = (email || this.OWNER_EMAIL).trim().toLowerCase();
+        let user = this.getUserByEmail(cleanEmail);
+
+        if (!user && cleanEmail.includes('@') && !cleanEmail.includes('guest')) {
+            const newUser = {
+                name: displayName || cleanEmail.split('@')[0],
+                email: cleanEmail,
+                role: (cleanEmail === this.OWNER_EMAIL.toLowerCase()) ? 'owner' : 'viewer',
+                password: '1234',
+                provider: provider || 'email',
+                registeredAt: new Date().toLocaleDateString('he-IL'),
+                isProtected: (cleanEmail === this.OWNER_EMAIL.toLowerCase())
+            };
+            const users = this.getUnifiedUsers();
+            users.push(newUser);
+            this.saveUnifiedUsers(users);
+            user = newUser;
+        }
+
         let role = 'viewer';
-        let displayLabel = '';
+        let cleanName = displayName || (user ? user.name : cleanEmail.split('@')[0]);
 
         if (cleanEmail === this.OWNER_EMAIL.toLowerCase()) {
             role = 'owner';
-            displayLabel = displayName ? `👑 בעלים (${displayName})` : `👑 בעלים (${this.OWNER_EMAIL})`;
-        } else if (this.adminsList.some(a => a.email.toLowerCase() === cleanEmail)) {
+            if (user) cleanName = user.name;
+        } else if (user && user.role === 'admin') {
             role = 'admin';
-            displayLabel = displayName ? `⚡ מנהל (${displayName})` : `⚡ מנהל (${cleanEmail})`;
+            cleanName = user.name;
         } else if (provider === 'guest' || cleanEmail.includes('guest')) {
             role = 'viewer';
-            displayLabel = '👁️ אורח (Guest)';
-        } else {
-            role = 'viewer';
-            displayLabel = displayName ? `👁️ ${displayName}` : `👁️ ${cleanEmail}`;
+            cleanName = 'אורח';
+        } else if (user) {
+            role = user.role || 'viewer';
+            cleanName = user.name;
         }
 
-        this.currentUser = { email: cleanEmail, role, displayName: displayLabel, provider };
+        let displayLabel = '';
+        if (role === 'owner') {
+            displayLabel = `👑 בעלים (${cleanName})`;
+        } else if (role === 'admin') {
+            displayLabel = `⚡ מנהל (${cleanName})`;
+        } else if (provider === 'guest') {
+            displayLabel = '👁️ אורח (Guest)';
+        } else {
+            displayLabel = `👁️ ${cleanName}`;
+        }
+
+        this.currentUser = {
+            email: cleanEmail,
+            role,
+            name: cleanName,
+            displayName: displayLabel,
+            provider
+        };
         sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
 
         this.switchRole(role);
         this.updateUserSessionUI();
         this.showMainScreen();
 
-        this.renderAdminManagement();
+        this.renderUsersManagement();
         this.renderOwnerTournamentsList();
 
         if (showNotification) {
@@ -402,9 +571,9 @@ class TournamentApp {
             if (role === 'owner') {
                 this.showAlert(`ברוך הבא! נכנסת כמנהל על (Owner - ${cleanEmail}) ${providerText} עם גישה מלאה.`, "success");
             } else if (role === 'admin') {
-                this.showAlert(`שלום! נכנסת כמנהל מורשה (Admin - ${cleanEmail}) ${providerText}.`, "success");
+                this.showAlert(`שלום ${cleanName}! נכנסת כמנהל מורשה (Admin) ${providerText}.`, "success");
             } else {
-                this.showAlert(`שלום ${displayName || cleanEmail}! נכנסת למערכת הטורניר ${providerText}.`, "info");
+                this.showAlert(`שלום ${cleanName}! נכנסת למערכת הטורניר ${providerText}.`, "info");
             }
         }
     }
@@ -414,17 +583,13 @@ class TournamentApp {
         this.currentUser = null;
         sessionStorage.removeItem('tournament_current_user');
 
-        // ביטול בחירה אוטומטית של Google Sign-In
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
             google.accounts.id.disableAutoSelect();
             if (loggedOutEmail) {
-                try {
-                    google.accounts.id.revoke(loggedOutEmail, () => {});
-                } catch (e) {}
+                try { google.accounts.id.revoke(loggedOutEmail, () => {}); } catch (e) {}
             }
         }
 
-        // הצגת מסך הלוגין וריקון שדות האימייל והסיסמה
         this.showLoginScreen();
         const emailInput = document.getElementById('loginEmail');
         if (emailInput) {
@@ -432,9 +597,7 @@ class TournamentApp {
             emailInput.disabled = false;
         }
         const passInput = document.getElementById('loginPassword');
-        if (passInput) {
-            passInput.value = '';
-        }
+        if (passInput) passInput.value = '';
 
         this.showAlert("התנתקת בהצלחה מהמערכת.", "warning");
     }
@@ -453,27 +616,21 @@ class TournamentApp {
     switchRole(newRole) {
         this.currentRole = newRole;
         document.body.className = `role-${newRole}`;
-        console.log(`[Persona System] Role switched to: ${newRole}`);
 
-        // בדיקה האם הטורניר הנוכחי הוא בארכיון
         const currentTourney = this.tournaments.find(t => t.id === this.activeTournamentId);
         const isArchived = currentTourney && currentTourney.isArchived;
-
         const isViewer = (newRole === 'viewer') || (isArchived && newRole !== 'owner');
 
-        // חסימת קלט פיזית רק בתוך #screen-main ל-Viewer (לעולם לא בדף הלוגין)
-        const allInputs = document.querySelectorAll('#screen-main input:not(#newAdminEmailInput):not(#newTournamentNameInput)');
+        const allInputs = document.querySelectorAll('#screen-main input:not(#newAdminEmailInput):not(#newTournamentNameInput):not(#wizardTourneyName)');
         allInputs.forEach(input => {
             input.disabled = isViewer;
         });
 
-        // כפתורים המיועדים לעריכה בלבד
         const adminButtons = document.querySelectorAll('.admin-editable');
         adminButtons.forEach(btn => {
             btn.disabled = isViewer;
         });
 
-        // וידוא מוחלט ששדות הלוגין תמיד פעילים
         const loginEmail = document.getElementById('loginEmail');
         if (loginEmail) {
             loginEmail.disabled = false;
@@ -481,81 +638,11 @@ class TournamentApp {
         }
     }
 
-    /* ========================================================
-       ניהול מנהלים ע"י ה-Owner (Admins Management)
-       ======================================================== */
-
-    loadAdmins() {
-        const stored = localStorage.getItem('tournament_manager_admins');
-        if (stored) {
-            try { return JSON.parse(stored); } catch { return []; }
-        }
-        // ברירת מחדל ראשונית להדגמה
-        return [
-            { email: 'admin@tournament.com', addedAt: new Date().toLocaleDateString('he-IL') }
-        ];
-    }
-
-    saveAdmins() {
-        localStorage.setItem('tournament_manager_admins', JSON.stringify(this.adminsList));
-    }
-
-    /* ========================================================
-       ניהול משתמשים כולל ע"י ה-Owner (Comprehensive User Management)
-       ======================================================== */
-
     getAllUsers() {
-        const registered = this.getRegisteredUsers();
-        const usersMap = new Map();
-
-        // 1. הוספת ה-Owner
-        usersMap.set(this.OWNER_EMAIL.toLowerCase(), {
-            name: 'נועם סלע',
-            email: this.OWNER_EMAIL.toLowerCase(),
-            role: 'owner',
-            provider: 'google/email',
-            registeredAt: 'מנהל ראשי (מייסד)',
-            isProtected: true
-        });
-
-        // 2. הוספת משתמשים רשומים
-        registered.forEach(u => {
-            const email = (u.email || '').toLowerCase();
-            const isAdmin = this.adminsList.some(a => a.email.toLowerCase() === email);
-            usersMap.set(email, {
-                name: u.name || email.split('@')[0],
-                email,
-                role: isAdmin ? 'admin' : (u.role || 'viewer'),
-                provider: u.provider || 'email',
-                registeredAt: u.registeredAt || 'משתמש רשום',
-                password: u.password || '1234',
-                isProtected: false
-            });
-        });
-
-        // 3. הוספת מנהלים שהוגדרו ברשימת המנהלים
-        this.adminsList.forEach(a => {
-            const email = a.email.toLowerCase();
-            if (!usersMap.has(email)) {
-                usersMap.set(email, {
-                    name: a.name || email.split('@')[0],
-                    email,
-                    role: 'admin',
-                    provider: 'email',
-                    registeredAt: a.addedAt || 'הוגדר כמנהל',
-                    password: '1234',
-                    isProtected: false
-                });
-            } else {
-                usersMap.get(email).role = 'admin';
-            }
-        });
-
-        return Array.from(usersMap.values());
+        return this.getUnifiedUsers();
     }
 
     renderAdminManagement() {
-        // פונקציה זו נקראת גם בשם renderAdminManagement לטובת תאימות קודמת
         this.renderUsersManagement();
     }
 
@@ -582,9 +669,21 @@ class TournamentApp {
             const isOwnerUser = u.email === this.OWNER_EMAIL.toLowerCase();
 
             const actionsHtml = isOwnerUser 
-                ? `<span style="color:#64748b; font-size:0.8rem;">חשבון ראשי</span>`
+                ? `
+                    <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                        <button type="button" class="btn-edit-user" onclick="app.openEditUserModal('${u.email}')" title="עריכת שם, סיסמה ופרטים">
+                            ✏️ ערוך פרטים
+                        </button>
+                        <button type="button" class="btn-sm btn-secondary" onclick="app.openResetPasswordModal('${u.email}')" title="איפוס סיסמה">
+                            🔑 איפוס סיסמה
+                        </button>
+                    </div>
+                `
                 : `
                     <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                        <button type="button" class="btn-edit-user" onclick="app.openEditUserModal('${u.email}')" title="עריכת שם, תפקיד וסיסמה">
+                            ✏️ ערוך פרטים
+                        </button>
                         <button type="button" class="btn-sm btn-secondary" onclick="app.openResetPasswordModal('${u.email}')" title="איפוס סיסמה למשתמש זה" style="padding:4px 8px; font-size:0.8rem;">
                             🔑 איפוס סיסמה
                         </button>
@@ -600,11 +699,114 @@ class TournamentApp {
                     <td style="direction:ltr; text-align:right; font-family:monospace; color:#334155;">${u.email}</td>
                     <td>${roleBadge}</td>
                     <td style="font-size:0.85rem; color:#64748b;">${u.provider === 'google' ? 'Google OAuth' : 'דוא"ל וסיסמה'}</td>
-                    <td style="color:#64748b; font-size:0.85rem;">${u.registeredAt}</td>
+                    <td style="color:#64748b; font-size:0.85rem;">${u.registeredAt || '-'}</td>
                     <td style="text-align:center;">${actionsHtml}</td>
                 </tr>
             `;
         }).join('');
+    }
+
+    openEditUserModal(userEmail) {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי לערוך פרטי משתמשים!", "error");
+            return;
+        }
+        const user = this.getUserByEmail(userEmail);
+        if (!user) {
+            this.showAlert("משתמש לא נמצא.", "error");
+            return;
+        }
+
+        const modal = document.getElementById('edit-user-modal');
+        const origEmail = document.getElementById('editUserOriginalEmail');
+        const dispEmail = document.getElementById('editUserEmailDisplay');
+        const nameInp = document.getElementById('editUserNameInput');
+        const roleSel = document.getElementById('editUserRoleSelect');
+        const passInp = document.getElementById('editUserPasswordInput');
+        const note = document.getElementById('editUserRoleNote');
+
+        if (origEmail) origEmail.value = user.email;
+        if (dispEmail) dispEmail.value = user.email;
+        if (nameInp) nameInp.value = user.name || '';
+        if (passInp) passInp.value = user.password || '1234';
+
+        const isOwner = user.email.toLowerCase() === this.OWNER_EMAIL.toLowerCase();
+        if (roleSel) {
+            if (isOwner) {
+                roleSel.value = 'owner';
+                roleSel.disabled = true;
+                if (note) note.textContent = "חשבון בעל המערכת הראשי (קבוע).";
+            } else {
+                roleSel.disabled = false;
+                roleSel.value = user.role || 'viewer';
+                if (note) note.textContent = "באפשרותך לשנות בין מנהל (Admin) לצופה (Viewer).";
+            }
+        }
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeEditUserModal() {
+        const modal = document.getElementById('edit-user-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    submitEditUser() {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי לערוך משתמשים!", "error");
+            return;
+        }
+
+        const origEmail = document.getElementById('editUserOriginalEmail');
+        const nameInp = document.getElementById('editUserNameInput');
+        const roleSel = document.getElementById('editUserRoleSelect');
+        const passInp = document.getElementById('editUserPasswordInput');
+
+        const email = origEmail ? origEmail.value.trim().toLowerCase() : '';
+        const name = nameInp ? nameInp.value.trim() : '';
+        const password = passInp ? passInp.value.trim() : '';
+        const isOwner = email === this.OWNER_EMAIL.toLowerCase();
+        const role = isOwner ? 'owner' : (roleSel ? roleSel.value : 'viewer');
+
+        if (!name) {
+            this.showAlert("אנא הזן שם עבור המשתמש.", "error");
+            return;
+        }
+        if (!password) {
+            this.showAlert("אנא הזן סיסמה עבור המשתמש.", "error");
+            return;
+        }
+
+        const users = this.getUnifiedUsers();
+        const user = users.find(u => u.email.toLowerCase() === email);
+        if (!user) {
+            this.showAlert("משתמש לא נמצא.", "error");
+            return;
+        }
+
+        user.name = name;
+        user.password = password;
+        if (!isOwner) {
+            user.role = role;
+        }
+        this.saveUnifiedUsers(users);
+
+        if (this.currentUser && this.currentUser.email.toLowerCase() === email) {
+            this.currentUser.name = name;
+            if (isOwner) {
+                this.currentUser.displayName = `👑 בעלים (${name})`;
+            } else if (role === 'admin') {
+                this.currentUser.displayName = `⚡ מנהל (${name})`;
+            } else {
+                this.currentUser.displayName = `👁️ ${name}`;
+            }
+            sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
+            this.updateUserSessionUI();
+        }
+
+        this.closeEditUserModal();
+        this.renderUsersManagement();
+        this.showAlert(`פרטי המשתמש ${name} (${email}) נשמרו בהצלחה!`, "success");
     }
 
     openAddUserModal() {
@@ -647,45 +849,31 @@ class TournamentApp {
             this.showAlert("אנא הזן שם עבור המשתמש.", "error");
             return;
         }
-
         if (!email || !email.includes('@')) {
             this.showAlert("אנא הזן כתובת אימייל חוקית.", "error");
             return;
         }
-
         if (email === this.OWNER_EMAIL.toLowerCase()) {
             this.showAlert("כתובת זו היא כתובת ה-Owner של המערכת.", "warning");
             return;
         }
 
-        const users = this.getRegisteredUsers();
+        const users = this.getUnifiedUsers();
         if (users.some(u => u.email.toLowerCase() === email)) {
             this.showAlert("משתמש עם כתובת אימייל זו כבר קיים במערכת!", "warning");
             return;
         }
 
-        // שמירה כמשתמש רשום
         users.push({
             name,
             email,
             role,
             password: password || '1234',
             registeredAt: new Date().toLocaleDateString('he-IL'),
-            provider: 'email'
+            provider: 'email',
+            isProtected: false
         });
-        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
-
-        // אם התפקיד שנבחר הוא Admin, נעדכן גם ברשימת ה-Admins
-        if (role === 'admin') {
-            if (!this.adminsList.some(a => a.email.toLowerCase() === email)) {
-                this.adminsList.push({
-                    name,
-                    email,
-                    addedAt: new Date().toLocaleDateString('he-IL')
-                });
-                this.saveAdmins();
-            }
-        }
+        this.saveUnifiedUsers(users);
 
         this.closeAddUserModal();
         this.renderUsersManagement();
@@ -708,14 +896,9 @@ class TournamentApp {
             return;
         }
 
-        // הסרה ממשתמשים רשומים
-        let users = this.getRegisteredUsers();
+        let users = this.getUnifiedUsers();
         users = users.filter(u => u.email.toLowerCase() !== cleanEmail);
-        localStorage.setItem('tournament_registered_users', JSON.stringify(users));
-
-        // הסרה מרשימת מנהלים
-        this.adminsList = this.adminsList.filter(a => a.email.toLowerCase() !== cleanEmail);
-        this.saveAdmins();
+        this.saveUnifiedUsers(users);
 
         this.renderUsersManagement();
         this.showAlert(`המשתמש ${cleanEmail} הוסר בהצלחה מהמערכת.`, "warning");
@@ -761,29 +944,29 @@ class TournamentApp {
             return;
         }
 
-        // איפוס עבור משתמש
-        const users = this.getRegisteredUsers();
+        const users = this.getUnifiedUsers();
         const user = users.find(u => u.email.toLowerCase() === email);
         if (user) {
             user.password = newPass;
-            localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+            this.saveUnifiedUsers(users);
         } else {
-            // אם המשתמש היה קיים רק ברשימת ה-admins הישנה, נוסיף אותו לרשומים עם הסיסמה
             users.push({
                 name: email.split('@')[0],
                 email,
-                role: 'admin',
+                role: 'viewer',
                 password: newPass,
                 registeredAt: new Date().toLocaleDateString('he-IL'),
-                provider: 'email'
+                provider: 'email',
+                isProtected: false
             });
-            localStorage.setItem('tournament_registered_users', JSON.stringify(users));
+            this.saveUnifiedUsers(users);
         }
 
         this.closeResetPasswordModal();
         this.renderUsersManagement();
         this.showAlert(`הסיסמה עבור ${email} אופסה בהצלחה ל: ${newPass}`, "success");
     }
+
 
     /* ========================================================
        ניהול טורנירים וארכיון תוצאות עבר (Multi-Tournament System)
@@ -972,23 +1155,47 @@ class TournamentApp {
             this.activeTournamentId = tData.id;
         }
 
+        this.format = tData.format || 'groups_and_playoff';
+        this.numGroups = tData.numGroups || (tData.groups ? Object.keys(tData.groups).length : 3);
+        this.teamsPerGroup = tData.teamsPerGroup || 5;
+        this.playoffSize = tData.playoffSize || 8;
         this.teams = tData.teams ? [...tData.teams] : [...this.defaultTeams];
 
-        if (tData.matches && tData.matches.length > 0) {
-            this.groups = tData.groups;
-            this.matches = tData.matches;
-            this.standings = tData.standings;
+        const knockoutNotice = document.getElementById('group-knockout-notice');
+        const groupMainContent = document.getElementById('group-stage-main-content');
+
+        if (this.format === 'knockout_only') {
+            if (knockoutNotice) knockoutNotice.classList.remove('hidden');
+            if (groupMainContent) groupMainContent.classList.add('hidden');
+
+            this.groups = {};
+            this.matches = [];
+            this.standings = {};
             this.playoffSeeds = tData.playoffSeeds || [];
-            this.playoffMatches = tData.playoffMatches || { qf: [], sf: [], final: null };
+            this.playoffMatches = tData.playoffMatches || this.buildInitialKnockoutBracket(this.playoffSeeds, this.teams.length);
+
             this.renderTeamInputs();
-            this.renderMatches();
-            this.renderStandings();
-            if (this.playoffSeeds.length === 8) {
-                this.renderPlayoffBracket();
-            }
+            this.renderPlayoffBracket();
         } else {
-            this.renderTeamInputs();
-            this.generateTournamentGroups(false);
+            if (knockoutNotice) knockoutNotice.classList.add('hidden');
+            if (groupMainContent) groupMainContent.classList.remove('hidden');
+
+            if (tData.matches && tData.matches.length > 0) {
+                this.groups = tData.groups || {};
+                this.matches = tData.matches || [];
+                this.standings = tData.standings || {};
+                this.playoffSeeds = tData.playoffSeeds || [];
+                this.playoffMatches = tData.playoffMatches || this.createEmptyPlayoffMatches(this.playoffSize);
+                this.renderTeamInputs();
+                this.renderMatches();
+                this.renderStandings();
+                if (this.playoffSeeds.length > 0) {
+                    this.renderPlayoffBracket();
+                }
+            } else {
+                this.renderTeamInputs();
+                this.generateTournamentGroups(false);
+            }
         }
 
         // עדכון באנר הארכיון
@@ -1009,6 +1216,10 @@ class TournamentApp {
     saveActiveTournamentData() {
         const idx = this.tournaments.findIndex(t => t.id === this.activeTournamentId);
         if (idx !== -1) {
+            this.tournaments[idx].format = this.format;
+            this.tournaments[idx].numGroups = this.numGroups;
+            this.tournaments[idx].teamsPerGroup = this.teamsPerGroup;
+            this.tournaments[idx].playoffSize = this.playoffSize;
             this.tournaments[idx].teams = [...this.teams];
             this.tournaments[idx].groups = this.groups;
             this.tournaments[idx].matches = this.matches;
@@ -1022,9 +1233,7 @@ class TournamentApp {
     switchTournament(newTourneyId, showNotification = true) {
         if (newTourneyId === this.activeTournamentId) return;
 
-        // שמירת הטורניר הקודם אם הוא פעיל
         this.saveActiveTournamentData();
-
         this.activeTournamentId = newTourneyId;
         this.loadTournamentData(newTourneyId);
 
@@ -1046,34 +1255,384 @@ class TournamentApp {
     }
 
     createNewTournament() {
+        this.openTournamentWizard();
+    }
+
+    /* ========================================================
+       אשף פתיחת טורניר דינמי (Dynamic Tournament Wizard)
+       ======================================================== */
+
+    openTournamentWizard() {
         if (this.currentRole !== 'owner') {
             this.showAlert("רק Owner רשאי לפתוח טורניר חדש!", "error");
             return;
         }
+        const modal = document.getElementById('new-tournament-wizard-modal');
+        const nameInp = document.getElementById('wizardTourneyName');
+        if (nameInp) nameInp.value = `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
 
-        const input = document.getElementById('newTournamentNameInput');
-        const name = input ? input.value.trim() : '';
-        const tourneyName = name || `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
+        const radGroups = document.querySelector('input[name="wizardFormat"][value="groups_and_playoff"]');
+        if (radGroups) radGroups.checked = true;
+        this.onWizardFormatChange();
+        this.updateWizardSummary();
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeTournamentWizard() {
+        const modal = document.getElementById('new-tournament-wizard-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    onWizardFormatChange() {
+        const radFormat = document.querySelector('input[name="wizardFormat"]:checked');
+        const format = radFormat ? radFormat.value : 'groups_and_playoff';
+
+        const cardGroups = document.getElementById('cardFormatGroups');
+        const cardKnockout = document.getElementById('cardFormatKnockout');
+        const boxGroups = document.getElementById('wizardGroupsSettings');
+        const boxKnockout = document.getElementById('wizardKnockoutSettings');
+
+        if (format === 'groups_and_playoff') {
+            if (cardGroups) cardGroups.classList.add('active');
+            if (cardKnockout) cardKnockout.classList.remove('active');
+            if (boxGroups) boxGroups.classList.remove('hidden');
+            if (boxKnockout) boxKnockout.classList.add('hidden');
+        } else {
+            if (cardGroups) cardGroups.classList.remove('active');
+            if (cardKnockout) cardKnockout.classList.add('active');
+            if (boxGroups) boxGroups.classList.add('hidden');
+            if (boxKnockout) boxKnockout.classList.remove('hidden');
+        }
+        this.updateWizardSummary();
+    }
+
+    updateWizardSummary() {
+        const radFormat = document.querySelector('input[name="wizardFormat"]:checked');
+        const format = radFormat ? radFormat.value : 'groups_and_playoff';
+        const summaryBox = document.getElementById('wizardSummaryBox');
+        if (!summaryBox) return;
+
+        if (format === 'groups_and_playoff') {
+            const numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
+            const teamsPerGroup = parseInt(document.getElementById('wizardTeamsPerGroup')?.value || '5', 10);
+            const playoffSize = parseInt(document.getElementById('wizardPlayoffSize')?.value || '8', 10);
+            const totalTeams = numGroups * teamsPerGroup;
+            const matchesPerGroup = (teamsPerGroup * (teamsPerGroup - 1)) / 2;
+            const totalGroupMatches = numGroups * matchesPerGroup;
+
+            summaryBox.innerHTML = `
+                📊 <strong>סיכום מבנה הטורניר:</strong> ${totalTeams} קבוצות (${numGroups} בתים של ${teamsPerGroup} קבוצות) | 
+                ⚽ ${totalGroupMatches} משחקים בשלב הבתים (${matchesPerGroup} משחקים לכל בית) | 
+                🌳 ${playoffSize} עולות לפלייאוף (${playoffSize === 4 ? 'חצי גמר וגמר' : playoffSize === 8 ? 'רבע גמר, חצי גמר וגמר' : 'שמינית, רבע, חצי וגמר'})
+            `;
+        } else {
+            const totalTeams = parseInt(document.getElementById('wizardKnockoutTeams')?.value || '8', 10);
+            const totalMatches = totalTeams - 1;
+            const roundStart = totalTeams === 4 ? 'חצי גמר' : totalTeams === 8 ? 'רבע גמר' : 'שמינית גמר';
+            summaryBox.innerHTML = `
+                ⚔️ <strong>סיכום מבנה הטורניר:</strong> נוקאאוט ישיר ל-${totalTeams} קבוצות (ללא שלב בתים) | 
+                סה"כ ${totalMatches} משחקי נוקאאוט עד להכרעת האלופה (מתחיל מ-${roundStart})
+            `;
+        }
+    }
+
+    submitTournamentWizard() {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק Owner רשאי להקים טורניר חדש!", "error");
+            return;
+        }
+
+        const nameInp = document.getElementById('wizardTourneyName');
+        const tourneyName = (nameInp && nameInp.value.trim()) ? nameInp.value.trim() : `טורניר ${new Date().toLocaleDateString('he-IL')}`;
+
+        const radFormat = document.querySelector('input[name="wizardFormat"]:checked');
+        const format = radFormat ? radFormat.value : 'groups_and_playoff';
 
         const newId = `tourney_${Date.now()}`;
-        const newTournament = {
-            id: newId,
-            name: tourneyName,
-            createdAt: new Date().toLocaleDateString('he-IL'),
-            isArchived: false,
-            teams: [...this.defaultTeams]
-        };
+        let newTournament = null;
+
+        if (format === 'groups_and_playoff') {
+            const numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
+            const teamsPerGroup = parseInt(document.getElementById('wizardTeamsPerGroup')?.value || '5', 10);
+            const playoffSize = parseInt(document.getElementById('wizardPlayoffSize')?.value || '8', 10);
+            const totalTeams = numGroups * teamsPerGroup;
+
+            const teams = [];
+            for (let i = 0; i < totalTeams; i++) {
+                if (i < this.defaultTeams.length) {
+                    teams.push(this.defaultTeams[i]);
+                } else {
+                    teams.push(`קבוצה ${i + 1}`);
+                }
+            }
+
+            const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const groups = {};
+            const standings = {};
+
+            for (let g = 0; g < numGroups; g++) {
+                const grpKey = `Group ${groupLetters[g]}`;
+                const startIndex = g * teamsPerGroup;
+                const grpTeams = [];
+                for (let t = 0; t < teamsPerGroup; t++) {
+                    const idx = startIndex + t;
+                    grpTeams.push({ index: idx, name: teams[idx], group: grpKey });
+                }
+                groups[grpKey] = grpTeams;
+                standings[grpKey] = grpTeams.map(item => ({
+                    teamIndex: item.index,
+                    teamName: teams[item.index],
+                    group: grpKey,
+                    played: 0, wins: 0, losses: 0,
+                    pointsFor: 0, pointsAgainst: 0, pointDiff: 0,
+                    groupRank: 0
+                }));
+            }
+
+            const matches = this.generateDynamicRoundRobin(groups, teams, teamsPerGroup);
+
+            newTournament = {
+                id: newId,
+                name: `${tourneyName} (פעיל)`,
+                format: 'groups_and_playoff',
+                numGroups,
+                teamsPerGroup,
+                playoffSize,
+                createdAt: new Date().toLocaleDateString('he-IL'),
+                isArchived: false,
+                teams,
+                groups,
+                matches,
+                standings,
+                playoffSeeds: [],
+                playoffMatches: this.createEmptyPlayoffMatches(playoffSize)
+            };
+        } else {
+            const totalTeams = parseInt(document.getElementById('wizardKnockoutTeams')?.value || '8', 10);
+            const teams = [];
+            for (let i = 0; i < totalTeams; i++) {
+                if (i < this.defaultTeams.length) {
+                    teams.push(this.defaultTeams[i]);
+                } else {
+                    teams.push(`קבוצה ${i + 1}`);
+                }
+            }
+
+            const playoffSeeds = teams.map((name, i) => ({
+                seed: i + 1,
+                teamIndex: i,
+                teamName: name,
+                origin: `מדורגת #${i + 1}`,
+                wins: 0, pointDiff: 0
+            }));
+
+            const playoffMatches = this.buildInitialKnockoutBracket(playoffSeeds, totalTeams);
+
+            newTournament = {
+                id: newId,
+                name: `${tourneyName} (נוקאאוט)`,
+                format: 'knockout_only',
+                numGroups: 0,
+                teamsPerGroup: 0,
+                playoffSize: totalTeams,
+                createdAt: new Date().toLocaleDateString('he-IL'),
+                isArchived: false,
+                teams,
+                groups: {},
+                matches: [],
+                standings: {},
+                playoffSeeds,
+                playoffMatches
+            };
+        }
 
         this.saveActiveTournamentData();
         this.tournaments.unshift(newTournament);
         this.saveTournamentsList();
 
+        this.closeTournamentWizard();
         this.activeTournamentId = newId;
         this.loadTournamentData(newId);
         this.renderOwnerTournamentsList();
-        if (input) input.value = '';
 
-        this.showAlert(`הטורניר '${tourneyName}' נוצר בהצלחה והוגדר כטורניר פעיל!`, "success");
+        if (format === 'knockout_only') {
+            this.switchTab('playoffs');
+            this.showAlert(`טורניר הנוקאאוט '${tourneyName}' הוקם בהצלחה! שובצו ${newTournament.teams.length} קבוצות בעץ הפלייאוף.`, "success");
+        } else {
+            this.switchTab('setup');
+            this.showAlert(`הטורניר '${tourneyName}' הוקם בהצלחה עם ${newTournament.teams.length} קבוצות ב-${newTournament.numGroups} בתים!`, "success");
+        }
+    }
+
+    generateDynamicRoundRobin(groups, teams, teamsPerGroup) {
+        const groupHebrew = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'"];
+        const matches = [];
+        let matchCounter = 1;
+
+        const isOdd = teamsPerGroup % 2 !== 0;
+        const n = isOdd ? teamsPerGroup + 1 : teamsPerGroup;
+        const totalRounds = n - 1;
+        const half = n / 2;
+
+        Object.keys(groups).forEach((grpKey, gIdx) => {
+            const grpNameHe = `בית ${groupHebrew[gIdx] || (gIdx + 1)}`;
+            const grpTeams = groups[grpKey];
+
+            let circle = [];
+            for (let i = 0; i < teamsPerGroup; i++) circle.push(i);
+            if (isOdd) circle.push(-1);
+
+            for (let round = 1; round <= totalRounds; round++) {
+                for (let i = 0; i < half; i++) {
+                    const local1 = circle[i];
+                    const local2 = circle[n - 1 - i];
+
+                    if (local1 !== -1 && local2 !== -1) {
+                        const t1Idx = grpTeams[local1].index;
+                        const t2Idx = grpTeams[local2].index;
+
+                        matches.push({
+                            id: `match_${matchCounter}`,
+                            matchNumber: matchCounter,
+                            groupId: grpKey,
+                            groupNameHe: grpNameHe,
+                            round: round,
+                            team1Index: t1Idx,
+                            team2Index: t2Idx,
+                            team1Name: teams[t1Idx],
+                            team2Name: teams[t2Idx],
+                            score1: null,
+                            score2: null,
+                            winner: null
+                        });
+                        matchCounter++;
+                    }
+                }
+
+                const last = circle.pop();
+                circle.splice(1, 0, last);
+            }
+        });
+
+        return matches;
+    }
+
+    buildInitialKnockoutBracket(playoffSeeds, totalTeams) {
+        const getSeed = (num) => playoffSeeds.find(s => s.seed === num) || null;
+
+        if (totalTeams === 4) {
+            return {
+                sf: [
+                    {
+                        id: 'sf_1', roundName: 'חצי גמר 1 (1v4)',
+                        seed1: 1, seed2: 4,
+                        team1: getSeed(1), team2: getSeed(4),
+                        score1: null, score2: null, winner: null,
+                        nextMatchId: 'final', nextSlot: 1
+                    },
+                    {
+                        id: 'sf_2', roundName: 'חצי גמר 2 (2v3)',
+                        seed1: 2, seed2: 3,
+                        team1: getSeed(2), team2: getSeed(3),
+                        score1: null, score2: null, winner: null,
+                        nextMatchId: 'final', nextSlot: 2
+                    }
+                ],
+                final: {
+                    id: 'final', roundName: '🏆 משחק הגמר',
+                    team1: null, team2: null,
+                    score1: null, score2: null, winner: null
+                }
+            };
+        }
+
+        if (totalTeams === 16) {
+            return {
+                r16: [
+                    { id: 'r16_1', roundName: 'שמינית גמר 1', seed1: 1, seed2: 16, team1: getSeed(1), team2: getSeed(16), score1: null, score2: null, winner: null, nextMatchId: 'qf_1', nextSlot: 1 },
+                    { id: 'r16_2', roundName: 'שמינית גמר 2', seed1: 8, seed2: 9, team1: getSeed(8), team2: getSeed(9), score1: null, score2: null, winner: null, nextMatchId: 'qf_1', nextSlot: 2 },
+                    { id: 'r16_3', roundName: 'שמינית גמר 3', seed1: 4, seed2: 13, team1: getSeed(4), team2: getSeed(13), score1: null, score2: null, winner: null, nextMatchId: 'qf_2', nextSlot: 1 },
+                    { id: 'r16_4', roundName: 'שמינית גמר 4', seed1: 5, seed2: 12, team1: getSeed(5), team2: getSeed(12), score1: null, score2: null, winner: null, nextMatchId: 'qf_2', nextSlot: 2 },
+                    { id: 'r16_5', roundName: 'שמינית גמר 5', seed1: 2, seed2: 15, team1: getSeed(2), team2: getSeed(15), score1: null, score2: null, winner: null, nextMatchId: 'qf_3', nextSlot: 1 },
+                    { id: 'r16_6', roundName: 'שמינית גמר 6', seed1: 7, seed2: 10, team1: getSeed(7), team2: getSeed(10), score1: null, score2: null, winner: null, nextMatchId: 'qf_3', nextSlot: 2 },
+                    { id: 'r16_7', roundName: 'שמינית גמר 7', seed1: 3, seed2: 14, team1: getSeed(3), team2: getSeed(14), score1: null, score2: null, winner: null, nextMatchId: 'qf_4', nextSlot: 1 },
+                    { id: 'r16_8', roundName: 'שמינית גמר 8', seed1: 6, seed2: 11, team1: getSeed(6), team2: getSeed(11), score1: null, score2: null, winner: null, nextMatchId: 'qf_4', nextSlot: 2 }
+                ],
+                qf: [
+                    { id: 'qf_1', roundName: 'רבע גמר 1', team1: null, team2: null, score1: null, score2: null, winner: null, nextMatchId: 'sf_1', nextSlot: 1 },
+                    { id: 'qf_2', roundName: 'רבע גמר 2', team1: null, team2: null, score1: null, score2: null, winner: null, nextMatchId: 'sf_1', nextSlot: 2 },
+                    { id: 'qf_3', roundName: 'רבע גמר 3', team1: null, team2: null, score1: null, score2: null, winner: null, nextMatchId: 'sf_2', nextSlot: 1 },
+                    { id: 'qf_4', roundName: 'רבע גמר 4', team1: null, team2: null, score1: null, score2: null, winner: null, nextMatchId: 'sf_2', nextSlot: 2 }
+                ],
+                sf: [
+                    { id: 'sf_1', roundName: 'חצי גמר 1', team1: null, team2: null, score1: null, score2: null, winner: null, nextMatchId: 'final', nextSlot: 1 },
+                    { id: 'sf_2', roundName: 'חצי גמר 2', team1: null, team2: null, score1: null, score2: null, winner: null, nextMatchId: 'final', nextSlot: 2 }
+                ],
+                final: {
+                    id: 'final', roundName: '🏆 משחק הגמר',
+                    team1: null, team2: null,
+                    score1: null, score2: null, winner: null
+                }
+            };
+        }
+
+        // ברירת מחדל: 8 קבוצות
+        return {
+            qf: [
+                {
+                    id: 'qf_1', roundName: 'רבע גמר 1 (1v8)',
+                    seed1: 1, seed2: 8,
+                    team1: getSeed(1), team2: getSeed(8),
+                    score1: null, score2: null, winner: null,
+                    nextMatchId: 'sf_1', nextSlot: 1
+                },
+                {
+                    id: 'qf_2', roundName: 'רבע גמר 2 (4v5)',
+                    seed1: 4, seed2: 5,
+                    team1: getSeed(4), team2: getSeed(5),
+                    score1: null, score2: null, winner: null,
+                    nextMatchId: 'sf_1', nextSlot: 2
+                },
+                {
+                    id: 'qf_3', roundName: 'רבע גמר 3 (3v6)',
+                    seed1: 3, seed2: 6,
+                    team1: getSeed(3), team2: getSeed(6),
+                    score1: null, score2: null, winner: null,
+                    nextMatchId: 'sf_2', nextSlot: 1
+                },
+                {
+                    id: 'qf_4', roundName: 'רבע גמר 4 (2v7)',
+                    seed1: 2, seed2: 7,
+                    team1: getSeed(2), team2: getSeed(7),
+                    score1: null, score2: null, winner: null,
+                    nextMatchId: 'sf_2', nextSlot: 2
+                }
+            ],
+            sf: [
+                {
+                    id: 'sf_1', roundName: 'חצי גמר 1',
+                    team1: null, team2: null,
+                    score1: null, score2: null, winner: null,
+                    nextMatchId: 'final', nextSlot: 1
+                },
+                {
+                    id: 'sf_2', roundName: 'חצי גמר 2',
+                    team1: null, team2: null,
+                    score1: null, score2: null, winner: null,
+                    nextMatchId: 'final', nextSlot: 2
+                }
+            ],
+            final: {
+                id: 'final', roundName: '🏆 משחק הגמר',
+                team1: null, team2: null,
+                score1: null, score2: null, winner: null
+            }
+        };
+    }
+
+    createEmptyPlayoffMatches(playoffSize) {
+        return this.buildInitialKnockoutBracket([], playoffSize);
     }
 
     archiveCurrentTournament() {
@@ -1086,7 +1645,7 @@ class TournamentApp {
         if (!curr) return;
 
         curr.isArchived = true;
-        curr.name = curr.name.replace(' (פעיל)', '') + ' (ארכיון)';
+        curr.name = curr.name.replace(' (פעיל)', '').replace(' (נוקאאוט)', '') + ' (ארכיון)';
         this.saveActiveTournamentData();
         this.populateTournamentSelectors();
         this.renderOwnerTournamentsList();
@@ -1104,35 +1663,43 @@ class TournamentApp {
                 <thead>
                     <tr>
                         <th>שם הטורניר</th>
+                        <th>מבנה</th>
                         <th>סטטוס</th>
                         <th>תאריך פתיחה</th>
                         <th style="width: 140px; text-align: center;">מעבר / בחירה</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${this.tournaments.map(t => `
-                        <tr style="${t.id === this.activeTournamentId ? 'background:#f0fdf4;' : ''}">
-                            <td style="font-weight:700;">${t.name}</td>
-                            <td>
-                                <span style="background:${t.isArchived ? '#fef3c7' : '#dcfce7'}; color:${t.isArchived ? '#92400e' : '#15803d'}; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">
-                                    ${t.isArchived ? 'ארכיון עבר' : 'טורניר פעיל'}
-                                </span>
-                            </td>
-                            <td style="color:#64748b; font-size:0.85rem;">${t.createdAt || '-'}</td>
-                            <td style="text-align:center;">
-                                <button class="btn-secondary btn-sm" onclick="app.switchTournament('${t.id}')">
-                                    ${t.id === this.activeTournamentId ? '✅ פעיל כעת' : 'צפה בטורניר'}
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('')}
+                    ${this.tournaments.map(t => {
+                        const fmtBadge = (t.format === 'knockout_only') 
+                            ? `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚔️ נוקאאוט</span>`
+                            : `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚽ בתים + פלייאוף</span>`;
+
+                        return `
+                            <tr style="${t.id === this.activeTournamentId ? 'background:#f0fdf4;' : ''}">
+                                <td style="font-weight:700;">${t.name}</td>
+                                <td>${fmtBadge}</td>
+                                <td>
+                                    <span style="background:${t.isArchived ? '#fef3c7' : '#dcfce7'}; color:${t.isArchived ? '#92400e' : '#15803d'}; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">
+                                        ${t.isArchived ? 'ארכיון עבר' : 'טורניר פעיל'}
+                                    </span>
+                                </td>
+                                <td style="color:#64748b; font-size:0.85rem;">${t.createdAt || '-'}</td>
+                                <td style="text-align:center;">
+                                    <button class="btn-secondary btn-sm" onclick="app.switchTournament('${t.id}')">
+                                        ${t.id === this.activeTournamentId ? '✅ פעיל כעת' : 'צפה בטורניר'}
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         `;
     }
 
     /* ========================================================
-       התראות, ניווט בטאבים והזנת שמות קבוצות
+       התראות, ניווט בטאבים והזנת שמות קבוצות דינמיות
        ======================================================== */
 
     showAlert(message, type = 'error') {
@@ -1172,39 +1739,108 @@ class TournamentApp {
 
     renderTeamInputs() {
         const container = document.getElementById('teams-input-container');
+        const titleEl = document.getElementById('setup-header-title');
+        const subEl = document.getElementById('setup-header-subtitle');
+        const genBtn = document.getElementById('btn-generate-groups');
         if (!container) return;
-        
-        container.innerHTML = '';
-        this.teams.forEach((teamName, index) => {
-            const groupIndex = Math.floor(index / 5);
-            const groupLetter = String.fromCharCode(65 + groupIndex);
-            const groupHe = groupLetter === 'A' ? "א'" : groupLetter === 'B' ? "ב'" : "ג'";
 
-            const div = document.createElement('div');
-            div.className = 'team-input-group';
-            div.innerHTML = `
-                <label>בית ${groupHe} - קבוצה ${(index % 5) + 1}</label>
-                <input type="text" value="${teamName}" data-index="${index}" 
-                       onchange="app.updateTeamName(${index}, this.value)"
-                       placeholder="הזן שם קבוצה">
-            `;
-            container.appendChild(div);
-        });
+        container.innerHTML = '';
+
+        if (this.format === 'knockout_only') {
+            if (titleEl) titleEl.textContent = `הזנת קבוצות הטורניר (${this.teams.length} קבוצות - נוקאאוט בלבד)`;
+            if (subEl) subEl.textContent = `מיועד ל-Admin/Owner בלבד. הזן את שמות ${this.teams.length} הקבוצות המשתתפות ישירות בעץ הפלייאוף:`;
+            if (genBtn) genBtn.textContent = `🔄 סנכרן שמות קבוצות לעץ הפלייאוף`;
+
+            this.teams.forEach((teamName, index) => {
+                const div = document.createElement('div');
+                div.className = 'team-input-group';
+                div.innerHTML = `
+                    <label>קבוצה מדורגת #${index + 1}</label>
+                    <input type="text" value="${teamName}" data-index="${index}" 
+                           onchange="app.updateTeamName(${index}, this.value)"
+                           placeholder="הזן שם קבוצה">
+                `;
+                container.appendChild(div);
+            });
+        } else {
+            const numGroups = this.numGroups || (this.groups ? Object.keys(this.groups).length : 3);
+            const teamsPerGroup = this.teamsPerGroup || 5;
+            const groupHebrew = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'"];
+
+            if (titleEl) titleEl.textContent = `הזנת קבוצות הטורניר (${this.teams.length} קבוצות ב-${numGroups} בתים)`;
+            if (subEl) subEl.textContent = `מיועד ל-Admin/Owner בלבד. הזן או עדכן שמות ל-${this.teams.length} הקבוצות (מחולקות ל-${numGroups} בתים של ${teamsPerGroup} קבוצות):`;
+            if (genBtn) genBtn.textContent = `⚡ ייצר לוח משחקים לשלב הבתים (${this.matches.length || (numGroups * (teamsPerGroup * (teamsPerGroup - 1)) / 2)} משחקים)`;
+
+            this.teams.forEach((teamName, index) => {
+                const groupIdx = Math.floor(index / teamsPerGroup);
+                const posInGroup = (index % teamsPerGroup) + 1;
+                const groupHe = groupHebrew[groupIdx] || (groupIdx + 1);
+
+                const div = document.createElement('div');
+                div.className = 'team-input-group';
+                div.innerHTML = `
+                    <label>בית ${groupHe} - קבוצה ${posInGroup}</label>
+                    <input type="text" value="${teamName}" data-index="${index}" 
+                           onchange="app.updateTeamName(${index}, this.value)"
+                           placeholder="הזן שם קבוצה">
+                `;
+                container.appendChild(div);
+            });
+        }
     }
 
     updateTeamName(index, newName) {
         const trimmed = newName.trim();
         this.teams[index] = trimmed || `קבוצה ${index + 1}`;
-        this.syncTeamNamesToMatches();
+
+        if (this.format === 'knockout_only') {
+            if (this.playoffSeeds && this.playoffSeeds[index]) {
+                this.playoffSeeds[index].teamName = this.teams[index];
+            }
+            this.syncTeamNamesToKnockoutBracket();
+            this.renderPlayoffBracket();
+        } else {
+            this.syncTeamNamesToMatches();
+        }
         this.saveActiveTournamentData();
     }
 
     fillDefaultTeamNames() {
-        this.teams = [...this.defaultTeams];
+        this.teams = this.teams.map((_, i) => this.defaultTeams[i] || `קבוצה ${i + 1}`);
         this.renderTeamInputs();
-        this.syncTeamNamesToMatches();
+        if (this.format === 'knockout_only') {
+            if (this.playoffSeeds) {
+                this.playoffSeeds.forEach((s, i) => { s.teamName = this.teams[i]; });
+            }
+            this.syncTeamNamesToKnockoutBracket();
+            this.renderPlayoffBracket();
+        } else {
+            this.syncTeamNamesToMatches();
+        }
         this.saveActiveTournamentData();
-        this.showAlert("שמות הקבוצות שוחזרו לברירת המחדל.", "success");
+        this.showAlert("שמות הקבוצות שוחזרו בהצלחה.", "success");
+    }
+
+    syncTeamNamesToKnockoutBracket() {
+        if (!this.playoffMatches) return;
+        ['r16', 'qf', 'sf'].forEach(roundKey => {
+            const matches = this.playoffMatches[roundKey];
+            if (Array.isArray(matches)) {
+                matches.forEach(m => {
+                    if (m.team1 && m.team1.teamIndex !== undefined) {
+                        m.team1.teamName = this.teams[m.team1.teamIndex];
+                    }
+                    if (m.team2 && m.team2.teamIndex !== undefined) {
+                        m.team2.teamName = this.teams[m.team2.teamIndex];
+                    }
+                });
+            }
+        });
+        if (this.playoffMatches.final) {
+            const m = this.playoffMatches.final;
+            if (m.team1 && m.team1.teamIndex !== undefined) m.team1.teamName = this.teams[m.team1.teamIndex];
+            if (m.team2 && m.team2.teamIndex !== undefined) m.team2.teamName = this.teams[m.team2.teamIndex];
+        }
     }
 
     syncTeamNamesToMatches() {
@@ -1218,59 +1854,40 @@ class TournamentApp {
     }
 
     /* ========================================================
-       אלגוריתם 1: Round-Robin של 30 משחקים (3 בתים של 5)
+       אלגוריתם 1: Round-Robin דינמי לכל כמות בתים וקבוצות
        ======================================================== */
 
     generateTournamentGroups(shouldSwitchTab = true) {
-        this.groups = {
-            'Group A': this.teams.slice(0, 5).map((name, i) => ({ index: i, name, group: 'Group A' })),
-            'Group B': this.teams.slice(5, 10).map((name, i) => ({ index: i + 5, name, group: 'Group B' })),
-            'Group C': this.teams.slice(10, 15).map((name, i) => ({ index: i + 10, name, group: 'Group C' }))
-        };
+        if (this.format === 'knockout_only') {
+            this.syncTeamNamesToKnockoutBracket();
+            this.renderPlayoffBracket();
+            if (shouldSwitchTab) {
+                this.switchTab('playoffs');
+                this.showAlert("שמות הקבוצות סונכרנו לעץ הפלייאוף!", "success");
+            }
+            return;
+        }
 
-        const roundRobinTemplate = [
-            [ { home: 0, away: 4 }, { home: 1, away: 3 } ],
-            [ { home: 4, away: 3 }, { home: 0, away: 2 } ],
-            [ { home: 1, away: 4 }, { home: 2, away: 3 } ],
-            [ { home: 4, away: 2 }, { home: 0, away: 1 } ],
-            [ { home: 3, away: 0 }, { home: 1, away: 2 } ]
-        ];
+        const numGroups = this.numGroups || 3;
+        const teamsPerGroup = this.teamsPerGroup || 5;
+        const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+        const groups = {};
 
-        this.matches = [];
-        let matchCounter = 1;
+        for (let g = 0; g < numGroups; g++) {
+            const grpKey = `Group ${groupLetters[g]}`;
+            const startIndex = g * teamsPerGroup;
+            const grpTeams = [];
+            for (let t = 0; t < teamsPerGroup; t++) {
+                const idx = startIndex + t;
+                if (idx < this.teams.length) {
+                    grpTeams.push({ index: idx, name: this.teams[idx], group: grpKey });
+                }
+            }
+            groups[grpKey] = grpTeams;
+        }
+        this.groups = groups;
 
-        const groupConfigs = [
-            { key: 'Group A', nameHe: "בית א'", startIndex: 0 },
-            { key: 'Group B', nameHe: "בית ב'", startIndex: 5 },
-            { key: 'Group C', nameHe: "בית ג'", startIndex: 10 }
-        ];
-
-        groupConfigs.forEach(grp => {
-            roundRobinTemplate.forEach((roundPairs, roundIdx) => {
-                const roundNum = roundIdx + 1;
-                roundPairs.forEach(pair => {
-                    const t1Idx = grp.startIndex + pair.home;
-                    const t2Idx = grp.startIndex + pair.away;
-
-                    this.matches.push({
-                        id: `match_${matchCounter}`,
-                        matchNumber: matchCounter,
-                        groupId: grp.key,
-                        groupNameHe: grp.nameHe,
-                        round: roundNum,
-                        team1Index: t1Idx,
-                        team2Index: t2Idx,
-                        team1Name: this.teams[t1Idx],
-                        team2Name: this.teams[t2Idx],
-                        score1: null,
-                        score2: null,
-                        winner: null
-                    });
-                    matchCounter++;
-                });
-            });
-        });
-
+        this.matches = this.generateDynamicRoundRobin(groups, this.teams, teamsPerGroup);
         this.renderMatches();
         this.calculateStandings();
         this.saveActiveTournamentData();
@@ -1280,13 +1897,36 @@ class TournamentApp {
 
         if (shouldSwitchTab) {
             this.switchTab('group-stage');
-            this.showAlert("לוח המשחקים נוצר בהצלחה! 30 משחקים חולקו ל-3 בתים.", "success");
+            this.showAlert(`לוח המשחקים נוצר בהצלחה! ${this.matches.length} משחקים חולקו ל-${numGroups} בתים.`, "success");
         }
     }
 
     renderMatches() {
         const container = document.getElementById('group-matches-container');
+        const filterContainer = document.getElementById('group-filter-container');
         if (!container) return;
+
+        // רינדור כפתורי סינון דינמיים לפי הבתים הקיימים בטורניר
+        if (filterContainer && this.groups && Object.keys(this.groups).length > 0) {
+            const groupHebrew = {
+                'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+                'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
+            };
+            const grpKeys = Object.keys(this.groups);
+            filterContainer.innerHTML = `
+                <button class="filter-chip ${this.currentFilter === 'all' ? 'active' : ''}" onclick="app.filterMatches('all', this)">
+                    כל הבתים (${this.matches.length})
+                </button>
+                ${grpKeys.map(k => {
+                    const count = this.matches.filter(m => m.groupId === k).length;
+                    return `
+                        <button class="filter-chip ${this.currentFilter === k ? 'active' : ''}" onclick="app.filterMatches('${k}', this)">
+                            ${groupHebrew[k] || k} (${count})
+                        </button>
+                    `;
+                }).join('')}
+            `;
+        }
 
         const filteredMatches = this.currentFilter === 'all'
             ? this.matches
@@ -1380,7 +2020,6 @@ class TournamentApp {
         if (teamNum === 1) match.score1 = parsed;
         else match.score2 = parsed;
 
-        // בדיקת תיקו קפדנית
         if (match.score1 !== null && match.score2 !== null) {
             if (match.score1 === match.score2) {
                 this.showAlert("⚠️ חוק הטורניר: חל איסור מוחלט על תוצאת תיקו! יש להכריע את המשחק.", "error");
@@ -1414,31 +2053,27 @@ class TournamentApp {
     }
 
     /* ========================================================
-       אלגוריתם 3: טבלאות דירוג דינמיות (מיון לפי נצחונות והפרש)
+       אלגוריתם 3: טבלאות דירוג דינמיות
        ======================================================== */
 
     calculateStandings() {
-        const groupKeys = ['Group A', 'Group B', 'Group C'];
+        if (!this.groups || Object.keys(this.groups).length === 0) return;
+
         const groupHeaders = {
-            'Group A': "בית א'",
-            'Group B': "בית ב'",
-            'Group C': "בית ג'"
+            'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+            'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
         };
 
         const calculatedStandings = {};
 
-        groupKeys.forEach(grpKey => {
+        Object.keys(this.groups).forEach(grpKey => {
             const teamsInGroup = this.groups[grpKey] || [];
             const stats = teamsInGroup.map(t => ({
                 teamIndex: t.index,
                 teamName: this.teams[t.index],
                 group: grpKey,
-                played: 0,
-                wins: 0,
-                losses: 0,
-                pointsFor: 0,
-                pointsAgainst: 0,
-                pointDiff: 0
+                played: 0, wins: 0, losses: 0,
+                pointsFor: 0, pointsAgainst: 0, pointDiff: 0
             }));
 
             const groupMatches = this.matches.filter(m => m.groupId === grpKey);
@@ -1458,7 +2093,6 @@ class TournamentApp {
 
             stats.forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
 
-            // מיון: 1. ניצחונות -> 2. הפרש נקודות -> 3. נקודות זכות
             stats.sort((a, b) => {
                 if (b.wins !== a.wins) return b.wins - a.wins;
                 if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
@@ -1478,18 +2112,22 @@ class TournamentApp {
         const container = document.getElementById('group-standings-container');
         if (!container) return;
 
-        const headers = groupHeaders || { 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'" };
+        const headers = groupHeaders || {
+            'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+            'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
+        };
         let html = '';
 
         for (const [grpKey, teams] of Object.entries(this.standings)) {
             const grpMatches = this.matches.filter(m => m.groupId === grpKey);
             const grpPlayed = grpMatches.filter(m => m.score1 !== null && m.score2 !== null).length;
+            const totalMatchesInGroup = grpMatches.length;
 
             html += `
                 <div class="standings-group-card">
                     <div class="standings-group-header">
-                        <span>${headers[grpKey]}</span>
-                        <span style="font-size:0.8rem; font-weight:normal; opacity:0.9;">שוחקו: ${grpPlayed}/10 משחקים</span>
+                        <span>${headers[grpKey] || grpKey}</span>
+                        <span style="font-size:0.8rem; font-weight:normal; opacity:0.9;">שוחקו: ${grpPlayed}/${totalMatchesInGroup} משחקים</span>
                     </div>
                     <div class="standings-table-wrap">
                         <table class="standings-table">
@@ -1550,43 +2188,23 @@ class TournamentApp {
     }
 
     /* ========================================================
-       אלגוריתם 4: שיבוץ פלייאוף 8 הגדולות ועץ הנוקאאוט
+       אלגוריתם 4: שיבוץ פלייאוף דינמי (נוקאאוט)
        ======================================================== */
 
     seedPlayoffs() {
         this.calculateStandings();
 
-        const standingsA = this.standings['Group A'];
-        const standingsB = this.standings['Group B'];
-        const standingsC = this.standings['Group C'];
-
-        if (!standingsA || !standingsB || !standingsC) {
+        const grpKeys = Object.keys(this.standings);
+        if (grpKeys.length === 0) {
             this.showAlert("שגיאה בנתוני הבתים. יש לייצר לוח משחקים תחילה.", "error");
             return;
         }
 
-        const playedCount = this.matches.filter(m => m.score1 !== null && m.score2 !== null).length;
-        if (playedCount < 30) {
-            this.showAlert(`שים לב: שוחקו ${playedCount} מתוך 30 משחקי בתים. הפלייאוף משובץ לפי הטבלה הנוכחית.`, "warning");
-        }
-
-        const firstPlaces = [
-            { ...standingsA[0], origin: "מקום 1 בית א'" },
-            { ...standingsB[0], origin: "מקום 1 בית ב'" },
-            { ...standingsC[0], origin: "מקום 1 בית ג'" }
-        ];
-
-        const secondPlaces = [
-            { ...standingsA[1], origin: "מקום 2 בית א'" },
-            { ...standingsB[1], origin: "מקום 2 בית ב'" },
-            { ...standingsC[1], origin: "מקום 2 בית ג'" }
-        ];
-
-        const thirdPlaces = [
-            { ...standingsA[2], origin: "מקום 3 בית א'" },
-            { ...standingsB[2], origin: "מקום 3 בית ב'" },
-            { ...standingsC[2], origin: "מקום 3 בית ג'" }
-        ];
+        const playoffSize = this.playoffSize || (this.teams.length >= 8 ? 8 : 4);
+        const groupHebrew = {
+            'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+            'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
+        };
 
         const sortPerformance = (a, b) => {
             if (b.wins !== a.wins) return b.wins - a.wins;
@@ -1595,96 +2213,47 @@ class TournamentApp {
             return a.teamName.localeCompare(b.teamName);
         };
 
-        firstPlaces.sort(sortPerformance);
-        secondPlaces.sort(sortPerformance);
-        thirdPlaces.sort(sortPerformance);
+        const allTeamsByRank = [];
+        const maxRank = Math.max(...grpKeys.map(k => (this.standings[k] || []).length));
 
-        const bestTwoThirds = [thirdPlaces[0], thirdPlaces[1]];
-        const eliminatedThird = thirdPlaces[2];
-
-        this.playoffSeeds = [
-            { seed: 1, ...firstPlaces[0] },
-            { seed: 2, ...firstPlaces[1] },
-            { seed: 3, ...firstPlaces[2] },
-            { seed: 4, ...secondPlaces[0] },
-            { seed: 5, ...secondPlaces[1] },
-            { seed: 6, ...secondPlaces[2] },
-            { seed: 7, ...bestTwoThirds[0] },
-            { seed: 8, ...bestTwoThirds[1] }
-        ];
-
-        this.playoffMatches = {
-            qf: [
-                {
-                    id: 'qf_1', roundName: 'רבע גמר 1',
-                    seed1: 1, seed2: 8,
-                    team1: this.playoffSeeds[0], team2: this.playoffSeeds[7],
-                    score1: null, score2: null, winner: null,
-                    nextMatchId: 'sf_1', nextSlot: 1
-                },
-                {
-                    id: 'qf_2', roundName: 'רבע גמר 2',
-                    seed1: 4, seed2: 5,
-                    team1: this.playoffSeeds[3], team2: this.playoffSeeds[4],
-                    score1: null, score2: null, winner: null,
-                    nextMatchId: 'sf_1', nextSlot: 2
-                },
-                {
-                    id: 'qf_3', roundName: 'רבע גמר 3',
-                    seed1: 3, seed2: 6,
-                    team1: this.playoffSeeds[2], team2: this.playoffSeeds[5],
-                    score1: null, score2: null, winner: null,
-                    nextMatchId: 'sf_2', nextSlot: 1
-                },
-                {
-                    id: 'qf_4', roundName: 'רבע גמר 4',
-                    seed1: 2, seed2: 7,
-                    team1: this.playoffSeeds[1], team2: this.playoffSeeds[6],
-                    score1: null, score2: null, winner: null,
-                    nextMatchId: 'sf_2', nextSlot: 2
+        for (let r = 0; r < maxRank; r++) {
+            const rankTeams = [];
+            grpKeys.forEach(k => {
+                if (this.standings[k] && this.standings[k][r]) {
+                    rankTeams.push({
+                        ...this.standings[k][r],
+                        origin: `מקום ${r + 1} ${groupHebrew[k] || k}`
+                    });
                 }
-            ],
-            sf: [
-                {
-                    id: 'sf_1', roundName: 'חצי גמר 1 (מנצחת 1v8 נגד 4v5)',
-                    team1: null, team2: null,
-                    score1: null, score2: null, winner: null,
-                    nextMatchId: 'final', nextSlot: 1
-                },
-                {
-                    id: 'sf_2', roundName: 'חצי גמר 2 (מנצחת 3v6 נגד 2v7)',
-                    team1: null, team2: null,
-                    score1: null, score2: null, winner: null,
-                    nextMatchId: 'final', nextSlot: 2
-                }
-            ],
-            final: {
-                id: 'final', roundName: '🏆 משחק הגמר',
-                team1: null, team2: null,
-                score1: null, score2: null, winner: null
-            }
-        };
+            });
+            rankTeams.sort(sortPerformance);
+            allTeamsByRank.push(...rankTeams);
+        }
 
-        this.renderPlayoffBracket(eliminatedThird);
+        const qualifiers = allTeamsByRank.slice(0, playoffSize);
+        this.playoffSeeds = qualifiers.map((t, idx) => ({
+            seed: idx + 1,
+            ...t
+        }));
+
+        this.playoffMatches = this.buildInitialKnockoutBracket(this.playoffSeeds, playoffSize);
+
+        this.renderPlayoffBracket();
         this.saveActiveTournamentData();
         this.switchTab('playoffs');
-        this.showAlert("שלב הבתים ננעל בהצלחה! 8 הקבוצות שובצו לעץ הנוקאאוט.", "success");
+        this.showAlert(`שלב הבתים ננעל בהצלחה! ${playoffSize} הקבוצות המובילות שובצו לעץ הפלייאוף.`, "success");
     }
 
-    renderPlayoffBracket(eliminatedThird = null) {
+    renderPlayoffBracket() {
         const container = document.getElementById('playoff-bracket-container');
         if (!container) return;
 
         const isViewer = (this.currentRole === 'viewer') || (this.tournaments.find(t => t.id === this.activeTournamentId)?.isArchived && this.currentRole !== 'owner');
 
-        const seedsSummaryHtml = `
+        const seedsSummaryHtml = (this.playoffSeeds && this.playoffSeeds.length > 0) ? `
             <div class="seed-summary-card">
                 <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#0f172a;">
-                    🎯 8 הקבוצות המעפילות לפלייאוף:
-                </div>
-                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;">
-                    עלו 2 הראשונות מכל בית + 2 קבוצות מקום 3 הטובות ביותר
-                    ${eliminatedThird ? `(הודחה: <strong>${eliminatedThird.teamName}</strong> שסיימה כמקום 3 עם המאזן הנמוך)` : ''}
+                    🎯 ${this.playoffSeeds.length} הקבוצות המדורגות בפלייאוף:
                 </div>
                 <div class="seed-grid">
                     ${this.playoffSeeds.map(s => `
@@ -1693,23 +2262,25 @@ class TournamentApp {
                                 <span class="seed-badge">${s.seed}</span> ${s.teamName}
                             </span>
                             <span style="font-size: 0.78rem; color: #64748b;">
-                                ${s.wins} נצ' | הפרש ${s.pointDiff > 0 ? '+' : ''}${s.pointDiff}
+                                ${s.origin || ''}
                             </span>
                         </div>
                     `).join('')}
                 </div>
             </div>
-        `;
+        ` : '';
 
-        const qf = this.playoffMatches.qf;
-        const sf = this.playoffMatches.sf;
-        const final = this.playoffMatches.final;
+        const r16 = this.playoffMatches?.r16 || [];
+        const qf = this.playoffMatches?.qf || [];
+        const sf = this.playoffMatches?.sf || [];
+        const final = this.playoffMatches?.final || null;
 
         const renderPlayoffCard = (m, isFinal = false) => {
+            if (!m) return '';
             const team1Name = m.team1 ? m.team1.teamName : 'ממתין לתוצאה...';
             const team2Name = m.team2 ? m.team2.teamName : 'ממתין לתוצאה...';
-            const team1Seed = m.team1 ? `(#${m.team1.seed})` : '';
-            const team2Seed = m.team2 ? `(#${m.team2.seed})` : '';
+            const team1Seed = m.team1?.seed ? `(#${m.team1.seed})` : '';
+            const team2Seed = m.team2?.seed ? `(#${m.team2.seed})` : '';
 
             const row1Winner = m.winner === 'team1' ? 'winner' : '';
             const row2Winner = m.winner === 'team2' ? 'winner' : '';
@@ -1759,32 +2330,51 @@ class TournamentApp {
                     <h3>🏆 אלופת הטורניר! 🏆</h3>
                     <div class="champ-name">${championTeam.teamName}</div>
                     <p style="margin: 0; color: #92400e; font-weight: 700;">
-                        כל הכבוד לאלופה הגדולה על ניצחון מוחץ בטורניר הדו-שלבי!
+                        כל הכבוד לאלופה הגדולה על ניצחון מוחץ בטורניר!
                     </p>
                 </div>
             `;
         }
 
-        container.innerHTML = `
-            ${seedsSummaryHtml}
-
-            <div class="bracket-rounds-container">
+        const columnsHtml = [];
+        if (r16.length > 0) {
+            columnsHtml.push(`
+                <div class="bracket-round-column">
+                    <div class="round-header">⚔️ שמינית גמר</div>
+                    ${r16.map(m => renderPlayoffCard(m)).join('')}
+                </div>
+            `);
+        }
+        if (qf.length > 0) {
+            columnsHtml.push(`
                 <div class="bracket-round-column">
                     <div class="round-header">⚔️ רבע גמר</div>
                     ${qf.map(m => renderPlayoffCard(m)).join('')}
                 </div>
-
+            `);
+        }
+        if (sf.length > 0) {
+            columnsHtml.push(`
                 <div class="bracket-round-column">
                     <div class="round-header">🔥 חצי גמר</div>
                     ${sf.map(m => renderPlayoffCard(m)).join('')}
                 </div>
-
+            `);
+        }
+        if (final) {
+            columnsHtml.push(`
                 <div class="bracket-round-column">
                     <div class="round-header" style="background:#b45309;">👑 משחק הגמר</div>
                     ${renderPlayoffCard(final, true)}
                 </div>
-            </div>
+            `);
+        }
 
+        container.innerHTML = `
+            ${seedsSummaryHtml}
+            <div class="bracket-rounds-container">
+                ${columnsHtml.join('')}
+            </div>
             ${championBannerHtml}
         `;
     }
@@ -1792,8 +2382,9 @@ class TournamentApp {
     handlePlayoffScore(matchId, teamNum, rawValue, inputElement) {
         let match = null;
 
-        if (matchId.startsWith('qf')) match = this.playoffMatches.qf.find(m => m.id === matchId);
-        else if (matchId.startsWith('sf')) match = this.playoffMatches.sf.find(m => m.id === matchId);
+        if (matchId.startsWith('r16')) match = this.playoffMatches.r16?.find(m => m.id === matchId);
+        else if (matchId.startsWith('qf')) match = this.playoffMatches.qf?.find(m => m.id === matchId);
+        else if (matchId.startsWith('sf')) match = this.playoffMatches.sf?.find(m => m.id === matchId);
         else if (matchId === 'final') match = this.playoffMatches.final;
 
         if (!match) return;
@@ -1851,8 +2442,10 @@ class TournamentApp {
         if (!match.nextMatchId) return;
 
         let nextMatch = null;
-        if (match.nextMatchId.startsWith('sf')) {
-            nextMatch = this.playoffMatches.sf.find(m => m.id === match.nextMatchId);
+        if (match.nextMatchId.startsWith('qf')) {
+            nextMatch = this.playoffMatches.qf?.find(m => m.id === match.nextMatchId);
+        } else if (match.nextMatchId.startsWith('sf')) {
+            nextMatch = this.playoffMatches.sf?.find(m => m.id === match.nextMatchId);
         } else if (match.nextMatchId === 'final') {
             nextMatch = this.playoffMatches.final;
         }
@@ -1871,6 +2464,11 @@ class TournamentApp {
     }
 
     fillSampleScores() {
+        if (this.format === 'knockout_only') {
+            this.simulatePlayoffs();
+            return;
+        }
+
         this.matches.forEach(m => {
             let s1 = 60 + Math.floor(Math.random() * 40);
             let s2 = 60 + Math.floor(Math.random() * 40);
@@ -1883,7 +2481,7 @@ class TournamentApp {
         this.renderMatches();
         this.calculateStandings();
         this.saveActiveTournamentData();
-        this.showAlert("הוזנו תוצאות לדוגמה לכל 30 המשחקים ללא תוצאות תיקו!", "success");
+        this.showAlert(`הוזנו תוצאות לדוגמה לכל ${this.matches.length} המשחקים ללא תוצאות תיקו!`, "success");
     }
 
     resetAllScores() {
@@ -1900,32 +2498,26 @@ class TournamentApp {
     }
 
     simulatePlayoffs() {
-        if (!this.playoffSeeds || this.playoffSeeds.length < 8) {
-            this.showAlert("יש לנעול את שלב הבתים ולשבץ פלייאוף תחילה.", "error");
-            return;
-        }
+        if (!this.playoffMatches) return;
 
-        this.playoffMatches.qf.forEach(m => {
-            const s1 = 70 + Math.floor(Math.random() * 30);
-            let s2 = 70 + Math.floor(Math.random() * 30);
-            if (s1 === s2) s2 += 3;
-            m.score1 = s1; m.score2 = s2;
-            m.winner = s1 > s2 ? 'team1' : 'team2';
-            const winnerTeam = m.winner === 'team1' ? m.team1 : m.team2;
-            this.propagatePlayoffWinner(m, winnerTeam);
-        });
+        const simulateRound = (roundMatches) => {
+            if (!Array.isArray(roundMatches)) return;
+            roundMatches.forEach(m => {
+                if (m.team1 && m.team2) {
+                    const s1 = 70 + Math.floor(Math.random() * 30);
+                    let s2 = 70 + Math.floor(Math.random() * 30);
+                    if (s1 === s2) s2 += 2;
+                    m.score1 = s1; m.score2 = s2;
+                    m.winner = s1 > s2 ? 'team1' : 'team2';
+                    const winnerTeam = m.winner === 'team1' ? m.team1 : m.team2;
+                    this.propagatePlayoffWinner(m, winnerTeam);
+                }
+            });
+        };
 
-        this.playoffMatches.sf.forEach(m => {
-            if (m.team1 && m.team2) {
-                const s1 = 75 + Math.floor(Math.random() * 25);
-                let s2 = 75 + Math.floor(Math.random() * 25);
-                if (s1 === s2) s2 += 2;
-                m.score1 = s1; m.score2 = s2;
-                m.winner = s1 > s2 ? 'team1' : 'team2';
-                const winnerTeam = m.winner === 'team1' ? m.team1 : m.team2;
-                this.propagatePlayoffWinner(m, winnerTeam);
-            }
-        });
+        if (this.playoffMatches.r16) simulateRound(this.playoffMatches.r16);
+        if (this.playoffMatches.qf) simulateRound(this.playoffMatches.qf);
+        if (this.playoffMatches.sf) simulateRound(this.playoffMatches.sf);
 
         const final = this.playoffMatches.final;
         if (final && final.team1 && final.team2) {
@@ -1982,105 +2574,104 @@ class TournamentApp {
         rows.push([escapeCSV("🏆 מנהל טורניר דו-שלבי - נתוני טורניר וטבלאות דירוג")]);
         const currentTourney = this.tournaments.find(t => t.id === this.activeTournamentId);
         rows.push([escapeCSV("שם טורניר"), escapeCSV(currentTourney?.name || "טורניר פעיל")]);
+        rows.push([escapeCSV("מבנה טורניר"), escapeCSV(currentTourney?.format === 'knockout_only' ? 'נוקאאוט בלבד' : 'בתים + פלייאוף')]);
         rows.push([escapeCSV("תאריך הפקה"), escapeCSV(new Date().toLocaleString('he-IL'))]);
         rows.push([]);
 
-        rows.push([escapeCSV("=== טבלאות דירוג שלב הבתים ===")]);
-        rows.push([
-            escapeCSV("בית"), escapeCSV("מיקום"), escapeCSV("קבוצה"),
-            escapeCSV("משחקים שוחקו"), escapeCSV("ניצחונות"), escapeCSV("הפסדים"),
-            escapeCSV("נקודות זכות"), escapeCSV("נקודות חובה"), escapeCSV("הפרש נקודות"),
-            escapeCSV("סטטוס העפלה")
-        ]);
+        if (this.format !== 'knockout_only' && this.standings) {
+            rows.push([escapeCSV("=== טבלאות דירוג שלב הבתים ===")]);
+            rows.push([
+                escapeCSV("בית"), escapeCSV("מיקום"), escapeCSV("קבוצה"),
+                escapeCSV("משחקים שוחקו"), escapeCSV("ניצחונות"), escapeCSV("הפסדים"),
+                escapeCSV("נקודות זכות"), escapeCSV("נקודות חובה"), escapeCSV("הפרש נקודות"),
+                escapeCSV("סטטוס העפלה")
+            ]);
 
-        const groupLabels = { 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'" };
-        for (const [grpKey, grpLabel] of Object.entries(groupLabels)) {
-            const stats = this.standings[grpKey] || [];
-            stats.forEach(s => {
-                let statusText = s.groupRank <= 2 ? "עולה ישירה (Top 2)" : s.groupRank === 3 ? "מועמדת לעלייה (מקום 3)" : "הודחה";
+            const groupLabels = { 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'", 'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'" };
+            for (const [grpKey, stats] of Object.entries(this.standings)) {
+                stats.forEach(s => {
+                    let statusText = s.groupRank <= 2 ? "עולה ישירה (Top 2)" : s.groupRank === 3 ? "מועמדת לעלייה (מקום 3)" : "הודחה";
+                    rows.push([
+                        escapeCSV(groupLabels[grpKey] || grpKey), escapeCSV(s.groupRank), escapeCSV(s.teamName),
+                        escapeCSV(s.played), escapeCSV(s.wins), escapeCSV(s.losses),
+                        escapeCSV(s.pointsFor), escapeCSV(s.pointsAgainst),
+                        escapeCSV(s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff),
+                        escapeCSV(statusText)
+                    ]);
+                });
+            }
+            rows.push([]);
+
+            rows.push([escapeCSV(`=== תוצאות ולוח משחקי שלב הבתים (${this.matches.length} משחקים) ===`)]);
+            rows.push([
+                escapeCSV("מספר משחק"), escapeCSV("בית"), escapeCSV("מחזור"),
+                escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"),
+                escapeCSV("קבוצה 2"), escapeCSV("מנצחת המשחק"), escapeCSV("סטטוס משחק")
+            ]);
+
+            this.matches.forEach(m => {
+                const hasScores = m.score1 !== null && m.score2 !== null;
+                const score1Str = hasScores ? m.score1 : "";
+                const score2Str = hasScores ? m.score2 : "";
+                let winnerStr = "";
+                let statusStr = "טרם שוחק";
+                if (hasScores && m.winner) {
+                    winnerStr = m.winner === 'team1' ? m.team1Name : m.team2Name;
+                    statusStr = "הסתיים";
+                }
                 rows.push([
-                    escapeCSV(grpLabel), escapeCSV(s.groupRank), escapeCSV(s.teamName),
-                    escapeCSV(s.played), escapeCSV(s.wins), escapeCSV(s.losses),
-                    escapeCSV(s.pointsFor), escapeCSV(s.pointsAgainst),
-                    escapeCSV(s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff),
-                    escapeCSV(statusText)
+                    escapeCSV(m.matchNumber), escapeCSV(m.groupNameHe), escapeCSV(`מחזור ${m.round}`),
+                    escapeCSV(m.team1Name), escapeCSV(score1Str), escapeCSV(score2Str),
+                    escapeCSV(m.team2Name), escapeCSV(winnerStr), escapeCSV(statusStr)
                 ]);
             });
+            rows.push([]);
         }
-        rows.push([]);
 
-        rows.push([escapeCSV("=== תוצאות ולוח משחקי שלב הבתים (30 משחקים) ===")]);
-        rows.push([
-            escapeCSV("מספר משחק"), escapeCSV("בית"), escapeCSV("מחזור"),
-            escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"),
-            escapeCSV("קבוצה 2"), escapeCSV("מנצחת המשחק"), escapeCSV("סטטוס משחק")
-        ]);
-
-        this.matches.forEach(m => {
-            const hasScores = m.score1 !== null && m.score2 !== null;
-            const score1Str = hasScores ? m.score1 : "";
-            const score2Str = hasScores ? m.score2 : "";
-            let winnerStr = "";
-            let statusStr = "טרם שוחק";
-            if (hasScores && m.winner) {
-                winnerStr = m.winner === 'team1' ? m.team1Name : m.team2Name;
-                statusStr = "הסתיים";
-            }
-            rows.push([
-                escapeCSV(m.matchNumber), escapeCSV(m.groupNameHe), escapeCSV(`מחזור ${m.round}`),
-                escapeCSV(m.team1Name), escapeCSV(score1Str), escapeCSV(score2Str),
-                escapeCSV(m.team2Name), escapeCSV(winnerStr), escapeCSV(statusStr)
-            ]);
-        });
-        rows.push([]);
-
-        rows.push([escapeCSV("=== שלב הפלייאוף - 8 הגדולות ===")]);
-        if (this.playoffSeeds && this.playoffSeeds.length === 8) {
-            rows.push([escapeCSV("--- 8 הקבוצות המדורגות ---")]);
+        rows.push([escapeCSV("=== שלב הפלייאוף (נוקאאוט) ===")]);
+        if (this.playoffSeeds && this.playoffSeeds.length > 0) {
+            rows.push([escapeCSV("--- קבוצות מדורגות ---")]);
             rows.push([escapeCSV("דירוג"), escapeCSV("שם קבוצה"), escapeCSV("מקור העפלה"), escapeCSV("ניצחונות"), escapeCSV("הפרש")]);
             this.playoffSeeds.forEach(s => {
                 rows.push([
                     escapeCSV(`דירוג ${s.seed}`), escapeCSV(s.teamName),
-                    escapeCSV(s.origin || `מקום בבית`), escapeCSV(s.wins),
-                    escapeCSV(s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff)
+                    escapeCSV(s.origin || `מקום בבית`), escapeCSV(s.wins || 0),
+                    escapeCSV(s.pointDiff > 0 ? `+${s.pointDiff}` : (s.pointDiff || 0))
                 ]);
             });
             rows.push([]);
+        }
 
+        if (this.playoffMatches) {
             rows.push([escapeCSV("--- משחקי פלייאוף ותוצאות ---")]);
             rows.push([escapeCSV("שלב"), escapeCSV("משחק"), escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"), escapeCSV("קבוצה 2"), escapeCSV("מנצחת / מעפילה")]);
 
-            this.playoffMatches.qf.forEach(qf => {
-                const s1 = qf.score1 !== null ? qf.score1 : "";
-                const s2 = qf.score2 !== null ? qf.score2 : "";
-                const win = qf.winner ? (qf.winner === 'team1' ? qf.team1.teamName : qf.team2.teamName) : "ממתין להכרעה";
-                rows.push([escapeCSV("רבע גמר"), escapeCSV(qf.roundName), escapeCSV(`${qf.team1.teamName} (דירוג ${qf.seed1})`), escapeCSV(s1), escapeCSV(s2), escapeCSV(`${qf.team2.teamName} (דירוג ${qf.seed2})`), escapeCSV(win)]);
-            });
-
-            this.playoffMatches.sf.forEach(sf => {
-                const t1 = sf.team1 ? sf.team1.teamName : "ממתין";
-                const t2 = sf.team2 ? sf.team2.teamName : "ממתין";
-                const s1 = sf.score1 !== null ? sf.score1 : "";
-                const s2 = sf.score2 !== null ? sf.score2 : "";
-                const win = sf.winner ? (sf.winner === 'team1' ? sf.team1.teamName : sf.team2.teamName) : "ממתין להכרעה";
-                rows.push([escapeCSV("חצי גמר"), escapeCSV(sf.roundName), escapeCSV(t1), escapeCSV(s1), escapeCSV(s2), escapeCSV(t2), escapeCSV(win)]);
+            ['r16', 'qf', 'sf'].forEach(roundKey => {
+                const matches = this.playoffMatches[roundKey];
+                if (Array.isArray(matches)) {
+                    matches.forEach(m => {
+                        const s1 = m.score1 !== null ? m.score1 : "";
+                        const s2 = m.score2 !== null ? m.score2 : "";
+                        const win = m.winner ? (m.winner === 'team1' ? m.team1?.teamName : m.team2?.teamName) : "ממתין להכרעה";
+                        rows.push([escapeCSV(roundKey.toUpperCase()), escapeCSV(m.roundName), escapeCSV(m.team1?.teamName || "ממתין"), escapeCSV(s1), escapeCSV(s2), escapeCSV(m.team2?.teamName || "ממתין"), escapeCSV(win)]);
+                    });
+                }
             });
 
             if (this.playoffMatches.final) {
                 const fn = this.playoffMatches.final;
-                const t1 = fn.team1 ? fn.team1.teamName : "ממתין";
-                const t2 = fn.team2 ? fn.team2.teamName : "ממתין";
                 const s1 = fn.score1 !== null ? fn.score1 : "";
                 const s2 = fn.score2 !== null ? fn.score2 : "";
-                const win = fn.winner ? (fn.winner === 'team1' ? fn.team1.teamName : fn.team2.teamName) : "ממתין להכרעה";
-                rows.push([escapeCSV("גמר"), escapeCSV(fn.roundName), escapeCSV(t1), escapeCSV(s1), escapeCSV(s2), escapeCSV(t2), escapeCSV(win)]);
+                const win = fn.winner ? (fn.winner === 'team1' ? fn.team1?.teamName : fn.team2?.teamName) : "ממתין להכרעה";
+                rows.push([escapeCSV("גמר"), escapeCSV(fn.roundName), escapeCSV(fn.team1?.teamName || "ממתין"), escapeCSV(s1), escapeCSV(s2), escapeCSV(fn.team2?.teamName || "ממתין"), escapeCSV(win)]);
                 if (fn.winner) {
-                    const champ = fn.winner === 'team1' ? fn.team1.teamName : fn.team2.teamName;
+                    const champ = fn.winner === 'team1' ? fn.team1?.teamName : fn.team2?.teamName;
                     rows.push([]);
                     rows.push([escapeCSV("🏆 אלופת הטורניר"), escapeCSV(champ)]);
                 }
             }
         }
+
 
         const csvContent = '\uFEFF' + rows.map(r => r.join(',')).join('\r\n');
         try {
@@ -2252,8 +2843,10 @@ class TournamentApp {
         const curPass = document.getElementById('profileCurrentPassword');
         const newPass = document.getElementById('profileNewPassword');
 
+        const user = this.getUserByEmail(this.currentUser.email);
         if (emailDisp) emailDisp.value = this.currentUser.email || '';
-        if (nameInput) nameInput.value = this.currentUser.displayName.replace(/^[👑⚡👁️]\s*(\([^)]+\))?/, '').trim() || '';
+        // נלקח נקי לחלוטין מתוך user.name ללא שום מניפולציית מחרוזת פגומה!
+        if (nameInput) nameInput.value = user ? user.name : (this.currentUser.name || '');
         if (curPass) curPass.value = '';
         if (newPass) newPass.value = '';
 
@@ -2276,55 +2869,47 @@ class TournamentApp {
         const newPass = newPassInput ? newPassInput.value.trim() : '';
         const email = this.currentUser.email.toLowerCase();
 
+        const user = this.getUserByEmail(email);
+        if (!user) {
+            this.showAlert("שגיאה במציאת פרטי המשתמש.", "error");
+            return;
+        }
+
         // אימות סיסמה נוכחית אם המשתמש מנסה לשנות סיסמה
         if (newPass) {
             if (newPass.length < 4) {
                 this.showAlert("סיסמה חדשה חייבת להכיל לפחות 4 תווים.", "error");
                 return;
             }
-
-            if (email === this.OWNER_EMAIL.toLowerCase()) {
-                const ownerPass = this.getOwnerPassword();
-                if (curPass !== ownerPass) {
-                    this.showAlert("הסיסמה הנוכחית שהזנת שגויה.", "error");
-                    return;
-                }
-                this.setOwnerPassword(newPass);
-            } else {
-                const users = this.getRegisteredUsers();
-                const user = users.find(u => u.email.toLowerCase() === email);
-                if (user && user.password && user.password !== curPass) {
-                    this.showAlert("הסיסמה הנוכחית שהזנת שגויה.", "error");
-                    return;
-                }
-                if (user) {
-                    user.password = newPass;
-                    localStorage.setItem('tournament_registered_users', JSON.stringify(users));
-                }
+            if (curPass !== user.password) {
+                this.showAlert("הסיסמה הנוכחית שהזנת שגויה.", "error");
+                return;
             }
+            user.password = newPass;
         }
 
         // עדכון שם
         if (newName) {
+            user.name = newName;
+            this.currentUser.name = newName;
             const role = this.currentUser.role;
-            let displayLabel = '';
-            if (role === 'owner') displayLabel = `👑 בעלים (${newName})`;
-            else if (role === 'admin') displayLabel = `⚡ מנהל (${newName})`;
-            else displayLabel = `👁️ ${newName}`;
+            if (role === 'owner') this.currentUser.displayName = `👑 בעלים (${newName})`;
+            else if (role === 'admin') this.currentUser.displayName = `⚡ מנהל (${newName})`;
+            else this.currentUser.displayName = `👁️ ${newName}`;
 
-            this.currentUser.displayName = displayLabel;
             sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
             this.updateUserSessionUI();
+        }
 
-            const users = this.getRegisteredUsers();
-            const user = users.find(u => u.email.toLowerCase() === email);
-            if (user) {
-                user.name = newName;
-                localStorage.setItem('tournament_registered_users', JSON.stringify(users));
-            }
+        const users = this.getUnifiedUsers();
+        const idx = users.findIndex(u => u.email.toLowerCase() === email);
+        if (idx !== -1) {
+            users[idx] = user;
+            this.saveUnifiedUsers(users);
         }
 
         this.closeProfileModal();
+        this.renderUsersManagement();
         this.showAlert("פרטי הפרופיל והסיסמה עודכנו בהצלחה!", "success");
     }
 }

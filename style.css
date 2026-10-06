@@ -1415,5 +1415,105 @@ body.role-admin .tab-btn.owner-only {
     background: #fca5a5;
 }
 
+/* ===================================================
+   סגנונות אשף הקמת טורניר ועריכת משתמש
+   =================================================== */
+.wizard-modal-card {
+    max-width: 580px;
+    width: 95%;
+}
+
+.wizard-format-options {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.wizard-format-card {
+    flex: 1;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 14px 12px;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    text-align: center;
+    position: relative;
+    user-select: none;
+}
+
+.wizard-format-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.wizard-format-card:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+}
+
+.wizard-format-card.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.wizard-card-icon {
+    font-size: 1.8rem;
+    margin-bottom: 4px;
+}
+
+.wizard-card-title {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.wizard-card-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.wizard-settings-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 14px;
+}
+
+.wizard-summary-pill {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: #166534;
+    text-align: center;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.btn-edit-user {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-edit-user:hover {
+    background: #dbeafe;
+}
+
+
 
 

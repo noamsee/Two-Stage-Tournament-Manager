@@ -134,6 +134,11 @@
                     </select>
                 </div>
 
+                <!-- כפתור אשף הקמת טורניר חדש -->
+                <button class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()" title="פתיחת אשף להקמת טורניר חדש">
+                    ✨ טורניר חדש
+                </button>
+
                 <!-- כפתורי ייצוא -->
                 <button class="btn-csv btn-sm" onclick="app.exportToCSV()" title="הורד גיליון CSV ל-Excel">
                     📊 Excel
@@ -169,8 +174,13 @@
             <!-- טאב 1: הגדרת טורניר -->
             <section id="tab-setup" class="tab-section">
                 <div class="card">
-                    <h2>הזנת קבוצות הטורניר (15 קבוצות)</h2>
-                    <p class="role-notice admin-editable">מיועד ל-Admin/Owner בלבד. הזן או עדכן שמות ל-15 קבוצות הטורניר (מחולקות ל-3 בתים של 5 קבוצות):</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+                        <h2 id="setup-header-title" style="margin: 0;">הזנת קבוצות הטורניר</h2>
+                        <button type="button" class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()">
+                            ✨ אשף פתיחת טורניר חדש (Wizard)
+                        </button>
+                    </div>
+                    <p id="setup-header-subtitle" class="role-notice admin-editable">מיועד ל-Admin/Owner בלבד. הזן או עדכן את שמות הקבוצות:</p>
                     
                     <div id="teams-input-container" class="teams-grid">
                         <!-- ייווצר דינמית ע"י ה-JS -->
@@ -178,7 +188,7 @@
 
                     <div class="actions-bar">
                         <button id="btn-generate-groups" class="btn-primary admin-editable" onclick="app.generateTournamentGroups()">
-                            ⚡ ייצר לוח משחקים לשלב הבתים (30 משחקים)
+                            ⚡ ייצר לוח משחקים לשלב הבתים
                         </button>
                         <button type="button" class="btn-secondary admin-editable" onclick="app.fillDefaultTeamNames()">
                             🔄 שחזר שמות קבוצות לדוגמה
@@ -189,36 +199,45 @@
 
             <!-- טאב 2: שלב הבתים -->
             <section id="tab-group-stage" class="tab-section hidden">
-                <!-- סרגל פעולות עזר לשלב הבתים -->
-                <div class="actions-bar">
-                    <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
-                        📊 הורד נתונים וטבלאות (CSV)
-                    </button>
-                    <button class="btn-secondary btn-sm admin-editable" onclick="app.fillSampleScores()">
-                        🎲 מלא תוצאות לדוגמה (לבדיקה מהירה)
-                    </button>
-                    <button class="btn-secondary btn-sm admin-editable" onclick="app.resetAllScores()">
-                        🧹 אפס את כל תוצאות הבתים
-                    </button>
+                <!-- הודעת נוקאאוט בלבד (מופיעה כשהטורניר אינו כולל בתים) -->
+                <div id="group-knockout-notice" class="card hidden" style="text-align: center; padding: 36px 16px; margin-bottom: 20px;">
+                    <div style="font-size: 2.2rem; margin-bottom: 8px;">⚔️</div>
+                    <h3 style="margin-top: 0; color: #0f172a; font-size: 1.3rem;">טורניר נוקאאוט ישיר בלבד</h3>
+                    <p style="color: #64748b; max-width: 520px; margin: 0 auto 16px auto; line-height: 1.5;">
+                        טורניר זה הוגדר בשיטת פלייאוף ישיר (ללא שלב בתים). כל המשחקים, ההצלבות והתוצאות מנוהלים ישירות בעץ הפלייאוף!
+                    </p>
+                    <button class="btn-primary" onclick="app.switchTab('playoffs')">🌳 עבור ישירות לשלב הפלייאוף</button>
                 </div>
 
-                <div class="tournament-layout">
-                    <!-- לוח משחקים -->
-                    <div class="matches-column">
-                        <h2>📅 לוח משחקים ותוצאות</h2>
-                        
-                        <!-- סינון לפי בית -->
-                        <div class="filter-tabs">
-                            <button class="filter-chip active" onclick="app.filterMatches('all', this)">כל הבתים (30)</button>
-                            <button class="filter-chip" onclick="app.filterMatches('Group A', this)">בית א' (10)</button>
-                            <button class="filter-chip" onclick="app.filterMatches('Group B', this)">בית ב' (10)</button>
-                            <button class="filter-chip" onclick="app.filterMatches('Group C', this)">בית ג' (10)</button>
+                <div id="group-stage-main-content">
+                    <!-- סרגל פעולות עזר לשלב הבתים -->
+                    <div class="actions-bar">
+                        <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
+                            📊 הורד נתונים וטבלאות (CSV)
+                        </button>
+                        <button class="btn-secondary btn-sm admin-editable" onclick="app.fillSampleScores()">
+                            🎲 מלא תוצאות לדוגמה (לבדיקה מהירה)
+                        </button>
+                        <button class="btn-secondary btn-sm admin-editable" onclick="app.resetAllScores()">
+                            🧹 אפס את כל תוצאות הבתים
+                        </button>
+                    </div>
+
+                    <div class="tournament-layout">
+                        <!-- לוח משחקים -->
+                        <div class="matches-column">
+                            <h2>📅 לוח משחקים ותוצאות</h2>
+                            
+                            <!-- סינון לפי בית - דינמי -->
+                            <div id="group-filter-container" class="filter-tabs">
+                                <!-- ייווצר דינמית ע"י ה-JS -->
+                            </div>
+
+                            <div id="group-matches-container">
+                                <p class="placeholder-text">אנא הזן קבוצות ולחץ על "ייצר לוח משחקים" בטאב ההגדרות.</p>
+                            </div>
                         </div>
 
-                        <div id="group-matches-container">
-                            <p class="placeholder-text">אנא הזן קבוצות ולחץ על "ייצר לוח משחקים" בטאב ההגדרות.</p>
-                        </div>
-                    </div>
 
                     <!-- טבלאות דירוג -->
                     <div class="standings-column">
@@ -234,17 +253,18 @@
                         </div>
 
                         <button id="btn-seed-playoffs" class="btn-success admin-editable hidden" style="width: 100%; margin-top: 15px;" onclick="app.seedPlayoffs()">
-                            🚀 נעל שלב בתים ושבץ פלייאוף (8 הגדולות)
+                            🚀 נעל שלב בתים ושבץ פלייאוף
                         </button>
                     </div>
                 </div>
+                </div> <!-- סגירת group-stage-main-content -->
             </section>
 
             <!-- טאב 3: פלייאוף -->
             <section id="tab-playoffs" class="tab-section hidden">
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                        <h2>🌳 עץ פלייאוף נוקאאוט (8 הגדולות)</h2>
+                        <h2 id="playoff-header-title">🌳 עץ פלייאוף נוקאאוט</h2>
                         <div class="actions-bar" style="margin-bottom: 0;">
                             <button class="btn-csv btn-sm" onclick="app.exportToCSV()">
                                 📊 הורד פלייאוף (CSV)
@@ -257,7 +277,7 @@
                             </button>
                         </div>
                     </div>
-                    <p class="section-subtitle">שיטת ההצלבות: 1 נגד 8, 4 נגד 5, 3 נגד 6, 2 נגד 7. המנצחות מעפילות אוטומטית לחצאי הגמר ולגמר!</p>
+                    <p id="playoff-header-subtitle" class="section-subtitle">שיטת ההצלבות ועץ הנוקאאוט. המנצחות מעפילות אוטומטית לשלב הבא!</p>
 
                     <div id="playoff-bracket-container" class="bracket-view">
                         <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
@@ -277,7 +297,7 @@
                             <div>
                                 <h3 style="margin: 0;">👥 ניהול משתמשים והרשאות (Users Management)</h3>
                                 <p style="font-size:0.9rem; color:#64748b; margin: 4px 0 0 0;">
-                                    צפייה בכל המשתמשים, הוספת משתמשים חדשים, הגדרת תפקידים (Admin / Viewer), איפוס סיסמאות ומחיקה:
+                                    צפייה בכל המשתמשים, הוספת משתמשים חדשים, עריכת פרטים (שם, סיסמה, הרשאה), איפוס סיסמאות ומחיקה:
                                 </p>
                             </div>
                             <button type="button" class="btn-primary" onclick="app.openAddUserModal()">➕ הוסף משתמש חדש</button>
@@ -293,7 +313,7 @@
                                         <th>תפקיד / הרשאה</th>
                                         <th>ספק התחברות</th>
                                         <th>תאריך הצטרפות</th>
-                                        <th style="text-align: center; width: 170px;">פעולות</th>
+                                        <th style="text-align: center; width: 200px;">פעולות</th>
                                     </tr>
                                 </thead>
                                 <tbody id="usersListTableBody">
@@ -309,12 +329,13 @@
                     <div class="tournament-management-box">
                         <h3>🏆 ניהול טורנירים וארכיון תוצאות עבר</h3>
                         <p style="font-size:0.9rem; color:#64748b;">
-                            באפשרותך לפתוח טורניר חדש או להעביר את הטורניר הפעיל לארכיון לצפיית אורחים:
+                            באפשרותך להקים טורניר מותאם אישית (בתים + פלייאוף או נוקאאוט בלבד) באשף הטורניר, או לארכב את הטורניר הפעיל:
                         </p>
                         
-                        <div class="admin-add-form">
-                            <input type="text" id="newTournamentNameInput" placeholder="שם הטורניר החדש (למשל: טורניר אביב 2026)">
-                            <button type="button" class="btn-success" onclick="app.createNewTournament()">✨ צור טורניר חדש</button>
+                        <div class="admin-add-form" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <button type="button" class="btn-success" onclick="app.openTournamentWizard()" style="padding: 10px 18px; font-weight:800;">
+                                ✨ פתח אשף הקמת טורניר חדש (Wizard)
+                            </button>
                             <button type="button" class="btn-secondary" onclick="app.archiveCurrentTournament()">📦 ארכב טורניר נוכחי</button>
                         </div>
 
@@ -458,7 +479,151 @@ git push -u origin main</pre>
         </div>
     </div>
 
+    <!-- מודאל עריכת פרטי משתמש (User Management Edit) -->
+    <div id="edit-user-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="app.closeEditUserModal()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                ✏️ עריכת פרטי משתמש
+            </h2>
+            <form onsubmit="event.preventDefault(); app.submitEditUser();">
+                <input type="hidden" id="editUserOriginalEmail">
+                <div class="login-field" style="margin-top:16px;">
+                    <label for="editUserEmailDisplay">📧 כתובת אימייל (לקריאה בלבד):</label>
+                    <input type="email" id="editUserEmailDisplay" class="login-input" disabled style="background:#f1f5f9; cursor:not-allowed;">
+                </div>
+                <div class="login-field">
+                    <label for="editUserNameInput">👤 שם משתמש / שם תצוגה מלא:</label>
+                    <input type="text" id="editUserNameInput" class="login-input" required placeholder="הזן שם מלא">
+                </div>
+                <div class="login-field">
+                    <label for="editUserRoleSelect">🛡️ תפקיד והרשאה במערכת:</label>
+                    <select id="editUserRoleSelect" class="login-input" style="background:#fff;">
+                        <option value="owner" id="editUserRoleOwnerOpt" disabled>👑 בעל המערכת (Owner)</option>
+                        <option value="admin">⚡ מנהל מורשה (Admin - עריכת תוצאות)</option>
+                        <option value="viewer">👁️ צופה בלבד (Viewer - צפייה בלבד)</option>
+                    </select>
+                    <small id="editUserRoleNote" style="color:#64748b; font-size:0.8rem; margin-top:4px; display:block;"></small>
+                </div>
+                <div class="login-field">
+                    <label for="editUserPasswordInput">🔒 סיסמה:</label>
+                    <input type="text" id="editUserPasswordInput" class="login-input" required placeholder="סיסמת המשתמש">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+                    <button type="submit" class="btn-primary">💾 שמור שינויים</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeEditUserModal()">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- מודאל אשף יצירת טורניר דינמי (Tournament Creation Wizard) -->
+    <div id="new-tournament-wizard-modal" class="modal-overlay hidden">
+        <div class="modal-card wizard-modal-card">
+            <button class="modal-close-btn" onclick="app.closeTournamentWizard()">✕</button>
+            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                ✨ אשף הקמת טורניר חדש
+            </h2>
+            <p style="font-size:0.9rem; color:#64748b; margin-bottom:14px;">
+                הגדר את מבנה הטורניר באופן דינמי: שלב בתים משולב פלייאוף או טורניר נוקאאוט ישיר, עם שליטה מלאה על כמות הבתים והקבוצות.
+            </p>
+
+            <form onsubmit="event.preventDefault(); app.submitTournamentWizard();">
+                <!-- שלב 1: שם הטורניר -->
+                <div class="login-field">
+                    <label for="wizardTourneyName">🏆 שם הטורניר:</label>
+                    <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ 2026" required>
+                </div>
+
+                <!-- שלב 2: סוג המבנה -->
+                <div class="login-field">
+                    <label>🎯 בחר מבנה טורניר:</label>
+                    <div class="wizard-format-options">
+                        <label class="wizard-format-card active" id="cardFormatGroups">
+                            <input type="radio" name="wizardFormat" value="groups_and_playoff" checked onchange="app.onWizardFormatChange()">
+                            <div class="wizard-card-icon">⚽ + 🌳</div>
+                            <div class="wizard-card-title">בתים + פלייאוף</div>
+                            <div class="wizard-card-desc">שלב בתים Round-Robin ולאחריו הצלבות ופלייאוף נוקאאוט</div>
+                        </label>
+
+                        <label class="wizard-format-card" id="cardFormatKnockout">
+                            <input type="radio" name="wizardFormat" value="knockout_only" onchange="app.onWizardFormatChange()">
+                            <div class="wizard-card-icon">⚔️</div>
+                            <div class="wizard-card-title">נוקאאוט בלבד</div>
+                            <div class="wizard-card-desc">עץ נוקאאוט ישיר ללא שלב בתים (הפסדת - יצאת)</div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- הגדרות בתים + פלייאוף -->
+                <div id="wizardGroupsSettings" class="wizard-settings-box">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div class="login-field">
+                            <label for="wizardNumGroups">🏠 כמות בתים (Houses):</label>
+                            <select id="wizardNumGroups" class="login-input" onchange="app.updateWizardSummary()">
+                                <option value="1">1 בית (בית יחיד)</option>
+                                <option value="2">2 בתים (א', ב')</option>
+                                <option value="3" selected>3 בתים (א', ב', ג')</option>
+                                <option value="4">4 בתים (א', ב', ג', ד')</option>
+                                <option value="5">5 בתים</option>
+                                <option value="6">6 בתים</option>
+                            </select>
+                        </div>
+
+                        <div class="login-field">
+                            <label for="wizardTeamsPerGroup">👥 קבוצות בכל בית:</label>
+                            <select id="wizardTeamsPerGroup" class="login-input" onchange="app.updateWizardSummary()">
+                                <option value="3">3 קבוצות בבית</option>
+                                <option value="4">4 קבוצות בבית</option>
+                                <option value="5" selected>5 קבוצות בבית</option>
+                                <option value="6">6 קבוצות בבית</option>
+                                <option value="7">7 קבוצות בבית</option>
+                                <option value="8">8 קבוצות בבית</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="login-field" style="margin-top:10px;">
+                        <label for="wizardPlayoffSize">🌳 גודל עץ הפלייאוף (קבוצות עולות):</label>
+                        <select id="wizardPlayoffSize" class="login-input" onchange="app.updateWizardSummary()">
+                            <option value="4">4 קבוצות (חצי גמר + גמר)</option>
+                            <option value="8" selected>8 קבוצות (רבע גמר, חצי גמר, גמר)</option>
+                            <option value="16">16 קבוצות (שמינית גמר, רבע גמר, חצי גמר, גמר)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- הגדרות נוקאאוט בלבד -->
+                <div id="wizardKnockoutSettings" class="wizard-settings-box hidden">
+                    <div class="login-field">
+                        <label for="wizardKnockoutTeams">👥 כמות קבוצות בעץ הנוקאאוט:</label>
+                        <select id="wizardKnockoutTeams" class="login-input" onchange="app.updateWizardSummary()">
+                            <option value="4">4 קבוצות (חצי גמר + משחק גמר)</option>
+                            <option value="8" selected>8 קבוצות (רבע גמר + חצי גמר + גמר)</option>
+                            <option value="16">16 קבוצות (שמינית גמר + רבע גמר + חצי גמר + גמר)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- סיכום חי -->
+                <div id="wizardSummaryBox" class="wizard-summary-pill">
+                    <!-- ייווצר דינמית ע"י ה-JS -->
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px;">
+                    <button type="submit" class="btn-primary" style="padding:10px 20px; font-size:1rem; font-weight:800;">
+                        🚀 צור טורניר והפעל לוח משחקים
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="app.closeTournamentWizard()">
+                        ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=2.3"></script>
+    <script src="./app.js?v=2.4"></script>
 </body>
 </html>
+
