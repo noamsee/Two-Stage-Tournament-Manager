@@ -121,9 +121,12 @@ class TournamentApp {
         }
 
         try {
-            // פענוח ה-JWT ID Token ישירות בדפדפן
+            // פענוח ה-JWT ID Token ישירות בדפדפן בצורה מוגנת
             const base64Url = response.credential.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4 !== 0) {
+                base64 += '=';
+            }
             const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
@@ -137,9 +140,6 @@ class TournamentApp {
                 this.showAlert("לא התקבלה כתובת אימייל מאומתת מחשבון Google.", "error");
                 return;
             }
-
-            // סגירת המודאל אם היה פתוח
-            this.closeGoogleAuthModal();
 
             this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google (${email})`, "success");
             this.authenticateUser(email, true, name, 'google');
