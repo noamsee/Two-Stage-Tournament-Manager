@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=3.5">
+    <link rel="stylesheet" href="./style.css?v=3.6">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -190,21 +190,6 @@
             <button class="tab-btn owner-only" onclick="app.switchTab('users')">👥 ניהול מערכת (Owner)</button>
         </nav>
 
-        <!-- סרגל כפתורי פעולה עליון: בנה, מלא תוצאות, אפס, ונעל שלב בתים ושבץ פלייאוף -->
-        <div class="top-action-toolbar admin-editable">
-            <button type="button" class="btn-primary btn-sm" onclick="app.generateTournamentGroups()" title="בנה / ייצר לוח משחקים לשלב הבתים">
-                ⚡ בנה לוח משחקים
-            </button>
-            <button type="button" class="btn-secondary btn-sm" onclick="app.fillSampleScores()" title="מלא תוצאות לכל המשחקים">
-                🎲 מלא תוצאות
-            </button>
-            <button type="button" class="btn-secondary btn-sm" onclick="app.resetAllScores()" title="אפס את כל התוצאות">
-                🧹 אפס תוצאות
-            </button>
-            <button type="button" id="btn-seed-playoffs-top" class="btn-success btn-sm btn-seed-playoffs-action" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
-                🚀 נעל שלב בתים ושבץ פלייאוף
-            </button>
-        </div>
 
         <main class="content-area">
             <!-- טאב 1: הגדרת טורניר -->
@@ -257,8 +242,8 @@
                     <!-- באנר מעקב אישי לאורח/צופה -->
                     <div id="guest-followed-banner" class="guest-followed-banner hidden"></div>
 
-                    <!-- סרגל פעולות עזר לשלב הבתים -->
-                    <div class="actions-bar admin-editable">
+                    <!-- סרגל פעולות עזר לשלב הבתים (סרגל יחיד) -->
+                    <div class="top-action-toolbar admin-editable">
                         <button type="button" class="btn-primary btn-sm" onclick="app.generateTournamentGroups()" title="בנה / ייצר מחדש לוח משחקים">
                             ⚡ בנה לוח משחקים
                         </button>
@@ -268,7 +253,7 @@
                         <button type="button" class="btn-secondary btn-sm" onclick="app.resetAllScores()" title="אפס את כל התוצאות">
                             🧹 אפס תוצאות
                         </button>
-                        <button type="button" class="btn-success btn-sm btn-seed-playoffs-action" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
+                        <button type="button" id="btn-seed-playoffs-top" class="btn-success btn-sm btn-seed-playoffs-action" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
                             🚀 נעל שלב בתים ושבץ פלייאוף
                         </button>
                     </div>
@@ -751,7 +736,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=3.5"></script>
+    <script src="./app.js?v=3.6"></script>
 </body>
 </html>
 

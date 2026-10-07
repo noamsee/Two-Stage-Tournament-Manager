@@ -1220,7 +1220,7 @@ class TournamentApp {
                 const batch = this.db.batch();
                 this.tournaments.forEach(t => {
                     const docRef = this.db.collection('tournaments').doc(t.id);
-                    batch.set(docRef, t, { merge: true });
+                    batch.set(docRef, t);
                 });
                 batch.commit().catch(e => console.warn("[Firestore] Failed to save tournaments batch:", e));
             } catch (e) {
@@ -1387,12 +1387,58 @@ class TournamentApp {
         }
 
         this.format = tData.format || 'groups_and_playoff';
-        this.numGroups = tData.numGroups || (tData.groups ? Object.keys(tData.groups).length : 3);
-        this.teamsPerGroup = tData.teamsPerGroup || 5;
-        this.playoffSize = tData.playoffSize || 8;
-        this.pointsPerWin = (tData.pointsPerWin !== undefined) ? tData.pointsPerWin : 3;
-        this.pointsPerDraw = (tData.pointsPerDraw !== undefined) ? tData.pointsPerDraw : 1;
+        this.numGroups = parseInt(tData.numGroups, 10) || (tData.groups ? Object.keys(tData.groups).length : 2);
+        this.teamsPerGroup = parseInt(tData.teamsPerGroup, 10) || 4;
+        this.playoffSize = parseInt(tData.playoffSize, 10) || (this.numGroups * this.teamsPerGroup >= 8 ? 8 : 4);
+        this.pointsPerWin = (tData.pointsPerWin !== undefined) ? parseInt(tData.pointsPerWin, 10) : 3;
+        this.pointsPerDraw = (tData.pointsPerDraw !== undefined) ? parseInt(tData.pointsPerDraw, 10) : 1;
         this.teams = tData.teams ? [...tData.teams] : [...this.defaultTeams];
+
+        // בדיקה וסנכרון תקינות של מבנה הבתים והמשחקים (מניעת ערבוב בתים שאינם קיימים)
+        if (this.format !== 'knockout_only') {
+            const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const allowedKeys = groupLetters.slice(0, this.numGroups).map(l => `Group ${l}`);
+            const totalExpectedTeams = this.numGroups * this.teamsPerGroup;
+
+            // התאמת כמות הקבוצות במערך הקבוצות בדיוק למספר הבתים והקבוצות
+            if (this.teams.length < totalExpectedTeams) {
+                while (this.teams.length < totalExpectedTeams) {
+                    this.teams.push(`קבוצה ${this.teams.length + 1}`);
+                }
+            } else if (this.teams.length > totalExpectedTeams) {
+                this.teams = this.teams.slice(0, totalExpectedTeams);
+            }
+
+            // סילוק בתים עודפים שנותרו בעבר (למשל בית ג' כשעוברים ל-2 בתים)
+            if (tData.groups && typeof tData.groups === 'object') {
+                Object.keys(tData.groups).forEach(k => {
+                    if (!allowedKeys.includes(k)) delete tData.groups[k];
+                });
+            }
+            if (tData.standings && typeof tData.standings === 'object') {
+                Object.keys(tData.standings).forEach(k => {
+                    if (!allowedKeys.includes(k)) delete tData.standings[k];
+                });
+            }
+            if (Array.isArray(tData.matches)) {
+                tData.matches = tData.matches.filter(m => 
+                    allowedKeys.includes(m.groupId) &&
+                    m.team1Index < this.teams.length &&
+                    m.team2Index < this.teams.length
+                );
+            }
+
+            const currentGroupKeys = tData.groups ? Object.keys(tData.groups) : [];
+            const matchesPerGroup = (this.teamsPerGroup * (this.teamsPerGroup - 1)) / 2;
+            const expectedTotalMatches = this.numGroups * matchesPerGroup;
+
+            // אם כמות הבתים או המשחקים אינה תואמת במדויק את המבנה החדש, נאפס אותם כדי שייבנו מחדש בצורה נקייה
+            if (currentGroupKeys.length !== this.numGroups || !tData.matches || tData.matches.length !== expectedTotalMatches) {
+                tData.groups = null;
+                tData.matches = null;
+                tData.standings = null;
+            }
+        }
 
         const knockoutNotice = document.getElementById('group-knockout-notice');
         const groupMainContent = document.getElementById('group-stage-main-content');
@@ -2065,7 +2111,7 @@ class TournamentApp {
 
         if (this.db) {
             try {
-                await this.db.collection('tournaments').doc(t.id).set(t, { merge: true });
+                await this.db.collection('tournaments').doc(t.id).set(t);
                 console.log(`[Firestore] Tournament ${t.id} archive status updated: ${t.isArchived}`);
             } catch (err) {
                 console.warn("[Firestore] Failed to update tournament archive status in cloud:", err);
@@ -2406,10 +2452,27 @@ class TournamentApp {
             return;
         }
 
-        const numGroups = this.numGroups || 3;
-        const teamsPerGroup = this.teamsPerGroup || 5;
+        const numGroups = this.numGroups || 2;
+        const teamsPerGroup = this.teamsPerGroup || 4;
+        const totalTeams = numGroups * teamsPerGroup;
         const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
         const groups = {};
+
+        // וידוא מערך הקבוצות באורך המדויק למבנה
+        if (!this.teams || this.teams.length !== totalTeams) {
+            const currentTeams = this.teams || [];
+            const newTeams = [];
+            for (let i = 0; i < totalTeams; i++) {
+                if (i < currentTeams.length && currentTeams[i]) {
+                    newTeams.push(currentTeams[i]);
+                } else if (i < this.defaultTeams.length) {
+                    newTeams.push(this.defaultTeams[i]);
+                } else {
+                    newTeams.push(`קבוצה ${i + 1}`);
+                }
+            }
+            this.teams = newTeams;
+        }
 
         for (let g = 0; g < numGroups; g++) {
             const grpKey = `Group ${groupLetters[g]}`;
@@ -2417,15 +2480,17 @@ class TournamentApp {
             const grpTeams = [];
             for (let t = 0; t < teamsPerGroup; t++) {
                 const idx = startIndex + t;
-                if (idx < this.teams.length) {
-                    grpTeams.push({ index: idx, name: this.teams[idx], group: grpKey });
-                }
+                grpTeams.push({ index: idx, name: this.teams[idx] || `קבוצה ${idx + 1}`, group: grpKey });
             }
             groups[grpKey] = grpTeams;
         }
         this.groups = groups;
 
+        // איפוס סינון בתים כדי שלא יישאר מסונן על בית ישן שנמחק (כמו בית ג')
+        this.currentFilter = 'all';
+
         this.matches = this.generateDynamicRoundRobin(groups, this.teams, teamsPerGroup);
+        this.renderTeamInputs();
         this.renderMatches();
         this.calculateStandings();
         this.saveActiveTournamentData();
@@ -2656,7 +2721,7 @@ class TournamentApp {
             const teamsInGroup = this.groups[grpKey] || [];
             const stats = teamsInGroup.map(t => ({
                 teamIndex: t.index,
-                teamName: this.teams[t.index],
+                teamName: (this.teams && this.teams[t.index]) ? this.teams[t.index] : (t.name || `קבוצה ${t.index + 1}`),
                 group: grpKey,
                 played: 0,
                 wins: 0,
@@ -2703,7 +2768,7 @@ class TournamentApp {
                 if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
                 if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
                 if (b.wins !== a.wins) return b.wins - a.wins;
-                return a.teamName.localeCompare(b.teamName);
+                return (a.teamName || '').localeCompare(b.teamName || '');
             });
 
             stats.forEach((s, idx) => { s.groupRank = idx + 1; });
@@ -2727,6 +2792,10 @@ class TournamentApp {
             if (this.format === 'groups_only') {
                 legendContainer.innerHTML = `
                     <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #eab308;"></span> 🏆 מקום 1 (אלופת הבית המובילה בדירוג)</span>
+                `;
+            } else if (this.numGroups === 2) {
+                legendContainer.innerHTML = `
+                    <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה לפלייאוף (מקומות 1-2)</span>
                 `;
             } else {
                 legendContainer.innerHTML = `
@@ -2802,6 +2871,11 @@ class TournamentApp {
                                             rowClass = 'row-champion';
                                             rankClass = 'rank-champion';
                                             rankDisplay = `🏆 1`;
+                                        }
+                                    } else if (this.numGroups === 2) {
+                                        if (t.groupRank <= 2) {
+                                            rowClass = 'row-direct-qualify';
+                                            rankClass = 'rank-top';
                                         }
                                     } else {
                                         if (t.groupRank <= 2) {
@@ -2879,7 +2953,7 @@ class TournamentApp {
             if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
             if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
             if (b.wins !== a.wins) return b.wins - a.wins;
-            return a.teamName.localeCompare(b.teamName);
+            return (a.teamName || '').localeCompare(b.teamName || '');
         };
 
         const allTeamsByRank = [];
