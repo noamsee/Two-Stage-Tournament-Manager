@@ -11,12 +11,46 @@
  * - לוח Round-Robin בן 30 משחקים, אימות איסור תיקו, טבלאות בזמן אמת ופלייאוף נוקאאוט
  */
 
+// Firebase Configuration (from Firebase Console)
+const firebaseConfig = {
+  apiKey: "AIzaSyC6qWQkyqBZswfkm2ltP1nO0_a0vf0V3mg",
+  authDomain: "tournament-manager-cd0f4.firebaseapp.com",
+  projectId: "tournament-manager-cd0f4",
+  storageBucket: "tournament-manager-cd0f4.firebasestorage.app",
+  messagingSenderId: "489777852099",
+  appId: "1:489777852099:web:490303c8d61c34f069bc76"
+};
+
+// Initialize Firebase App
+let firebaseApp = null;
+let db = null;
+let auth = null;
+try {
+    if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+            firebaseApp = firebase.initializeApp(firebaseConfig);
+        } else {
+            firebaseApp = firebase.app();
+        }
+        db = firebase.firestore();
+        auth = firebase.auth();
+        console.log("[Firebase] Initialized successfully with project:", firebaseConfig.projectId);
+    } else {
+        console.warn("[Firebase] SDK not loaded, running in offline fallback mode.");
+    }
+} catch (e) {
+    console.error("[Firebase] Initialization error:", e);
+}
+
 class TournamentApp {
     constructor() {
-        this.GOOGLE_CLIENT_ID = "567782172017-trcbislv7ln6aunie8islslkgitl3g96.apps.googleusercontent.com";
         this.OWNER_EMAIL = "noamsee@gmail.com";
         this.currentRole = 'viewer';
         this.currentUser = null;
+        this.db = db;
+        this.auth = auth;
+        this.unsubscribeTournaments = null;
+        this.unsubscribeUsers = null;
 
         // אתחול מאגר המשתמשים האחוד (Single Source of Truth)
         this.initUnifiedUsersStore();
@@ -63,7 +97,6 @@ class TournamentApp {
         }
     }
 
-
     init() {
         // טעינת הטורניר הנבחר
         this.loadTournamentData(this.activeTournamentId);
@@ -78,114 +111,172 @@ class TournamentApp {
             loginEmail.readOnly = false;
         }
 
-        // אתחול Google Identity Services (Sign-In with Google)
-        this.initGoogleIdentityServices();
+        // האזנה למצב התחברות ב-Firebase Auth
+        this.initFirebaseAuthListener();
+
+        // התחלת סנכרון זמן אמת מ-Cloud Firestore
+        this.startRealtimeCloudSync();
+
+        // בדיקה אם המשתמש כבר מחובר ב-sessionStorage
+        try {
+            const savedUser = JSON.parse(sessionStorage.getItem('tournament_current_user') || 'null');
+            if (savedUser && savedUser.email) {
+                this.authenticateUser(savedUser.email, false, savedUser.name, savedUser.provider);
+                return;
+            }
+        } catch (e) {}
 
         // הצגת מסך הלוגין כברירת מחדל
         this.showLoginScreen();
     }
 
-    initGoogleIdentityServices() {
-        const checkGoogleScript = () => {
-            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-                try {
-                    google.accounts.id.initialize({
-                        client_id: this.GOOGLE_CLIENT_ID,
-                        callback: (response) => this.handleGoogleCredentialResponse(response),
-                        auto_select: false,
-                        cancel_on_tap_outside: true
-                    });
-
-                    // רינדור כפתור Google Sign-In רשמי במיכל הייעודי
-                    const container = document.getElementById('g_id_signin_container');
-                    if (container) {
-                        google.accounts.id.renderButton(container, {
-                            theme: 'outline',
-                            size: 'large',
-                            type: 'standard',
-                            text: 'signin_with',
-                            shape: 'rectangular',
-                            logo_alignment: 'left',
-                            width: 320
-                        });
-                    }
-
-                    // הצגת One Tap למשתמש
-                    google.accounts.id.prompt();
-                } catch (err) {
-                    console.warn('[GIS] Error initializing Google Sign-In:', err);
-                }
+    initFirebaseAuthListener() {
+        if (!this.auth) return;
+        this.auth.onAuthStateChanged(user => {
+            if (user) {
+                console.log("[Firebase Auth] User state changed: Logged in as", user.email);
+                const email = (user.email || '').toLowerCase();
+                const displayName = user.displayName || email.split('@')[0];
+                const provider = user.providerData && user.providerData[0] && user.providerData[0].providerId === 'google.com'
+                    ? 'google'
+                    : 'email';
+                this.authenticateUser(email, false, displayName, provider);
             } else {
-                setTimeout(checkGoogleScript, 200);
+                console.log("[Firebase Auth] User state changed: Signed out");
             }
-        };
-        checkGoogleScript();
+        });
     }
 
-    handleGoogleCredentialResponse(response) {
-        if (!response || !response.credential) {
-            this.showAlert("שגיאה בקבלת אימות מ-Google.", "error");
+    startRealtimeCloudSync() {
+        if (!this.db) return;
+
+        // 1. האזנה בזמן אמת לשינויים בטורנירים (Firestore -> כל המכשירים)
+        try {
+            this.unsubscribeTournaments = this.db.collection('tournaments').onSnapshot(snapshot => {
+                if (snapshot && !snapshot.empty) {
+                    const cloudTournaments = [];
+                    snapshot.forEach(doc => {
+                        cloudTournaments.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    // מיון כך שהטורניר הפעיל יהיה ראשון
+                    cloudTournaments.sort((a, b) => {
+                        if (a.isArchived === b.isArchived) return (b.createdAt || '').localeCompare(a.createdAt || '');
+                        return a.isArchived ? 1 : -1;
+                    });
+
+                    this.tournaments = cloudTournaments;
+                    this.saveTournamentsListLocally();
+                    this.populateTournamentSelectors();
+
+                    // טעינה ורענון הנתונים של הטורניר הנוכחי המוצג
+                    const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.tournaments[0];
+                    if (currentDoc) {
+                        this.activeTournamentId = currentDoc.id;
+                        this.loadTournamentData(currentDoc.id);
+                    }
+                    console.log("[Firestore] Real-time sync: Received updated tournaments from cloud (" + cloudTournaments.length + ")");
+                } else if (snapshot && snapshot.empty) {
+                    // אם מסד הנתונים בענן עדיין ריק, נעלה את הטורנירים הראשוניים לענן!
+                    console.log("[Firestore] Cloud database is empty. Uploading initial tournaments...");
+                    this.uploadAllTournamentsToCloud();
+                }
+            }, err => {
+                console.warn("[Firestore] Tournaments snapshot error:", err);
+            });
+        } catch (e) {
+            console.error("[Firestore] Error setting up tournaments listener:", e);
+        }
+
+        // 2. האזנה בזמן אמת למשתמשי המערכת
+        try {
+            this.unsubscribeUsers = this.db.collection('users').onSnapshot(snapshot => {
+                if (snapshot && !snapshot.empty) {
+                    const cloudUsers = [];
+                    snapshot.forEach(doc => {
+                        cloudUsers.push(doc.data());
+                    });
+                    this.saveUnifiedUsersLocally(cloudUsers);
+                    this.renderUsersManagement();
+                    console.log("[Firestore] Real-time sync: Received updated users list (" + cloudUsers.length + ")");
+                } else if (snapshot && snapshot.empty) {
+                    this.uploadAllUsersToCloud();
+                }
+            }, err => {
+                console.warn("[Firestore] Users snapshot error:", err);
+            });
+        } catch (e) {
+            console.error("[Firestore] Error setting up users listener:", e);
+        }
+    }
+
+    async uploadAllTournamentsToCloud() {
+        if (!this.db) return;
+        try {
+            const batch = this.db.batch();
+            this.tournaments.forEach(t => {
+                const docRef = this.db.collection('tournaments').doc(t.id);
+                batch.set(docRef, t, { merge: true });
+            });
+            await batch.commit();
+            console.log("[Firestore] Initial tournaments batch uploaded successfully!");
+        } catch (e) {
+            console.error("[Firestore] Failed to upload initial tournaments:", e);
+        }
+    }
+
+    async uploadAllUsersToCloud() {
+        if (!this.db) return;
+        try {
+            const users = this.getUnifiedUsers();
+            const batch = this.db.batch();
+            users.forEach(u => {
+                const docId = (u.email || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '_');
+                if (docId) {
+                    const docRef = this.db.collection('users').doc(docId);
+                    batch.set(docRef, u, { merge: true });
+                }
+            });
+            await batch.commit();
+            console.log("[Firestore] Initial users uploaded successfully!");
+        } catch (e) {
+            console.error("[Firestore] Failed to upload users to cloud:", e);
+        }
+    }
+
+    async loginWithGoogle() {
+        if (!this.auth) {
+            this.showAlert("שירות האימות אינו זמין כעת. נסה להתחבר עם אימייל וסיסמה.", "error");
             return;
         }
 
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
         try {
-            // פענוח ה-JWT ID Token ישירות בדפדפן
-            const parts = response.credential.split('.');
-            if (parts.length < 2) {
-                throw new Error("Invalid JWT token format");
-            }
+            const result = await this.auth.signInWithPopup(provider);
+            const user = result.user;
+            const email = (user.email || '').toLowerCase();
+            const name = user.displayName || email.split('@')[0];
+            const picture = user.photoURL || '';
 
-            let base64Url = parts[1];
-            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            while (base64.length % 4 !== 0) {
-                base64 += '=';
-            }
-
-            // פענוח מוגן ל-Unicode
-            let jsonPayload = '';
-            try {
-                // תקן מודרני לפענוח Base64Url ל-UTF-8
-                const binString = atob(base64);
-                const bytes = Uint8Array.from(binString, m => m.codePointAt(0));
-                jsonPayload = new TextDecoder().decode(bytes);
-            } catch (e1) {
-                try {
-                    jsonPayload = decodeURIComponent(escape(window.atob(base64)));
-                } catch (e2) {
-                    jsonPayload = atob(base64);
-                }
-            }
-
-            const payload = JSON.parse(jsonPayload);
-            const email = (payload.email || '').toLowerCase();
-            const name = payload.name || payload.given_name || (email ? email.split('@')[0] : 'משתמש Google');
-            const picture = payload.picture || '';
-
-            if (!email) {
-                this.showAlert("לא התקבלה כתובת אימייל מאומתת מחשבון Google.", "error");
-                return;
-            }
-
-            this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google (${email})`, "success");
+            this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
             this.authenticateUser(email, true, name, 'google');
 
-            // שמירת תמונת הפרופיל של Google ב-currentUser
             if (this.currentUser && picture) {
                 this.currentUser.picture = picture;
                 sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
                 this.updateUserSessionUI();
             }
-        } catch (err) {
-            console.error('[GIS] Failed to parse Google credential:', err);
-            this.showAlert("שגיאה בפענוח אימות Google.", "error");
-        }
-    }
-
-    triggerRealGoogleSignIn() {
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            google.accounts.id.prompt();
-        } else {
-            this.showAlert("טוען את מנגנון ההתחברות של Google, אנא נסה שוב בעוד רגע...", "info");
+        } catch (error) {
+            console.error("[Firebase Auth] Google Sign-in error:", error);
+            if (error.code === 'auth/popup-closed-by-user') {
+                this.showAlert("חלון ההתחברות נסגר.", "info");
+            } else if (error.code === 'auth/unauthorized-domain') {
+                this.showAlert("דומיין זה טרם אושר ב-Firebase. אפשר להתחבר כרגע עם אימייל וסיסמה (1234) או כאורח.", "warning");
+            } else {
+                this.showAlert(`שגיאה בהתחברות עם Google: ${error.message}`, "error");
+            }
         }
     }
 
@@ -352,7 +443,7 @@ class TournamentApp {
         }
     }
 
-    saveUnifiedUsers(users) {
+    saveUnifiedUsersLocally(users) {
         localStorage.setItem('tournament_unified_users', JSON.stringify(users));
         localStorage.setItem('tournament_registered_users', JSON.stringify(users));
         const owner = users.find(u => u.email.toLowerCase() === this.OWNER_EMAIL.toLowerCase());
@@ -361,6 +452,25 @@ class TournamentApp {
         }
         const admins = users.filter(u => u.role === 'admin').map(u => ({ email: u.email, name: u.name, addedAt: u.registeredAt }));
         localStorage.setItem('tournament_manager_admins', JSON.stringify(admins));
+    }
+
+    saveUnifiedUsers(users) {
+        this.saveUnifiedUsersLocally(users);
+        if (this.db) {
+            try {
+                const batch = this.db.batch();
+                users.forEach(u => {
+                    const docId = (u.email || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '_');
+                    if (docId) {
+                        const docRef = this.db.collection('users').doc(docId);
+                        batch.set(docRef, u, { merge: true });
+                    }
+                });
+                batch.commit().catch(e => console.warn("[Firestore] Failed to save users batch:", e));
+            } catch (e) {
+                console.warn("[Firestore] Error in saveUnifiedUsers:", e);
+            }
+        }
     }
 
     getUserByEmail(email) {
@@ -596,6 +706,10 @@ class TournamentApp {
         const loggedOutEmail = this.currentUser ? this.currentUser.email : '';
         this.currentUser = null;
         sessionStorage.removeItem('tournament_current_user');
+
+        if (this.auth) {
+            try { this.auth.signOut(); } catch (e) {}
+        }
 
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
             google.accounts.id.disableAutoSelect();
@@ -1024,8 +1138,24 @@ class TournamentApp {
         return initialList;
     }
 
-    saveTournamentsList() {
+    saveTournamentsListLocally() {
         localStorage.setItem('tournament_manager_tournaments_list', JSON.stringify(this.tournaments));
+    }
+
+    saveTournamentsList() {
+        this.saveTournamentsListLocally();
+        if (this.db) {
+            try {
+                const batch = this.db.batch();
+                this.tournaments.forEach(t => {
+                    const docRef = this.db.collection('tournaments').doc(t.id);
+                    batch.set(docRef, t, { merge: true });
+                });
+                batch.commit().catch(e => console.warn("[Firestore] Failed to save tournaments batch:", e));
+            } catch (e) {
+                console.warn("[Firestore] Error in saveTournamentsList:", e);
+            }
+        }
     }
 
     createMockArchiveTournament2025() {
