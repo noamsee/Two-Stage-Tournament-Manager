@@ -167,8 +167,10 @@ class TournamentApp {
                     });
 
                     this.tournaments = cloudTournaments;
+                    this.sanitizeTournamentNames();
                     this.saveTournamentsListLocally();
                     this.populateTournamentSelectors();
+                    this.renderOwnerTournamentsList();
 
                     // טעינה ורענון הנתונים של הטורניר הנוכחי המוצג
                     const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.tournaments[0];
@@ -789,8 +791,15 @@ class TournamentApp {
             btn.disabled = isViewer;
         });
 
-        // ניתוב אוטומטי של צופה/אורח הרחק מטאב ההגדרות או ניהול המשתמשים
-        if (isViewer) {
+        if (newRole === 'owner' || newRole === 'admin') {
+            const setupCloseBtn = document.getElementById('setupCloseTournamentBtn');
+            if (setupCloseBtn) setupCloseBtn.disabled = false;
+            const ownerCloseBtn = document.getElementById('ownerCloseTourneyBtn');
+            if (ownerCloseBtn) ownerCloseBtn.disabled = false;
+        }
+
+        // ניתוב אוטומטי של צופה/אורח בלבד הרחק מטאב ההגדרות או ניהול המשתמשים
+        if (newRole === 'viewer') {
             const currentTabBtn = document.querySelector('.tab-btn.active');
             const currentTabClick = currentTabBtn ? currentTabBtn.getAttribute('onclick') : '';
             if (!currentTabClick || currentTabClick.includes('setup') || currentTabClick.includes('users')) {
@@ -1054,7 +1063,7 @@ class TournamentApp {
         this.showAlert(`המשתמש ${name} (${email}) נוסף בהצלחה עם תפקיד ${role === 'admin' ? 'מנהל' : 'צופה'}! סיסמה ראשונית: ${password}`, "success");
     }
 
-    removeUser(emailToRemove) {
+    async removeUser(emailToRemove) {
         if (this.currentRole !== 'owner') {
             this.showAlert("רק Owner רשאי למחוק משתמשים!", "error");
             return;
@@ -1066,16 +1075,38 @@ class TournamentApp {
             return;
         }
 
-        if (!confirm(`האם אתה בטוח שברצונך להסיר את המשתמש ${cleanEmail} מהמערכת?`)) {
+        if (!confirm(`האם אתה בטוח שברצונך להסיר את המשתמש ${cleanEmail} מהמערכת וממסד הנתונים?`)) {
             return;
         }
 
+        // 1. הסרה מקומית
         let users = this.getUnifiedUsers();
         users = users.filter(u => u.email.toLowerCase() !== cleanEmail);
-        this.saveUnifiedUsers(users);
+        this.saveUnifiedUsersLocally(users);
+
+        // 2. מחיקה לצמיתות מ-Firestore בענן כדי שלא יחזור בריענון
+        if (this.db) {
+            try {
+                const docId = cleanEmail.replace(/[^a-z0-9_.-]/g, '_');
+                await this.db.collection('users').doc(docId).delete();
+
+                // חיפוש מסמכים נוספים אם קיימים עבור אימייל זה
+                const querySnap = await this.db.collection('users').where('email', '==', cleanEmail).get();
+                if (!querySnap.empty) {
+                    const batch = this.db.batch();
+                    querySnap.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                }
+                console.log(`[Firestore] User ${cleanEmail} permanently deleted.`);
+            } catch (err) {
+                console.error("[Firestore] Error deleting user from Firestore:", err);
+                this.showAlert("שגיאה במחיקת המשתמש ממסד הנתונים: " + err.message, "error");
+                return;
+            }
+        }
 
         this.renderUsersManagement();
-        this.showAlert(`המשתמש ${cleanEmail} הוסר בהצלחה מהמערכת.`, "warning");
+        this.showAlert(`המשתמש ${cleanEmail} הוסר בהצלחה מהמערכת וממסד הנתונים.`, "warning");
     }
 
     openResetPasswordModal(userEmail) {
@@ -1149,7 +1180,17 @@ class TournamentApp {
     loadTournaments() {
         const stored = localStorage.getItem('tournament_manager_tournaments_list');
         if (stored) {
-            try { return JSON.parse(stored); } catch {}
+            try { 
+                const list = JSON.parse(stored);
+                if (Array.isArray(list)) {
+                    list.forEach(t => {
+                        if (t.name && (t.name.includes('(ארכיון) (ארכיון)') || t.name.includes('(ארכיון)(ארכיון)'))) {
+                            t.name = t.name.replace(/(\s*\(ארכיון\))+/g, '').trim();
+                        }
+                    });
+                    return list;
+                }
+            } catch {}
         }
 
         // יצירת שני טורנירים ראשוניים: טורניר פעיל + ארכיון 2025 מוכן ומלא
@@ -1433,6 +1474,7 @@ class TournamentApp {
         // סנכרון תפריטים
         this.populateTournamentSelectors();
         this.switchRole(this.currentRole);
+        this.updateCloseButtonUI();
     }
 
     saveActiveTournamentData() {
@@ -1487,8 +1529,8 @@ class TournamentApp {
        ======================================================== */
 
     openTournamentWizard(isEdit = false, targetTourneyId = null) {
-        if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי להקים או לערוך טורניר!", "error");
+        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
+            this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
         }
 
@@ -1643,8 +1685,8 @@ class TournamentApp {
     }
 
     submitTournamentWizard() {
-        if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי להקים או לערוך טורניר!", "error");
+        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
+            this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
         }
 
@@ -1959,28 +2001,175 @@ class TournamentApp {
         return this.buildInitialKnockoutBracket([], playoffSize);
     }
 
+    cleanTournamentName(name) {
+        if (!name) return '';
+        return name
+            .replace(/\s*\(ארכיון\)/g, '')
+            .replace(/\s*\(סגור\)/g, '')
+            .replace(/\s*\(פעיל\)/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    sanitizeTournamentNames() {
+        if (!Array.isArray(this.tournaments)) return;
+        let changed = false;
+        this.tournaments.forEach(t => {
+            if (t.name && (t.name.includes('(ארכיון) (ארכיון)') || t.name.includes('(ארכיון)(ארכיון)') || t.name.includes('(ארכיון)  (ארכיון)'))) {
+                t.name = t.name.replace(/(\s*\(ארכיון\))+/g, '').trim();
+                changed = true;
+                if (this.db) {
+                    this.db.collection('tournaments').doc(t.id).update({ name: t.name }).catch(() => {});
+                }
+            }
+        });
+        if (changed) {
+            this.saveTournamentsListLocally();
+            this.populateTournamentSelectors();
+        }
+    }
+
     archiveCurrentTournament() {
-        if (this.currentRole !== 'owner') {
-            this.showAlert("רק Owner רשאי לארכב טורניר!", "error");
+        this.toggleCloseActiveTournament();
+    }
+
+    toggleCloseActiveTournament() {
+        this.toggleCloseTournament(this.activeTournamentId);
+    }
+
+    async toggleCloseTournament(tourneyId) {
+        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
+            this.showAlert("רק מנהל (Admin) או Owner רשאים לסגור או לפתוח טורניר!", "error");
             return;
         }
 
-        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
-        if (!curr) return;
+        const t = this.tournaments.find(tourney => tourney.id === tourneyId);
+        if (!t) return;
 
-        curr.isArchived = true;
-        curr.name = curr.name.replace(' (פעיל)', '').replace(' (נוקאאוט)', '') + ' (ארכיון)';
-        this.saveActiveTournamentData();
+        // ניקוי סיומות כפולות משם הטורניר
+        const baseName = this.cleanTournamentName(t.name);
+
+        if (t.isArchived) {
+            // פתיחת טורניר מחדש
+            t.isArchived = false;
+            t.name = baseName;
+            this.showAlert(`הטורניר "${t.name}" נפתח מחדש והוגדר כפעיל.`, "success");
+        } else {
+            // סגירת טורניר
+            t.isArchived = true;
+            t.name = baseName;
+            this.showAlert(`הטורניר "${t.name}" נסגר בהצלחה והועבר לארכיון.`, "warning");
+        }
+
+        this.saveTournamentsListLocally();
+
+        if (this.db) {
+            try {
+                await this.db.collection('tournaments').doc(t.id).set(t, { merge: true });
+                console.log(`[Firestore] Tournament ${t.id} archive status updated: ${t.isArchived}`);
+            } catch (err) {
+                console.warn("[Firestore] Failed to update tournament archive status in cloud:", err);
+            }
+        }
+
+        if (t.id === this.activeTournamentId) {
+            this.loadTournamentData(t.id);
+        }
         this.populateTournamentSelectors();
         this.renderOwnerTournamentsList();
-        this.loadTournamentData(curr.id);
+        this.updateCloseButtonUI();
+    }
 
-        this.showAlert(`הטורניר הועבר בהצלחה לארכיון תוצאות עבר.`, "success");
+    updateCloseButtonUI() {
+        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
+        const isClosed = curr ? curr.isArchived : false;
+
+        const ownerBtn = document.getElementById('ownerCloseTourneyBtn');
+        if (ownerBtn) {
+            ownerBtn.innerHTML = isClosed ? '🔓 פתח טורניר נוכחי מחדש' : '🔒 סגור טורניר נוכחי';
+            ownerBtn.className = isClosed ? 'btn-success' : 'btn-secondary';
+        }
+
+        const setupBtn = document.getElementById('setupCloseTournamentBtn');
+        if (setupBtn) {
+            setupBtn.innerHTML = isClosed ? '🔓 פתח טורניר מחדש' : '🔒 סגור טורניר';
+            setupBtn.className = isClosed ? 'btn-success btn-sm admin-editable' : 'btn-secondary btn-sm admin-editable';
+        }
+    }
+
+    viewTournamentFromList(tourneyId) {
+        if (!tourneyId) return;
+        const tourney = this.tournaments.find(t => t.id === tourneyId);
+        if (!tourney) return;
+
+        // טעינת הטורניר הנבחר
+        if (tourneyId !== this.activeTournamentId) {
+            this.switchTournament(tourneyId, false);
+        }
+
+        // מעבר מיידי לטאב התואם למבנה הטורניר (בתים או פלייאוף)
+        const targetTab = (tourney.format === 'knockout_only') ? 'playoffs' : 'group-stage';
+        this.switchTab(targetTab);
+        this.showAlert(`עברת לצפייה ב-${tourney.name}.`, "success");
+    }
+
+    async deleteTournament(tourneyId) {
+        if (this.currentRole !== 'owner') {
+            this.showAlert("רק מנהל העל (Owner) רשאי למחוק טורניר!", "error");
+            return;
+        }
+
+        const tourney = this.tournaments.find(t => t.id === tourneyId);
+        if (!tourney) {
+            this.showAlert("הטורניר לא נמצא.", "error");
+            return;
+        }
+
+        if (this.tournaments.length <= 1) {
+            this.showAlert("לא ניתן למחוק את הטורניר האחרון במערכת. יש להשאיר לפחות טורניר אחד.", "warning");
+            return;
+        }
+
+        if (!confirm(`האם אתה בטוח שברצונך למחוק לצמיתות את הטורניר "${tourney.name}"? פעולה זו תמחק את כל המשחקים והנתונים של הטורניר ממסד הנתונים ולא ניתן לשחזרה.`)) {
+            return;
+        }
+
+        const deletedName = tourney.name;
+        const wasActive = (this.activeTournamentId === tourneyId);
+
+        // הסרה מקומית
+        this.tournaments = this.tournaments.filter(t => t.id !== tourneyId);
+        this.saveTournamentsListLocally();
+
+        // מחיקה מ-Firestore
+        if (this.db) {
+            try {
+                await this.db.collection('tournaments').doc(tourneyId).delete();
+                console.log(`[Firestore] Tournament ${tourneyId} deleted from Firestore.`);
+            } catch (err) {
+                console.error("[Firestore] Error deleting tournament from Firestore:", err);
+                this.showAlert("שגיאה במחיקת הטורניר ממסד הנתונים: " + err.message, "error");
+            }
+        }
+
+        // אם הטורניר שנמחק היה הפעיל, מעבר לטורניר הבא
+        if (wasActive) {
+            const nextTourney = this.tournaments[0];
+            this.activeTournamentId = nextTourney.id;
+            this.loadTournamentData(nextTourney.id);
+        }
+
+        this.populateTournamentSelectors();
+        this.renderOwnerTournamentsList();
+        this.updateCloseButtonUI();
+        this.showAlert(`הטורניר "${deletedName}" נמחק בהצלחה לצמיתות.`, "warning");
     }
 
     renderOwnerTournamentsList() {
         const container = document.getElementById('ownerTournamentsList');
         if (!container) return;
+
+        this.sanitizeTournamentNames();
 
         container.innerHTML = `
             <table class="admins-table">
@@ -1990,7 +2179,7 @@ class TournamentApp {
                         <th>מבנה</th>
                         <th>סטטוס</th>
                         <th>תאריך פתיחה</th>
-                        <th style="width: 140px; text-align: center;">מעבר / בחירה</th>
+                        <th style="width: 260px; text-align: center;">פעולות</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2001,24 +2190,36 @@ class TournamentApp {
                             ? `<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚽ בתים בלבד</span>`
                             : `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:8px; font-size:0.78rem; font-weight:700;">⚽ בתים + פלייאוף</span>`;
 
+                        const statusBadge = t.isArchived
+                            ? `<span style="background:#fef3c7; color:#92400e; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">🔒 סגור (ארכיון)</span>`
+                            : `<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">⚡ פעיל</span>`;
+
+                        const isCurrentlyActive = (t.id === this.activeTournamentId);
+
+                        const deleteBtnHtml = (this.currentRole === 'owner') ? `
+                            <button type="button" class="btn-delete-admin btn-sm" onclick="app.deleteTournament('${t.id}')" title="מחק טורניר לצמיתות (Owner בלבד)" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:4px 8px; font-size:0.8rem; border-radius:6px; cursor:pointer;">
+                                🗑️ מחק
+                            </button>
+                        ` : '';
+
                         return `
-                            <tr style="${t.id === this.activeTournamentId ? 'background:#f0fdf4;' : ''}">
+                            <tr style="${isCurrentlyActive ? 'background:#f0fdf4;' : ''}">
                                 <td style="font-weight:700;">${t.name}</td>
                                 <td>${fmtBadge}</td>
-                                <td>
-                                    <span style="background:${t.isArchived ? '#fef3c7' : '#dcfce7'}; color:${t.isArchived ? '#92400e' : '#15803d'}; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">
-                                        ${t.isArchived ? 'ארכיון עבר' : 'טורניר פעיל'}
-                                    </span>
-                                </td>
+                                <td>${statusBadge}</td>
                                 <td style="color:#64748b; font-size:0.85rem;">${t.createdAt || '-'}</td>
                                 <td style="text-align:center;">
-                                    <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
-                                        <button class="btn-secondary btn-sm" onclick="app.switchTournament('${t.id}')">
-                                            ${t.id === this.activeTournamentId ? '✅ פעיל כעת' : 'צפה בטורניר'}
+                                    <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
+                                        <button type="button" class="btn-secondary btn-sm" onclick="app.viewTournamentFromList('${t.id}')" title="מעבר לצפייה בטורניר ובמשחקים">
+                                            ${isCurrentlyActive ? '👁️ צפה (פעיל)' : '👁️ צפה בטורניר'}
                                         </button>
-                                        <button class="btn-edit-user btn-sm" onclick="app.openEditTournamentModal('${t.id}')" title="עריכת מבנה טורניר">
+                                        <button type="button" class="btn-edit-user btn-sm" onclick="app.openEditTournamentModal('${t.id}')" title="עריכת מבנה טורניר">
                                             ⚙️ ערוך
                                         </button>
+                                        <button type="button" class="btn-sm btn-secondary" onclick="app.toggleCloseTournament('${t.id}')" title="${t.isArchived ? 'פתח טורניר מחדש' : 'סגור טורניר והעבר לארכיון'}">
+                                            ${t.isArchived ? '🔓 פתח' : '🔒 סגור'}
+                                        </button>
+                                        ${deleteBtnHtml}
                                     </div>
                                 </td>
                             </tr>

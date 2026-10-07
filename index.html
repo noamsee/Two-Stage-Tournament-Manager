@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=3.5">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -219,6 +219,9 @@
                             <button type="button" class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()">
                                 ✨ אשף טורניר חדש
                             </button>
+                            <button type="button" id="setupCloseTournamentBtn" class="btn-secondary btn-sm admin-editable" onclick="app.toggleCloseActiveTournament()" title="סגירת טורניר או פתיחתו מחדש">
+                                🔒 סגור טורניר
+                            </button>
                         </div>
                     </div>
                     <p id="setup-header-subtitle" class="role-notice admin-editable">מיועד ל-Admin/Owner בלבד. הזן או עדכן את שמות הקבוצות:</p>
@@ -380,18 +383,18 @@
 
                     <hr style="border:none; border-top:1px solid #e2e8f0; margin: 30px 0;">
 
-                    <!-- חלק 2: ניהול טורנירים וארכיון תוצאות -->
+                    <!-- חלק 2: ניהול טורנירים וסגירת טורניר -->
                     <div class="tournament-management-box">
-                        <h3>🏆 ניהול טורנירים וארכיון תוצאות עבר</h3>
+                        <h3>🏆 ניהול טורנירים וסגירת טורניר</h3>
                         <p style="font-size:0.9rem; color:#64748b;">
-                            באפשרותך להקים טורניר מותאם אישית (בתים + פלייאוף או נוקאאוט בלבד) באשף הטורניר, או לארכב את הטורניר הפעיל:
+                            באפשרותך להקים טורניר חדש באשף הטורניר, לסגור או לפתוח טורנירים, ולמחוק טורנירים לצמיתות (ההרשאה למחיקה שמורה ל-Owner בלבד):
                         </p>
                         
                         <div class="admin-add-form" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                             <button type="button" class="btn-success" onclick="app.openTournamentWizard()" style="padding: 10px 18px; font-weight:800;">
                                 ✨ פתח אשף הקמת טורניר חדש (Wizard)
                             </button>
-                            <button type="button" class="btn-secondary" onclick="app.archiveCurrentTournament()">📦 ארכב טורניר נוכחי</button>
+                            <button type="button" id="ownerCloseTourneyBtn" class="btn-secondary" onclick="app.toggleCloseActiveTournament()">🔒 סגור טורניר נוכחי</button>
                         </div>
 
                         <div id="ownerTournamentsList">
@@ -748,7 +751,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=3.4"></script>
+    <script src="./app.js?v=3.5"></script>
 </body>
 </html>
 
