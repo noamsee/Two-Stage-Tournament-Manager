@@ -128,81 +128,10 @@ class TournamentApp {
 
         // הצגת מסך הלוגין כברירת מחדל
         this.showLoginScreen();
-
-        // אתחול כפתור Google רשמי מותאם לניידים
-        this.initGoogleOfficialButton();
-    }
-
-    initGoogleOfficialButton() {
-        const tryRender = () => {
-            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-                try {
-                    google.accounts.id.initialize({
-                        client_id: "567782172017-trcbislv7ln6aunie8islslkgitl3g96.apps.googleusercontent.com",
-                        callback: async (response) => {
-                            if (response && response.credential) {
-                                try {
-                                    const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                                    const userCredential = await this.auth.signInWithCredential(credential);
-                                    const user = userCredential.user;
-                                    const email = (user.email || '').toLowerCase();
-                                    const name = user.displayName || email.split('@')[0];
-                                    const picture = user.photoURL || '';
-
-                                    this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
-                                    this.authenticateUser(email, true, name, 'google');
-
-                                    if (this.currentUser && picture) {
-                                        this.currentUser.picture = picture;
-                                        sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
-                                        this.updateUserSessionUI();
-                                    }
-                                } catch (fireErr) {
-                                    console.error("[Firebase Auth] Error signing in with GIS credential:", fireErr);
-                                    this.showAlert(`שגיאה באימות חשבון Google: ${fireErr.message}`, "error");
-                                }
-                            }
-                        },
-                        auto_select: false,
-                        cancel_on_tap_outside: true
-                    });
-
-                    const container = document.getElementById('googleBtnContainer');
-                    if (container) {
-                        container.innerHTML = '';
-                        google.accounts.id.renderButton(container, {
-                            theme: 'outline',
-                            size: 'large',
-                            type: 'standard',
-                            text: 'continue_with',
-                            shape: 'rectangular',
-                            logo_alignment: 'left',
-                            width: 280
-                        });
-                    }
-                } catch (e) {
-                    console.warn("[GIS] Error rendering Google button:", e);
-                }
-            } else {
-                setTimeout(tryRender, 300);
-            }
-        };
-        tryRender();
     }
 
     initFirebaseAuthListener() {
         if (!this.auth) return;
-
-        // Catch any pending redirect sign-in from mobile browsers
-        this.auth.getRedirectResult().then(result => {
-            if (result && result.user) {
-                const email = (result.user.email || '').toLowerCase();
-                const displayName = result.user.displayName || email.split('@')[0];
-                this.authenticateUser(email, true, displayName, 'google');
-            }
-        }).catch(err => {
-            console.warn("[Firebase Auth] Redirect result info:", err.message);
-        });
 
         this.auth.onAuthStateChanged(user => {
             if (user) {
@@ -322,54 +251,34 @@ class TournamentApp {
             return;
         }
 
-        // 1. If Google Identity Services (GIS) is available (ideal for Mobile Safari/Chrome)
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            try {
-                google.accounts.id.initialize({
-                    client_id: "567782172017-trcbislv7ln6aunie8islslkgitl3g96.apps.googleusercontent.com",
-                    callback: async (response) => {
-                        if (response && response.credential) {
-                            try {
-                                const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                                const userCredential = await this.auth.signInWithCredential(credential);
-                                const user = userCredential.user;
-                                const email = (user.email || '').toLowerCase();
-                                const name = user.displayName || email.split('@')[0];
-                                const picture = user.photoURL || '';
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
 
-                                this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
-                                this.authenticateUser(email, true, name, 'google');
+        try {
+            const result = await this.auth.signInWithPopup(provider);
+            const user = result.user;
+            const email = (user.email || '').toLowerCase();
+            const name = user.displayName || email.split('@')[0];
+            const picture = user.photoURL || '';
 
-                                if (this.currentUser && picture) {
-                                    this.currentUser.picture = picture;
-                                    sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
-                                    this.updateUserSessionUI();
-                                }
-                            } catch (fireErr) {
-                                console.error("[Firebase Auth] Error signing in with GIS credential:", fireErr);
-                                this.showAlert(`שגיאה באימות חשבון Google: ${fireErr.message}`, "error");
-                            }
-                        }
-                    },
-                    auto_select: false,
-                    cancel_on_tap_outside: true
-                });
+            this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
+            this.authenticateUser(email, true, name, 'google');
 
-                // Display Google Prompt / One-Tap sheet on mobile
-                google.accounts.id.prompt((notification) => {
-                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        // Fallback to standard popup if prompt was suppressed
-                        this.fallbackPopupGoogleAuth();
-                    }
-                });
-                return;
-            } catch (gisErr) {
-                console.warn("[GIS] Error invoking Google prompt, falling back to popup:", gisErr);
+            if (this.currentUser && picture) {
+                this.currentUser.picture = picture;
+                sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
+                this.updateUserSessionUI();
+            }
+        } catch (error) {
+            console.error("[Firebase Auth] Google Sign-in error:", error);
+            if (error.code === 'auth/popup-closed-by-user') {
+                this.showAlert("חלון ההתחברות נסגר.", "info");
+            } else if (error.code === 'auth/unauthorized-domain') {
+                this.showAlert("דומיין זה טרם אושר ב-Firebase. אפשר להתחבר כרגע עם אימייל וסיסמה (1234).", "warning");
+            } else {
+                this.showAlert(`שגיאה: ${error.message}`, "error");
             }
         }
-
-        // 2. Fallback to standard Firebase Popup
-        this.fallbackPopupGoogleAuth();
     }
 
     async fallbackPopupGoogleAuth() {
