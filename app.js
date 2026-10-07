@@ -262,11 +262,61 @@ class TournamentApp {
             return;
         }
 
+        // 1. If Google Identity Services (GIS) is available (ideal for Mobile Safari/Chrome)
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            try {
+                google.accounts.id.initialize({
+                    client_id: "567782172017-trcbislv7ln6aunie8islslkgitl3g96.apps.googleusercontent.com",
+                    callback: async (response) => {
+                        if (response && response.credential) {
+                            try {
+                                const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+                                const userCredential = await this.auth.signInWithCredential(credential);
+                                const user = userCredential.user;
+                                const email = (user.email || '').toLowerCase();
+                                const name = user.displayName || email.split('@')[0];
+                                const picture = user.photoURL || '';
+
+                                this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
+                                this.authenticateUser(email, true, name, 'google');
+
+                                if (this.currentUser && picture) {
+                                    this.currentUser.picture = picture;
+                                    sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
+                                    this.updateUserSessionUI();
+                                }
+                            } catch (fireErr) {
+                                console.error("[Firebase Auth] Error signing in with GIS credential:", fireErr);
+                                this.showAlert(`שגיאה באימות חשבון Google: ${fireErr.message}`, "error");
+                            }
+                        }
+                    },
+                    auto_select: false,
+                    cancel_on_tap_outside: true
+                });
+
+                // Display Google Prompt / One-Tap sheet on mobile
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        // Fallback to standard popup if prompt was suppressed
+                        this.fallbackPopupGoogleAuth();
+                    }
+                });
+                return;
+            } catch (gisErr) {
+                console.warn("[GIS] Error invoking Google prompt, falling back to popup:", gisErr);
+            }
+        }
+
+        // 2. Fallback to standard Firebase Popup
+        this.fallbackPopupGoogleAuth();
+    }
+
+    async fallbackPopupGoogleAuth() {
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
 
         try {
-            // First attempt popup (works on desktop and modern mobile)
             const result = await this.auth.signInWithPopup(provider);
             const user = result.user;
             const email = (user.email || '').toLowerCase();
@@ -282,21 +332,11 @@ class TournamentApp {
                 this.updateUserSessionUI();
             }
         } catch (error) {
-            console.warn("[Firebase Auth] Google Popup Sign-in warning:", error);
+            console.warn("[Firebase Auth] Google Popup warning:", error);
             if (error.code === 'auth/popup-closed-by-user') {
                 this.showAlert("חלון ההתחברות נסגר.", "info");
-            } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-                // If popup is blocked by mobile Safari/Chrome, try redirect
-                try {
-                    this.showAlert("מעביר להתחברות מאובטחת עם Google...", "info");
-                    await this.auth.signInWithRedirect(provider);
-                } catch (redErr) {
-                    this.showAlert("דפדפן הנייד חסם חלונות קופצים. מומלץ להתחבר עם כתובת אימייל וסיסמה (1234).", "warning");
-                }
-            } else if (error.code === 'auth/unauthorized-domain') {
-                this.showAlert("דומיין זה טרם אושר ב-Firebase. אפשר להתחבר כרגע עם אימייל וסיסמה (1234) או כאורח.", "warning");
             } else {
-                this.showAlert(`התחברות Google בנייד: מומלץ להזין כתובת אימייל וסיסמה (1234) לכניסה מיידית.`, "warning");
+                this.showAlert("בדפדפן זה ניתן להתחבר ישירות ובמהירות עם אימייל וסיסמה (1234).", "info");
             }
         }
     }
