@@ -132,6 +132,18 @@ class TournamentApp {
 
     initFirebaseAuthListener() {
         if (!this.auth) return;
+
+        // Catch any pending redirect sign-in from mobile browsers
+        this.auth.getRedirectResult().then(result => {
+            if (result && result.user) {
+                const email = (result.user.email || '').toLowerCase();
+                const displayName = result.user.displayName || email.split('@')[0];
+                this.authenticateUser(email, true, displayName, 'google');
+            }
+        }).catch(err => {
+            console.warn("[Firebase Auth] Redirect result info:", err.message);
+        });
+
         this.auth.onAuthStateChanged(user => {
             if (user) {
                 console.log("[Firebase Auth] User state changed: Logged in as", user.email);
@@ -254,6 +266,7 @@ class TournamentApp {
         provider.setCustomParameters({ prompt: 'select_account' });
 
         try {
+            // First attempt popup (works on desktop and modern mobile)
             const result = await this.auth.signInWithPopup(provider);
             const user = result.user;
             const email = (user.email || '').toLowerCase();
@@ -269,13 +282,21 @@ class TournamentApp {
                 this.updateUserSessionUI();
             }
         } catch (error) {
-            console.error("[Firebase Auth] Google Sign-in error:", error);
+            console.warn("[Firebase Auth] Google Popup Sign-in warning:", error);
             if (error.code === 'auth/popup-closed-by-user') {
                 this.showAlert("חלון ההתחברות נסגר.", "info");
+            } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+                // If popup is blocked by mobile Safari/Chrome, try redirect
+                try {
+                    this.showAlert("מעביר להתחברות מאובטחת עם Google...", "info");
+                    await this.auth.signInWithRedirect(provider);
+                } catch (redErr) {
+                    this.showAlert("דפדפן הנייד חסם חלונות קופצים. מומלץ להתחבר עם כתובת אימייל וסיסמה (1234).", "warning");
+                }
             } else if (error.code === 'auth/unauthorized-domain') {
                 this.showAlert("דומיין זה טרם אושר ב-Firebase. אפשר להתחבר כרגע עם אימייל וסיסמה (1234) או כאורח.", "warning");
             } else {
-                this.showAlert(`שגיאה בהתחברות עם Google: ${error.message}`, "error");
+                this.showAlert(`התחברות Google בנייד: מומלץ להזין כתובת אימייל וסיסמה (1234) לכניסה מיידית.`, "warning");
             }
         }
     }
