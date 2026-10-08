@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מנהל טורניר דו-שלבי - Two-Stage Tournament Manager</title>
+    <title>טורנירשת - Two-Stage Tournament Manager</title>
     <meta name="description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
-    <meta property="og:title" content="Two-Stage Tournament Manager" />
+    <meta property="og:title" content="טורנירשת" />
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=3.9">
+    <link rel="stylesheet" href="./style.css?v=4.0">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -25,7 +25,7 @@
     <section id="screen-login" class="login-landing-container">
         <div class="login-card">
             <div class="login-icon-box">🏆</div>
-            <h1>מנהל טורניר דו-שלבי</h1>
+            <h1>טורנירשת</h1>
             <p class="subtitle">מערכת חכמה לניהול לוחות משחקים, טבלאות דירוג ועצי נוקאאוט</p>
 
             <!-- לשוניות מעבר: כניסה / הרשמה (Login vs Sign-Up) -->
@@ -143,7 +143,7 @@
          ========================================== -->
     <div id="screen-main" class="app-container hidden">
         <header>
-            <h1>🏆 מנהל טורניר דו-שלבי</h1>
+            <h1>🏆 טורנירשת</h1>
             
             <div class="user-session-bar">
                 <!-- תג פרסונה פעילה -->
@@ -151,7 +151,14 @@
                     👁️ אורח (Guest)
                 </span>
 
-                <!-- בחירת טורניר לצפייה (פעיל או ארכיון) -->
+                <!-- תג שם טורניר עבור אורח (מוצג לאורחים במקום בורר הטורנירים) -->
+                <div id="guestTournamentBadge" class="guest-tournament-badge" title="הטורניר הנצפה">
+                    <span class="guest-tourney-icon">🏆</span>
+                    <span class="guest-tourney-label">טורניר:</span>
+                    <span id="guestTournamentName" class="guest-tourney-name">--</span>
+                </div>
+
+                <!-- בחירת טורניר לצפייה (פעיל או ארכיון) למנהלים -->
                 <div class="tournament-select-wrap">
                     <label for="headerTournamentSelect">🏆 טורניר:</label>
                     <select id="headerTournamentSelect" onchange="app.switchTournament(this.value)">
@@ -751,7 +758,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=3.9"></script>
+    <script src="./app.js?v=4.0"></script>
 </body>
 </html>
 
