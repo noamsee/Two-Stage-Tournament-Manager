@@ -90,6 +90,10 @@ class TournamentApp {
         this.currentTeamFilter = 'all';
         this.alertTimeout = null;
 
+        // הטאב שהיה פתוח לפני רענון הדף. נקרא כאן, לפני שתהליך הטעינה מחליף טאבים ודורס את הערך השמור
+        this.savedTabOnLoad = null;
+        try { this.savedTabOnLoad = sessionStorage.getItem('tournament_active_tab'); } catch (e) {}
+
         // גרסת מובייל: עץ פלייאוף מוקטן שנכנס למסך, ומשחק נפתח לעריכה בהקשה
         this.mobileQuery = window.matchMedia('(max-width: 640px)');
         this.openPlayoffMatchId = null;
@@ -767,11 +771,16 @@ class TournamentApp {
         };
         sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
 
-        // הטאב שהיה פתוח לפני רענון הדף (נקרא לפני שברירות המחדל למטה דורסות אותו)
+        // שחזור טאב בכניסה אוטומטית (רענון דף או אימות חוזר): הטאב שנשמר בטעינת הדף,
+        // ואם כבר שוחזר - הטאב הנוכחי, כדי שאימות חוזר ברקע לא יקפיץ לטאב ברירת המחדל
         let tabToRestore = null;
         if (!showNotification) {
-            try { tabToRestore = sessionStorage.getItem('tournament_active_tab'); } catch (e) {}
+            tabToRestore = this.savedTabOnLoad;
+            if (!tabToRestore) {
+                try { tabToRestore = sessionStorage.getItem('tournament_active_tab'); } catch (e) {}
+            }
         }
+        this.savedTabOnLoad = null;
 
         this.switchRole(role);
         this.updateUserSessionUI();
