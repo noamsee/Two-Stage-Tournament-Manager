@@ -3177,6 +3177,15 @@ class TournamentApp {
 
         const isViewer = (this.currentRole === 'viewer') || (this.tournaments.find(t => t.id === this.activeTournamentId)?.isArchived && this.currentRole !== 'owner');
 
+        // קבוצות שהודחו: כל מי שהפסידה במשחק פלייאוף שהוכרע
+        const eliminatedSeeds = new Set();
+        const pm = this.playoffMatches || {};
+        [...(pm.r16 || []), ...(pm.qf || []), ...(pm.sf || []), pm.final].forEach(m => {
+            if (!m || (m.winner !== 'team1' && m.winner !== 'team2')) return;
+            const loser = m.winner === 'team1' ? m.team2 : m.team1;
+            if (loser) eliminatedSeeds.add(loser.seed);
+        });
+
         const seedsSummaryHtml = (this.playoffSeeds && this.playoffSeeds.length > 0) ? `
             <div class="seed-summary-card">
                 <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#271e16;">
@@ -3184,7 +3193,7 @@ class TournamentApp {
                 </div>
                 <div class="seed-grid">
                     ${this.playoffSeeds.map(s => `
-                        <div class="seed-chip">
+                        <div class="seed-chip ${eliminatedSeeds.has(s.seed) ? 'is-eliminated' : ''}" ${eliminatedSeeds.has(s.seed) ? 'title="הודחה מהטורניר"' : ''}>
                             <span style="font-weight: 700; color: #382c21;">
                                 <span class="seed-badge">${s.seed}</span> ${s.teamName}
                             </span>
@@ -3345,7 +3354,7 @@ class TournamentApp {
 
         container.innerHTML = `
             ${seedsSummaryHtml}
-            ${isMobile ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
+            ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
             <div class="bracket-tree-scroll">
                 <div class="bracket-tree" style="--rounds: ${visibleRounds.length};">
                     ${columnsHtml.join('')}

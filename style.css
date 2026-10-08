@@ -730,6 +730,25 @@ header h1 {
     font-size: 0.88rem;
 }
 
+/* קבוצה שהודחה מהפלייאוף: אפורה, דהויה ועם קו חוצה */
+.seed-chip.is-eliminated {
+    filter: grayscale(1);
+    opacity: 0.55;
+    background: var(--neutral-grey);
+    border-style: dashed;
+}
+
+.seed-chip.is-eliminated > span:first-child {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+}
+
+.seed-chip.is-eliminated > span:first-child::before {
+    content: "✕ ";
+    display: inline-block;
+    font-weight: 900;
+}
+
 .seed-badge {
     background: #271e16;
     color: white;
