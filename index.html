@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=3.6">
+    <link rel="stylesheet" href="./style.css?v=3.7">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -68,18 +68,33 @@
                 </div>
 
                 <div class="login-field" id="loginTournamentPickerGroup">
-                    <label for="loginTournamentSelect">🏆 בחר טורניר לצפייה:</label>
-                    <select id="loginTournamentSelect" class="login-tournament-select">
+                    <label for="loginTournamentSelect">🏆 1. בחר טורניר לצפייה:</label>
+                    <select id="loginTournamentSelect" class="login-tournament-select" onchange="app.onLoginTournamentChange(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <!-- שדות בחירת בית וקבוצה ישירות במסך הכניסה -->
+                <div class="login-field" id="loginHouseGroup">
+                    <label for="loginHouseSelect">🏠 2. בחר בית (אופציונלי):</label>
+                    <select id="loginHouseSelect" class="login-input" onchange="app.onLoginHouseChange(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <div class="login-field" id="loginTeamGroup">
+                    <label for="loginTeamSelect">⚽ 3. בחר קבוצה מועדפת (אופציונלי):</label>
+                    <select id="loginTeamSelect" class="login-input">
                         <!-- דינמי דרך JS -->
                     </select>
                 </div>
 
                 <button type="submit" class="login-btn-primary">
-                    🚀 כניסה למערכת
+                    🚀 כניסה למערכת (Login)
                 </button>
 
                 <button type="button" class="login-btn-guest" onclick="app.loginAsGuest()">
-                    👁️ כניסה מהירה כאורח (Guest)
+                    👁️ כניסה ישירה כאורח (Guest)
                 </button>
             </form>
 
@@ -736,7 +751,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=3.6"></script>
+    <script src="./app.js?v=3.7"></script>
 </body>
 </html>
 

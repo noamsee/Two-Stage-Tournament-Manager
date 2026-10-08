@@ -1723,16 +1723,15 @@ body.role-viewer .tab-btn[onclick*="setup"],
 body.role-viewer #tab-setup,
 body.role-viewer .admin-editable,
 body.role-viewer .owner-only,
+body.role-viewer .tournament-select-wrap,
+body.role-viewer .guest-only-btn,
+body.role-viewer .guest-banner-actions,
 body.role-viewer .actions-bar {
     display: none !important;
 }
 
 body:not(.role-viewer) .guest-only-btn {
     display: none !important;
-}
-
-body.role-viewer .guest-only-btn {
-    display: inline-flex !important;
 }
 
 /* תצוגת תוצאות נקייה וקריאה במצב צופה (במקום תיבות קלט אפורות) */
