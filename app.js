@@ -767,6 +767,12 @@ class TournamentApp {
         };
         sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
 
+        // הטאב שהיה פתוח לפני רענון הדף (נקרא לפני שברירות המחדל למטה דורסות אותו)
+        let tabToRestore = null;
+        if (!showNotification) {
+            try { tabToRestore = sessionStorage.getItem('tournament_active_tab'); } catch (e) {}
+        }
+
         this.switchRole(role);
         this.updateUserSessionUI();
         this.showMainScreen();
@@ -793,12 +799,19 @@ class TournamentApp {
             const targetTab = (this.format === 'knockout_only') ? 'playoffs' : 'group-stage';
             this.switchTab(targetTab);
         }
+
+        // שחזור הטאב לאחר רענון, רק אם הוא קיים ומותר לתפקיד הנוכחי
+        const tabAllowed = tabToRestore && document.getElementById(`tab-${tabToRestore}`)
+            && !(role === 'viewer' && (tabToRestore === 'setup' || tabToRestore === 'users'))
+            && !(role !== 'owner' && tabToRestore === 'users');
+        if (tabAllowed) this.switchTab(tabToRestore);
     }
 
     logout() {
         const loggedOutEmail = this.currentUser ? this.currentUser.email : '';
         this.currentUser = null;
         sessionStorage.removeItem('tournament_current_user');
+        sessionStorage.removeItem('tournament_active_tab');
 
         if (this.auth) {
             try { this.auth.signOut(); } catch (e) {}
@@ -2452,6 +2465,7 @@ class TournamentApp {
 
     switchTab(tabId) {
         this.openPlayoffMatchId = null;
+        try { sessionStorage.setItem('tournament_active_tab', tabId); } catch (e) {}
         document.querySelectorAll('.tab-section').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
