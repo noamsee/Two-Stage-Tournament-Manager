@@ -3279,11 +3279,18 @@ class TournamentApp {
         const visibleRounds = rounds.filter((r, idx) =>
             idx <= 1 || rounds[idx - 1].matches.some(m => m.team1 && m.team2));
 
-        const columnsHtml = visibleRounds.map(r => `
+        // קו חיבור יוצא ממשחק רק כאשר שתי הקבוצות המתמודדות בו כבר ידועות
+        const isSet = (m) => !!(m && m.team1 && m.team2);
+
+        const columnsHtml = visibleRounds.map((r, idx) => `
             <div class="bracket-round-column">
                 <div class="round-header" style="${r.isFinal ? 'background:#b45309;' : ''}">${r.title}</div>
                 <div class="bracket-round-matches">
-                    ${r.matches.map(m => `<div class="bracket-slot">${renderPlayoffCard(m, !!r.isFinal)}</div>`).join('')}
+                    ${r.matches.map((m, i) => {
+                        const feeders = idx > 0 ? visibleRounds[idx - 1].matches.slice(i * 2, i * 2 + 2) : [];
+                        const slotClasses = `${isSet(m) ? 'is-set' : ''} ${feeders.some(isSet) ? 'has-feed' : ''}`;
+                        return `<div class="bracket-slot ${slotClasses}">${renderPlayoffCard(m, !!r.isFinal)}</div>`;
+                    }).join('')}
                 </div>
             </div>
         `);

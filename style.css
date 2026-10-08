@@ -783,8 +783,8 @@ header h1 {
     direction: rtl;
 }
 
-/* קו יוצא מכל משחק אל המשחק הבא (זוג משחקים מתחבר לנקודה אחת) */
-.bracket-round-column:not(:last-child) .bracket-slot::after {
+/* קו יוצא ממשחק ששתי הקבוצות בו ידועות אל המשחק הבא (זוג משחקים מתחבר לנקודה אחת) */
+.bracket-round-column:not(:last-child) .bracket-slot.is-set::after {
     content: '';
     position: absolute;
     right: 0;
@@ -795,20 +795,20 @@ header h1 {
     box-sizing: border-box;
 }
 
-.bracket-round-column:not(:last-child) .bracket-slot:nth-child(odd)::after {
+.bracket-round-column:not(:last-child) .bracket-slot.is-set:nth-child(odd)::after {
     top: 50%;
     border-top-width: 2px;
     border-top-right-radius: 6px;
 }
 
-.bracket-round-column:not(:last-child) .bracket-slot:nth-child(even)::after {
+.bracket-round-column:not(:last-child) .bracket-slot.is-set:nth-child(even)::after {
     bottom: 50%;
     border-bottom-width: 2px;
     border-bottom-right-radius: 6px;
 }
 
 /* קו נכנס אל משחק מהסיבוב הקודם */
-.bracket-round-column:not(:first-child) .bracket-slot::before {
+.bracket-round-column:not(:first-child) .bracket-slot.has-feed::before {
     content: '';
     position: absolute;
     left: 0;
