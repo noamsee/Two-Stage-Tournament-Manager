@@ -828,29 +828,55 @@ class TournamentApp {
         }
     }
 
+    isCurrentTournamentClosed() {
+        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
+        return !!(curr && curr.isArchived);
+    }
+
     switchRole(newRole) {
         this.currentRole = newRole;
         document.body.className = `role-${newRole}`;
 
-        const currentTourney = this.tournaments.find(t => t.id === this.activeTournamentId);
-        const isArchived = currentTourney && currentTourney.isArchived;
-        const isViewer = (newRole === 'viewer') || (isArchived && newRole !== 'owner');
+        const isClosed = this.isCurrentTournamentClosed();
+        // אם הטורניר סגור - נעול לחלוטין לשינויים לכולם (כולל Admin ו-Owner)!
+        const isReadOnly = (newRole === 'viewer') || isClosed;
 
         const allInputs = document.querySelectorAll('#screen-main input:not(#newAdminEmailInput):not(#newTournamentNameInput):not(#wizardTourneyName)');
         allInputs.forEach(input => {
-            input.disabled = isViewer;
+            input.disabled = isReadOnly;
         });
 
         const adminButtons = document.querySelectorAll('.admin-editable');
         adminButtons.forEach(btn => {
-            btn.disabled = isViewer;
+            // כפתור פתיחת הטורניר מחדש וכפתור פתיחת אשף לטורניר חדש נשארים זמינים עבור מנהלים/בעלים
+            if (btn.id === 'setupCloseTournamentBtn' || btn.id === 'headerBtnNewTourney' || btn.classList.contains('btn-new-tourney')) {
+                btn.disabled = (newRole === 'viewer');
+                btn.title = "";
+            } else {
+                btn.disabled = isReadOnly;
+                if (isClosed && newRole !== 'viewer') {
+                    btn.title = "הטורניר סגור ונעול לעריכה. לפתיחתו יש ללחוץ על 'פתח טורניר מחדש'.";
+                }
+            }
         });
 
-        if (newRole === 'owner' || newRole === 'admin') {
-            const setupCloseBtn = document.getElementById('setupCloseTournamentBtn');
-            if (setupCloseBtn) setupCloseBtn.disabled = false;
-            const ownerCloseBtn = document.getElementById('ownerCloseTourneyBtn');
-            if (ownerCloseBtn) ownerCloseBtn.disabled = false;
+        // כפתור סגירה/פתיחה בפאנל בעלים
+        const ownerCloseBtn = document.getElementById('ownerCloseTourneyBtn');
+        if (ownerCloseBtn) {
+            ownerCloseBtn.disabled = (newRole !== 'owner');
+        }
+
+        const setupNotice = document.getElementById('setup-header-subtitle');
+        if (setupNotice) {
+            if (isClosed) {
+                setupNotice.textContent = '🔒 הטורניר סגור ונעול לעריכה (מצב קריאה בלבד). לפתיחתו יש ללחוץ על "פתח טורניר מחדש".';
+                setupNotice.style.color = '#b45309';
+                setupNotice.style.fontWeight = '700';
+            } else {
+                setupNotice.textContent = 'מיועד ל-Admin/Owner בלבד. הזן או עדכן את שמות הקבוצות:';
+                setupNotice.style.color = '';
+                setupNotice.style.fontWeight = '';
+            }
         }
 
         // ניתוב אוטומטי של צופה/אורח בלבד הרחק מטאב ההגדרות או ניהול המשתמשים
@@ -1648,19 +1674,40 @@ class TournamentApp {
         }
 
         // עדכון באנר הארכיון
-        const archiveBanner = document.getElementById('archiveBanner');
-        if (archiveBanner) {
-            if (tData.isArchived) {
-                archiveBanner.classList.remove('hidden');
-            } else {
-                archiveBanner.classList.add('hidden');
-            }
-        }
+        this.updateArchiveBannerUI();
 
         // סנכרון תפריטים
         this.populateTournamentSelectors();
         this.switchRole(this.currentRole);
         this.updateCloseButtonUI();
+    }
+
+    updateArchiveBannerUI() {
+        const archiveBanner = document.getElementById('archiveBanner');
+        if (!archiveBanner) return;
+
+        const isClosed = this.isCurrentTournamentClosed();
+        if (isClosed) {
+            archiveBanner.classList.remove('hidden');
+            const switchBtn = document.getElementById('btnSwitchToActiveTourney');
+            if (switchBtn) {
+                const activeTourney = this.tournaments.find(t => !t.isArchived);
+                if (activeTourney) {
+                    switchBtn.disabled = false;
+                    switchBtn.style.opacity = '1';
+                    switchBtn.style.cursor = 'pointer';
+                    switchBtn.title = `מעבר לטורניר הפעיל: ${activeTourney.name}`;
+                } else {
+                    // אין טורניר פעיל כרגע במערכת - הכפתור מושבת לפי דרישת המשתמש
+                    switchBtn.disabled = true;
+                    switchBtn.style.opacity = '0.45';
+                    switchBtn.style.cursor = 'not-allowed';
+                    switchBtn.title = 'אין כרגע טורניר פעיל במערכת (כל הטורנירים סגורים)';
+                }
+            }
+        } else {
+            archiveBanner.classList.add('hidden');
+        }
     }
 
     saveActiveTournamentData() {
@@ -1709,6 +1756,8 @@ class TournamentApp {
         const active = this.tournaments.find(t => !t.isArchived);
         if (active) {
             this.switchTournament(active.id);
+        } else {
+            this.showAlert("אין טורניר פעיל כרגע במערכת (כל הטורנירים סגורים).", "warning");
         }
     }
 
@@ -1744,6 +1793,11 @@ class TournamentApp {
         if (isEdit) {
             const tourney = this.tournaments.find(t => t.id === this.wizardEditingTourneyId) || this.tournaments.find(t => t.id === this.activeTournamentId);
             if (!tourney) return;
+
+            if (tourney.isArchived) {
+                this.showAlert("הטורניר סגור ונעול לעריכה. כדי לערוך את מבנה הטורניר, יש לפתוח אותו מחדש.", "warning");
+                return;
+            }
 
             if (modalTitle) modalTitle.innerHTML = `⚙️ עריכת מבנה טורניר: ${tourney.name}`;
             if (modalSub) modalSub.textContent = `באפשרותך לעדכן את סוג המבנה (בתים בלבד, בתים + פלייאוף, או נוקאאוט), לשנות את מספר הקבוצות והבתים, ולקבוע נקודות לניצחון ותיקו. שמות הקבוצות הקיימות יישמרו.`;
@@ -1784,7 +1838,13 @@ class TournamentApp {
     }
 
     openEditTournamentModal(tourneyId = null) {
-        this.openTournamentWizard(true, tourneyId);
+        const targetId = tourneyId || this.activeTournamentId;
+        const tourney = this.tournaments.find(t => t.id === targetId);
+        if (tourney && tourney.isArchived) {
+            this.showAlert("הטורניר סגור ונעול לעריכה. כדי לערוך את מבנה הטורניר, יש לפתוח אותו מחדש.", "warning");
+            return;
+        }
+        this.openTournamentWizard(true, targetId);
     }
 
     closeTournamentWizard() {
@@ -2270,6 +2330,8 @@ class TournamentApp {
         this.populateTournamentSelectors();
         this.renderOwnerTournamentsList();
         this.updateCloseButtonUI();
+        this.updateArchiveBannerUI();
+        this.switchRole(this.currentRole);
     }
 
     updateCloseButtonUI() {
@@ -2287,6 +2349,8 @@ class TournamentApp {
             setupBtn.innerHTML = isClosed ? '🔓 פתח טורניר מחדש' : '🔒 סגור טורניר';
             setupBtn.className = isClosed ? 'btn-success btn-sm admin-editable' : 'btn-secondary btn-sm admin-editable';
         }
+
+        this.updateArchiveBannerUI();
     }
 
     viewTournamentFromList(tourneyId) {
@@ -2405,7 +2469,7 @@ class TournamentApp {
                                         <button type="button" class="btn-secondary btn-sm" onclick="app.viewTournamentFromList('${t.id}')" title="מעבר לצפייה בטורניר ובמשחקים">
                                             ${isCurrentlyActive ? '👁️ צפה (פעיל)' : '👁️ צפה בטורניר'}
                                         </button>
-                                        <button type="button" class="btn-edit-user btn-sm" onclick="app.openEditTournamentModal('${t.id}')" title="עריכת מבנה טורניר">
+                                        <button type="button" class="btn-edit-user btn-sm" onclick="app.openEditTournamentModal('${t.id}')" title="${t.isArchived ? 'לא ניתן לערוך טורניר סגור' : 'עריכת מבנה טורניר'}" ${t.isArchived ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>
                                             ⚙️ ערוך
                                         </button>
                                         <button type="button" class="btn-sm btn-secondary" onclick="app.toggleCloseTournament('${t.id}')" title="${t.isArchived ? 'פתח טורניר מחדש' : 'סגור טורניר והעבר לארכיון'}">
@@ -2468,11 +2532,16 @@ class TournamentApp {
         const genBtn = document.getElementById('btn-generate-groups');
         if (!container) return;
 
+        const isClosed = this.isCurrentTournamentClosed();
+        const isReadOnly = (this.currentRole === 'viewer') || isClosed;
+
         container.innerHTML = '';
 
         if (this.format === 'knockout_only') {
             if (titleEl) titleEl.textContent = `הזנת קבוצות הטורניר (${this.teams.length} קבוצות - נוקאאוט בלבד)`;
-            if (subEl) subEl.textContent = `מיועד ל-Admin/Owner בלבד. הזן את שמות ${this.teams.length} הקבוצות המשתתפות ישירות בעץ הפלייאוף:`;
+            if (subEl) subEl.textContent = isClosed 
+                ? `🔒 הטורניר סגור ונעול לעריכה (מצב קריאה בלבד). לפתיחתו יש ללחוץ על 'פתח טורניר מחדש'.`
+                : `מיועד ל-Admin/Owner בלבד. הזן את שמות ${this.teams.length} הקבוצות המשתתפות ישירות בעץ הפלייאוף:`;
             if (genBtn) genBtn.textContent = `🔄 סנכרן שמות קבוצות לעץ הפלייאוף`;
 
             this.teams.forEach((teamName, index) => {
@@ -2484,6 +2553,7 @@ class TournamentApp {
                         <span>קבוצה מדורגת #${index + 1}</span>
                     </label>
                     <input type="text" value="${teamName}" data-index="${index}" 
+                           ${isReadOnly ? 'disabled' : ''}
                            onchange="app.updateTeamName(${index}, this.value)"
                            placeholder="הזן שם קבוצה">
                 `;
@@ -2495,7 +2565,9 @@ class TournamentApp {
             const groupHebrew = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'"];
 
             if (titleEl) titleEl.textContent = `הזנת קבוצות הטורניר (${this.teams.length} קבוצות ב-${numGroups} בתים)`;
-            if (subEl) subEl.textContent = `מיועד ל-Admin/Owner בלבד. הזן או עדכן שמות ל-${this.teams.length} הקבוצות (מחולקות ל-${numGroups} בתים של ${teamsPerGroup} קבוצות):`;
+            if (subEl) subEl.textContent = isClosed
+                ? `🔒 הטורניר סגור ונעול לעריכה (מצב קריאה בלבד). לפתיחתו יש ללחוץ על 'פתח טורניר מחדש'.`
+                : `מיועד ל-Admin/Owner בלבד. הזן או עדכן שמות ל-${this.teams.length} הקבוצות (מחולקות ל-${numGroups} בתים של ${teamsPerGroup} קבוצות):`;
             if (genBtn) genBtn.textContent = `⚡ ייצר לוח משחקים לשלב הבתים (${this.matches.length || (numGroups * (teamsPerGroup * (teamsPerGroup - 1)) / 2)} משחקים)`;
 
             this.teams.forEach((teamName, index) => {
@@ -2511,6 +2583,7 @@ class TournamentApp {
                         <span>בית ${groupHe} - קבוצה ${posInGroup}</span>
                     </label>
                     <input type="text" value="${teamName}" data-index="${index}" 
+                           ${isReadOnly ? 'disabled' : ''}
                            onchange="app.updateTeamName(${index}, this.value)"
                            placeholder="הזן שם קבוצה">
                 `;
@@ -2520,6 +2593,7 @@ class TournamentApp {
     }
 
     updateTeamName(index, newName) {
+        if (this.isCurrentTournamentClosed()) return;
         const trimmed = newName.trim();
         this.teams[index] = trimmed || `קבוצה ${index + 1}`;
 
@@ -2536,6 +2610,11 @@ class TournamentApp {
     }
 
     fillDefaultTeamNames() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
         this.teams = this.teams.map((_, i) => this.defaultTeams[i] || `קבוצה ${i + 1}`);
         this.renderTeamInputs();
         if (this.format === 'knockout_only') {
@@ -2588,6 +2667,11 @@ class TournamentApp {
        ======================================================== */
 
     generateTournamentGroups(shouldSwitchTab = true) {
+        if (shouldSwitchTab && this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה. לפתיחתו יש ללחוץ על 'פתח טורניר מחדש'.", "warning");
+            return;
+        }
+
         if (this.format === 'knockout_only') {
             this.syncTeamNamesToKnockoutBracket();
             this.renderPlayoffBracket();
@@ -2732,7 +2816,7 @@ class TournamentApp {
             return;
         }
 
-        const isViewer = (this.currentRole === 'viewer') || (this.tournaments.find(t => t.id === this.activeTournamentId)?.isArchived && this.currentRole !== 'owner');
+        const isViewer = (this.currentRole === 'viewer') || this.isCurrentTournamentClosed();
 
         const followedTeam = this.guestPreferences?.teamName;
         let contentHtml = '';
@@ -2787,6 +2871,11 @@ class TournamentApp {
        ======================================================== */
 
     handleScoreChange(matchId, teamNum, rawValue, inputElement) {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+
         const match = this.matches.find(m => m.id === matchId);
         if (!match) return;
 
@@ -3092,6 +3181,11 @@ class TournamentApp {
        ======================================================== */
 
     seedPlayoffs() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
         this.calculateStandings();
 
         const grpKeys = Object.keys(this.standings);
@@ -3149,7 +3243,7 @@ class TournamentApp {
         const container = document.getElementById('playoff-bracket-container');
         if (!container) return;
 
-        const isViewer = (this.currentRole === 'viewer') || (this.tournaments.find(t => t.id === this.activeTournamentId)?.isArchived && this.currentRole !== 'owner');
+        const isViewer = (this.currentRole === 'viewer') || this.isCurrentTournamentClosed();
 
         const seedsSummaryHtml = (this.playoffSeeds && this.playoffSeeds.length > 0) ? `
             <div class="seed-summary-card">
@@ -3435,6 +3529,11 @@ class TournamentApp {
     }
 
     handlePlayoffScore(matchId, teamNum, rawValue, inputElement) {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+
         let match = this.findPlayoffMatch(matchId);
         if (!match) return;
 
@@ -3511,6 +3610,11 @@ class TournamentApp {
     }
 
     fillSampleScores() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
         if (this.format === 'knockout_only') {
             this.simulatePlayoffs();
             return;
@@ -3537,6 +3641,11 @@ class TournamentApp {
     }
 
     resetAllScores() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
         this.matches.forEach(m => {
             m.score1 = null;
             m.score2 = null;
@@ -3550,6 +3659,11 @@ class TournamentApp {
     }
 
     simulatePlayoffs() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
         if (!this.playoffMatches) return;
 
         const simulateRound = (roundMatches) => {
@@ -3586,6 +3700,11 @@ class TournamentApp {
     }
 
     resetPlayoffs() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
         if (!this.playoffSeeds || this.playoffSeeds.length === 0) return;
         this.seedPlayoffs();
     }
@@ -3593,6 +3712,11 @@ class TournamentApp {
     hardReset() {
         if (this.currentRole !== 'owner') {
             this.showAlert("רק Owner רשאי לאפס את הטורניר לחלוטין!", "error");
+            return;
+        }
+
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
         }
 
