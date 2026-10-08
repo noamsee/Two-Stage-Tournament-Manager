@@ -603,8 +603,30 @@ class TournamentApp {
         const enteredPass = passInput ? passInput.value.trim() : '';
 
         const tourneySelect = document.getElementById('loginTournamentSelect');
+        const houseSelect = document.getElementById('loginHouseSelect');
+        const teamSelect = document.getElementById('loginTeamSelect');
+
         if (tourneySelect && tourneySelect.value) {
             this.switchTournament(tourneySelect.value, false);
+        }
+
+        const selectedGroup = (houseSelect && houseSelect.value) ? houseSelect.value : 'all';
+        const selectedTeam = (teamSelect && teamSelect.value) ? teamSelect.value.trim() : '';
+        if (tourneySelect && tourneySelect.value) {
+            this.guestPreferences = {
+                tourneyId: tourneySelect.value,
+                groupKey: selectedGroup,
+                teamName: selectedTeam
+            };
+            try {
+                localStorage.setItem('tournament_guest_pref', JSON.stringify(this.guestPreferences));
+            } catch (e) {}
+
+            if (selectedGroup && selectedGroup !== 'all') {
+                this.currentFilter = selectedGroup;
+            } else {
+                this.currentFilter = 'all';
+            }
         }
 
         if (!enteredEmail || !enteredEmail.includes('@')) {
@@ -645,9 +667,35 @@ class TournamentApp {
 
     loginAsGuest() {
         const tourneySelect = document.getElementById('loginTournamentSelect');
-        if (tourneySelect && tourneySelect.value) {
-            this.switchTournament(tourneySelect.value, false);
+        const houseSelect = document.getElementById('loginHouseSelect');
+        const teamSelect = document.getElementById('loginTeamSelect');
+
+        const selectedTourneyId = tourneySelect && tourneySelect.value ? tourneySelect.value : this.activeTournamentId;
+        const selectedGroup = (houseSelect && houseSelect.value) ? houseSelect.value : 'all';
+        const selectedTeam = (teamSelect && teamSelect.value) ? teamSelect.value.trim() : '';
+
+        // שמירת העדפות המעקב של האורח ישירות מהלוגין
+        this.guestPreferences = {
+            tourneyId: selectedTourneyId,
+            groupKey: selectedGroup,
+            teamName: selectedTeam
+        };
+        try {
+            localStorage.setItem('tournament_guest_pref', JSON.stringify(this.guestPreferences));
+        } catch (e) {}
+
+        // החלת סינון בית
+        if (selectedGroup && selectedGroup !== 'all') {
+            this.currentFilter = selectedGroup;
+        } else {
+            this.currentFilter = 'all';
         }
+
+        if (selectedTourneyId) {
+            this.switchTournament(selectedTourneyId, false);
+        }
+
+        // חיבור ישיר כאורח ללא הצגת מודאלים נוספים
         this.authenticateUser('guest@tournament.local', true, 'אורח', 'guest');
     }
 
@@ -726,11 +774,13 @@ class TournamentApp {
             }
         }
 
-        // אם המשתמש הוא אורח/צופה - נפתח אוטומטית את אשף התאמת הצפייה האישית
+        // אם המשתמש הוא אורח/צופה - מחילים ישירות את ההעדפות שנבחרו במסך הכניסה
         if (role === 'viewer') {
-            setTimeout(() => {
-                this.openGuestPreferencesModal();
-            }, 350);
+            this.renderGuestFollowedBanner();
+            this.renderStandings();
+            this.renderMatches();
+            const targetTab = (this.format === 'knockout_only') ? 'playoffs' : 'group-stage';
+            this.switchTab(targetTab);
         }
     }
 
@@ -1377,6 +1427,91 @@ class TournamentApp {
         if (loginSelect) loginSelect.innerHTML = optionsHtml;
         if (signupSelect) signupSelect.innerHTML = optionsHtml;
         if (headerSelect) headerSelect.innerHTML = optionsHtml;
+
+        // סנכרון מיידי של שדות הבית והקבוצה במסך הכניסה
+        const currentLoginTourneyId = loginSelect && loginSelect.value ? loginSelect.value : this.activeTournamentId;
+        this.updateLoginHousesAndTeams(currentLoginTourneyId);
+    }
+
+    onLoginTournamentChange(tourneyId) {
+        this.updateLoginHousesAndTeams(tourneyId);
+    }
+
+    onLoginHouseChange() {
+        const tourneySelect = document.getElementById('loginTournamentSelect');
+        const tourneyId = tourneySelect && tourneySelect.value ? tourneySelect.value : this.activeTournamentId;
+        this.updateLoginTeams(tourneyId);
+    }
+
+    updateLoginHousesAndTeams(selectedTourneyId) {
+        const tourneyId = selectedTourneyId || document.getElementById('loginTournamentSelect')?.value || this.activeTournamentId;
+        const tourney = this.tournaments.find(t => t.id === tourneyId) || this.tournaments[0];
+        if (!tourney) return;
+
+        const houseGroup = document.getElementById('loginHouseGroup');
+        const houseSelect = document.getElementById('loginHouseSelect');
+
+        const groupHebrewMap = {
+            'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
+            'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
+        };
+
+        // אם הטורניר הוא נוקאאוט בלבד, לא שואלים על בתים כלל
+        if (tourney.format === 'knockout_only') {
+            if (houseGroup) houseGroup.classList.add('hidden');
+        } else {
+            // אם הטורניר כולל בתים
+            if (houseGroup) houseGroup.classList.remove('hidden');
+            if (houseSelect) {
+                let groupKeys = (tourney.groups && Object.keys(tourney.groups).length > 0)
+                    ? Object.keys(tourney.groups)
+                    : [];
+
+                if (groupKeys.length === 0) {
+                    const n = tourney.numGroups || 3;
+                    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+                    groupKeys = letters.slice(0, n).map(l => `Group ${l}`);
+                }
+
+                houseSelect.innerHTML = `
+                    <option value="all">כל הבתים (ללא סינון בית)</option>
+                    ${groupKeys.map(k => `
+                        <option value="${k}">${groupHebrewMap[k] || k}</option>
+                    `).join('')}
+                `;
+            }
+        }
+
+        this.updateLoginTeams(tourneyId);
+    }
+
+    updateLoginTeams(selectedTourneyId) {
+        const tourneyId = selectedTourneyId || document.getElementById('loginTournamentSelect')?.value || this.activeTournamentId;
+        const tourney = this.tournaments.find(t => t.id === tourneyId) || this.tournaments[0];
+        const teamGroup = document.getElementById('loginTeamGroup');
+        const teamSelect = document.getElementById('loginTeamSelect');
+        const houseSelect = document.getElementById('loginHouseSelect');
+        if (!teamSelect || !tourney) return;
+
+        if (teamGroup) teamGroup.classList.remove('hidden');
+
+        const selectedHouse = houseSelect ? houseSelect.value : 'all';
+        let teamsToDisplay = [];
+
+        if (tourney.groups && selectedHouse !== 'all' && tourney.groups[selectedHouse]) {
+            teamsToDisplay = tourney.groups[selectedHouse].map(t => t.name || t);
+        } else if (tourney.teams && tourney.teams.length > 0) {
+            teamsToDisplay = [...tourney.teams];
+        } else {
+            teamsToDisplay = [...this.defaultTeams];
+        }
+
+        teamSelect.innerHTML = `
+            <option value="">ללא קבוצה מועדפת (הצג הכל כרגיל)</option>
+            ${teamsToDisplay.map(name => `
+                <option value="${name}">⚽ ${name}</option>
+            `).join('')}
+        `;
     }
 
     loadTournamentData(tourneyId) {
@@ -1544,6 +1679,12 @@ class TournamentApp {
 
     switchTournament(newTourneyId, showNotification = true) {
         if (newTourneyId === this.activeTournamentId) return;
+
+        // אורח/צופה מחובר אינו רשאי לעבור לטורניר אחר
+        if (this.currentRole === 'viewer') {
+            this.showAlert("כמשתמש אורח, הגישה מוגבלת לטורניר הנבחר בלבד.", "warning");
+            return;
+        }
 
         this.saveActiveTournamentData();
         this.activeTournamentId = newTourneyId;
