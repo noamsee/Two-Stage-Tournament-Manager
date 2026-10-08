@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=3.8">
+    <link rel="stylesheet" href="./style.css?v=3.9">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -160,7 +160,7 @@
                 </div>
 
                 <!-- כפתור אשף הקמת טורניר חדש -->
-                <button class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()" title="פתיחת אשף להקמת טורניר חדש">
+                <button id="headerBtnNewTourney" class="btn-success btn-sm admin-editable btn-new-tourney" onclick="app.openTournamentWizard()" title="פתיחת אשף להקמת טורניר חדש">
                     ✨ טורניר חדש
                 </button>
 
@@ -193,8 +193,8 @@
 
         <!-- באנר התראה כשצופים בארכיון עבר -->
         <div id="archiveBanner" class="archive-banner hidden">
-            <span>📜 <strong>שים לב:</strong> אתה צופה בתוצאות ארכיון של טורניר עבר (מצב קריאה בלבד).</span>
-            <button class="btn-secondary btn-sm" onclick="app.switchToActiveTournament()">חזור לטורניר הפעיל</button>
+            <span>📜 <strong>שים לב:</strong> אתה צופה בתוצאות ארכיון של טורניר סגור (מצב קריאה בלבד - נעול לשינויים).</span>
+            <button id="btnSwitchToActiveTourney" class="btn-secondary btn-sm" onclick="app.switchToActiveTournament()">חזור לטורניר הפעיל</button>
         </div>
 
         <!-- ניווט טאבים (גלוי לכולם, למעט הגדרות שמוסתר מצופים) -->
@@ -216,7 +216,7 @@
                             <button type="button" class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()">
                                 ⚙️ ערוך מבנה טורניר
                             </button>
-                            <button type="button" class="btn-success btn-sm admin-editable" onclick="app.openTournamentWizard()">
+                            <button type="button" class="btn-success btn-sm admin-editable btn-new-tourney" onclick="app.openTournamentWizard()">
                                 ✨ אשף טורניר חדש
                             </button>
                             <button type="button" id="setupCloseTournamentBtn" class="btn-secondary btn-sm admin-editable" onclick="app.toggleCloseActiveTournament()" title="סגירת טורניר או פתיחתו מחדש">
@@ -751,7 +751,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=3.8"></script>
+    <script src="./app.js?v=3.9"></script>
 </body>
 </html>
 
