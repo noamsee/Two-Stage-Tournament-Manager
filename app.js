@@ -87,6 +87,7 @@ class TournamentApp {
         this.playoffMatches = { qf: [], sf: [], final: null };
 
         this.currentFilter = 'all';
+        this.currentTeamFilter = 'all';
         this.alertTimeout = null;
 
         // העדפות צפייה מותאמות אישית לאורח (בחירת טורניר, בית וקבוצה למעקב)
@@ -2629,6 +2630,7 @@ class TournamentApp {
 
         // איפוס סינון בתים כדי שלא יישאר מסונן על בית ישן שנמחק (כמו בית ג')
         this.currentFilter = 'all';
+        this.currentTeamFilter = 'all';
 
         this.matches = this.generateDynamicRoundRobin(groups, this.teams, teamsPerGroup);
         this.renderTeamInputs();
@@ -2696,31 +2698,55 @@ class TournamentApp {
         const filterContainer = document.getElementById('group-filter-container');
         if (!container) return;
 
-        // רינדור כפתורי סינון דינמיים לפי הבתים הקיימים בטורניר
+        const groupMatches = this.currentFilter === 'all'
+            ? this.matches
+            : this.matches.filter(m => m.groupId === this.currentFilter);
+
+        // רשימת הקבוצות לסינון - רק קבוצות מהבית שנבחר
+        const teamNames = [...new Set(groupMatches.flatMap(m => [m.team1Name, m.team2Name]))]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'he'));
+        if (this.currentTeamFilter !== 'all' && !teamNames.includes(this.currentTeamFilter)) {
+            this.currentTeamFilter = 'all';
+        }
+
+        // רינדור רשימות סינון נפתחות (בית + קבוצה) לפי נתוני הטורניר
         if (filterContainer && this.groups && Object.keys(this.groups).length > 0) {
             const groupHebrew = {
                 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
                 'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
             };
+            const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
             const grpKeys = Object.keys(this.groups);
-            filterContainer.innerHTML = `
-                <button class="filter-chip ${this.currentFilter === 'all' ? 'active' : ''}" onclick="app.filterMatches('all', this)">
-                    כל הבתים (${this.matches.length})
-                </button>
-                ${grpKeys.map(k => {
-                    const count = this.matches.filter(m => m.groupId === k).length;
-                    return `
-                        <button class="filter-chip ${this.currentFilter === k ? 'active' : ''}" onclick="app.filterMatches('${k}', this)">
-                            ${groupHebrew[k] || k} (${count})
-                        </button>
-                    `;
-                }).join('')}
+            const filtersHtml = `
+                <label class="filter-select-wrap">
+                    <span>🏠 בית</span>
+                    <select id="matchGroupFilter" class="filter-select" onchange="app.filterMatches(this.value)">
+                        <option value="all" ${this.currentFilter === 'all' ? 'selected' : ''}>כל הבתים (${this.matches.length})</option>
+                        ${grpKeys.map(k => {
+                            const count = this.matches.filter(m => m.groupId === k).length;
+                            return `<option value="${k}" ${this.currentFilter === k ? 'selected' : ''}>${groupHebrew[k] || k} (${count})</option>`;
+                        }).join('')}
+                    </select>
+                </label>
+                <label class="filter-select-wrap">
+                    <span>👥 קבוצה</span>
+                    <select id="matchTeamFilter" class="filter-select" onchange="app.filterMatchesByTeam(this.value)">
+                        <option value="all" ${this.currentTeamFilter === 'all' ? 'selected' : ''}>כל הקבוצות</option>
+                        ${teamNames.map(name => `<option value="${escAttr(name)}" ${this.currentTeamFilter === name ? 'selected' : ''}>${escAttr(name)}</option>`).join('')}
+                    </select>
+                </label>
             `;
+            // עדכון רק כשיש שינוי, כדי לא לסגור רשימה פתוחה בזמן סנכרון נתונים
+            if (filterContainer.dataset.rendered !== filtersHtml) {
+                filterContainer.innerHTML = filtersHtml;
+                filterContainer.dataset.rendered = filtersHtml;
+            }
         }
 
-        const filteredMatches = this.currentFilter === 'all'
-            ? this.matches
-            : this.matches.filter(m => m.groupId === this.currentFilter);
+        const filteredMatches = this.currentTeamFilter === 'all'
+            ? groupMatches
+            : groupMatches.filter(m => m.team1Name === this.currentTeamFilter || m.team2Name === this.currentTeamFilter);
 
         if (filteredMatches.length === 0) {
             container.innerHTML = '<p class="placeholder-text">אין משחקים להצגה.</p>';
@@ -2770,11 +2796,16 @@ class TournamentApp {
         container.innerHTML = contentHtml;
     }
 
-    filterMatches(groupKey, buttonEl) {
+    filterMatches(groupKey) {
         this.currentFilter = groupKey;
-        document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
-        if (buttonEl) buttonEl.classList.add('active');
         this.renderMatches();
+        document.getElementById('matchGroupFilter')?.focus();
+    }
+
+    filterMatchesByTeam(teamName) {
+        this.currentTeamFilter = teamName;
+        this.renderMatches();
+        document.getElementById('matchTeamFilter')?.focus();
     }
 
     /* ========================================================
@@ -3236,47 +3267,37 @@ class TournamentApp {
             `;
         }
 
-        const columnsHtml = [];
-        if (r16.length > 0) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header">⚔️ שמינית גמר</div>
-                    ${r16.map(m => renderPlayoffCard(m)).join('')}
+        // עץ הפלייאוף: הסיבוב הראשון (העלים) משמאל, הגמר מימין
+        const rounds = [];
+        if (r16.length > 0) rounds.push({ title: '⚔️ שמינית גמר', matches: r16 });
+        if (qf.length > 0) rounds.push({ title: '⚔️ רבע גמר', matches: qf });
+        if (sf.length > 0) rounds.push({ title: '🔥 חצי גמר', matches: sf });
+        if (final) rounds.push({ title: '👑 משחק הגמר', matches: [final], isFinal: true });
+
+        const columnsHtml = rounds.map(r => `
+            <div class="bracket-round-column">
+                <div class="round-header" style="${r.isFinal ? 'background:#b45309;' : ''}">${r.title}</div>
+                <div class="bracket-round-matches">
+                    ${r.matches.map(m => `<div class="bracket-slot">${renderPlayoffCard(m, !!r.isFinal)}</div>`).join('')}
                 </div>
-            `);
-        }
-        if (qf.length > 0) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header">⚔️ רבע גמר</div>
-                    ${qf.map(m => renderPlayoffCard(m)).join('')}
-                </div>
-            `);
-        }
-        if (sf.length > 0) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header">🔥 חצי גמר</div>
-                    ${sf.map(m => renderPlayoffCard(m)).join('')}
-                </div>
-            `);
-        }
-        if (final) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header" style="background:#b45309;">👑 משחק הגמר</div>
-                    ${renderPlayoffCard(final, true)}
-                </div>
-            `);
-        }
+            </div>
+        `);
+
+        // שמירת מיקום הגלילה האופקית של העץ בין רינדורים (חשוב במובייל בזמן הזנת תוצאות)
+        const prevScrollLeft = container.querySelector('.bracket-tree-scroll')?.scrollLeft || 0;
 
         container.innerHTML = `
             ${seedsSummaryHtml}
-            <div class="bracket-rounds-container">
-                ${columnsHtml.join('')}
+            <div class="bracket-tree-scroll">
+                <div class="bracket-tree" style="--rounds: ${rounds.length};">
+                    ${columnsHtml.join('')}
+                </div>
             </div>
             ${championBannerHtml}
         `;
+
+        const treeScroll = container.querySelector('.bracket-tree-scroll');
+        if (treeScroll) treeScroll.scrollLeft = prevScrollLeft;
     }
 
     findPlayoffMatch(matchId) {

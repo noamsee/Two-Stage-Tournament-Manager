@@ -14,9 +14,9 @@
     --border-light: #f1f5f9;
     --input-bg: #f8fafc;
     --neutral-grey: #f1f5f9;
-    --winner-bg: #ecfdf5; /* Subtle refined winner tint */
-    --qualify-bg: #f0fdf4;
-    --candidate-bg: #fefce8;
+    --winner-bg: #bbf7d0; /* Clear, saturated winner highlight */
+    --qualify-bg: #bbf7d0;
+    --candidate-bg: #fde68a;
 }
 
 * {
@@ -424,30 +424,43 @@ header h1 {
     flex-wrap: wrap;
 }
 
-.filter-chip {
-    padding: 6px 14px;
+.filter-tabs {
+    gap: 12px;
+}
+
+.filter-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.82rem;
     font-weight: 700;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    cursor: pointer;
     color: #64748b;
-    transition: all 0.15s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    white-space: nowrap;
 }
 
-.filter-chip:hover {
-    background: #f8fafc;
+.filter-select {
+    min-width: 150px;
+    max-width: 100%;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
     color: #0f172a;
-    border-color: #cbd5e1;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.filter-chip.active {
-    background: #334155;
-    color: #ffffff;
-    border-color: #1e293b;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+.filter-select:hover {
+    border-color: #94a3b8;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #64748b;
+    box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
 }
 
 /* כרטיסי משחק (1A Silver Minimal Framing) */
@@ -520,11 +533,12 @@ header h1 {
 }
 
 .match-team-row.winner {
-    background-color: #f0fdf4 !important;
+    background-color: var(--winner-bg) !important;
+    box-shadow: inset -4px 0 0 #16a34a;
 }
 
 .match-team-row.winner .team-name {
-    color: #166534;
+    color: #14532d;
 }
 
 .match-team-row.winner .team-name::after {
@@ -725,23 +739,83 @@ header h1 {
     font-size: 0.8rem;
 }
 
-.bracket-rounds-container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    align-items: stretch;
+/* עץ פלייאוף: הסיבוב הראשון (העלים) משמאל, הגמר מימין, עם קווי חיבור */
+.bracket-tree-scroll {
+    direction: ltr;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
 }
 
-@media (max-width: 900px) {
-    .bracket-rounds-container {
-        grid-template-columns: 1fr;
-    }
+.bracket-tree {
+    --bracket-gap: 18px;
+    --bracket-line: #94a3b8;
+    display: flex;
+    align-items: stretch;
+    max-width: calc(var(--rounds, 3) * 340px);
+    margin: 0 auto;
 }
 
 .bracket-round-column {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    flex: 1 0 250px;
+    min-width: 0;
+}
+
+.bracket-round-matches {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.bracket-slot {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 8px var(--bracket-gap);
+}
+
+.bracket-slot .playoff-match-card {
+    flex: 1;
+    min-width: 0;
+    direction: rtl;
+}
+
+/* קו יוצא מכל משחק אל המשחק הבא (זוג משחקים מתחבר לנקודה אחת) */
+.bracket-round-column:not(:last-child) .bracket-slot::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    width: var(--bracket-gap);
+    height: 50%;
+    border: 0 solid var(--bracket-line);
+    border-right-width: 2px;
+    box-sizing: border-box;
+}
+
+.bracket-round-column:not(:last-child) .bracket-slot:nth-child(odd)::after {
+    top: 50%;
+    border-top-width: 2px;
+    border-top-right-radius: 6px;
+}
+
+.bracket-round-column:not(:last-child) .bracket-slot:nth-child(even)::after {
+    bottom: 50%;
+    border-bottom-width: 2px;
+    border-bottom-right-radius: 6px;
+}
+
+/* קו נכנס אל משחק מהסיבוב הקודם */
+.bracket-round-column:not(:first-child) .bracket-slot::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: var(--bracket-gap);
+    border-top: 2px solid var(--bracket-line);
+    margin-top: -1px;
 }
 
 .round-header {
@@ -753,7 +827,8 @@ header h1 {
     border-radius: 10px;
     font-weight: 800;
     font-size: 0.95rem;
-    margin-bottom: 8px;
+    margin: 0 var(--bracket-gap) 8px;
+    direction: rtl;
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
@@ -1680,8 +1755,8 @@ body.role-admin .tab-btn.owner-only {
 
 /* תוצאת תיקו במשחק */
 .match-team-row.draw-match {
-    background-color: #f8fafc !important;
-    border-right: 4px solid #94a3b8;
+    background-color: #e2e8f0 !important;
+    border-right: 4px solid #64748b;
 }
 
 .match-team-row.draw-match .team-name::after {
@@ -1711,7 +1786,7 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .row-champion {
-    background-color: #fefce8 !important;
+    background-color: #fde68a !important;
 }
 
 /* ==========================================================================
@@ -1751,7 +1826,7 @@ body:not(.role-viewer) .guest-only-btn {
 }
 
 .match-team-row.winner .score-display-viewer {
-    background: #a4e4a4;
+    background: #86efac;
     border-color: #16a34a;
     color: #065f46;
 }
@@ -1786,7 +1861,7 @@ body:not(.role-viewer) .guest-only-btn {
 }
 
 .row-followed-team {
-    background-color: #fefce8 !important; /* הדגשה פסטלית עדינה ונעימה */
+    background-color: #fef08a !important; /* הדגשה צהובה ברורה לקבוצה במעקב */
     border-right: 4px solid #eab308 !important;
     font-weight: 800 !important;
 }
@@ -1852,7 +1927,7 @@ body:not(.role-viewer) .guest-only-btn {
 
 .score-input.score-tie {
     border-color: #f59e0b;
-    background-color: #fffbeb;
+    background-color: #fde68a;
 }
 
 /* ==========================================================================
@@ -1975,21 +2050,23 @@ html, body {
         height: 38px;
     }
 
-    /* גלילת עץ פלייאוף במובייל */
-    .bracket-rounds-container {
-        display: flex;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        gap: 12px;
-        padding-bottom: 12px;
-        scroll-snap-type: x mandatory;
+    /* עץ פלייאוף במובייל: גלילה אופקית עם עמודות צרות יותר */
+    .bracket-tree {
+        --bracket-gap: 12px;
     }
 
     .bracket-round-column {
-        min-width: 260px;
-        max-width: 86vw;
-        flex-shrink: 0;
-        scroll-snap-align: start;
+        flex-basis: 230px;
+    }
+
+    .filter-select-wrap {
+        flex: 1 1 140px;
+    }
+
+    .filter-select {
+        flex: 1;
+        min-width: 0;
+        font-size: 16px;
     }
 
     /* מודאלים מותאמים לרוחב המכשיר */
