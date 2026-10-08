@@ -807,6 +807,103 @@ header h1 {
     border-bottom-right-radius: 6px;
 }
 
+/* כרטיס משחק מוקטן בעץ (גרסת מובייל) */
+.bracket-mini-card {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    direction: rtl;
+    font-family: inherit;
+    color: var(--text-main);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.bracket-mini-card.is-final {
+    border: 2px solid #f59e0b;
+}
+
+.mini-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3px;
+    min-height: 26px;
+    padding: 4px 5px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.mini-row:last-child {
+    border-bottom: none;
+}
+
+.mini-row.winner {
+    background: var(--winner-bg);
+    color: #14532d;
+}
+
+.mini-row.is-waiting .mini-name {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.mini-name {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mini-score {
+    flex-shrink: 0;
+    font-weight: 800;
+}
+
+.bracket-mobile-hint {
+    margin: 0 0 10px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* משחק פתוח מעל העץ במובייל: כרטיס מלא עם שמות מלאים והזנת תוצאה */
+.bracket-editor-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(39, 30, 22, 0.6);
+}
+
+.bracket-editor {
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bracket-editor .playoff-match-card {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.bracket-editor .team-name {
+    white-space: normal;
+}
+
 /* קו נכנס אל משחק מהסיבוב הקודם */
 .bracket-round-column:not(:first-child) .bracket-slot.has-feed::before {
     content: '';
@@ -2050,17 +2147,121 @@ html, body {
         height: 38px;
     }
 
-    /* עץ פלייאוף במובייל: גלילה אופקית עם עמודות צרות יותר */
+    /* עץ פלייאוף במובייל: כל העץ נכנס לרוחב המסך בכרטיסים מוקטנים */
     .bracket-tree {
-        --bracket-gap: 12px;
+        --bracket-gap: 5px;
+        max-width: none;
     }
 
     .bracket-round-column {
-        flex-basis: 230px;
+        flex: 1 1 0;
+    }
+
+    .bracket-slot {
+        padding: 3px var(--bracket-gap);
+    }
+
+    .bracket-round-column:not(:last-child) .bracket-slot.is-set:nth-child(odd)::after,
+    .bracket-round-column:not(:last-child) .bracket-slot.is-set:nth-child(even)::after {
+        border-radius: 0;
+    }
+
+    .round-header {
+        padding: 4px 2px;
+        font-size: 0.66rem;
+        line-height: 1.25;
+        border-radius: 6px;
+        margin-bottom: 6px;
+    }
+
+    /* רשימת המדורגות: שתי עמודות קומפקטיות במקום רשימה ארוכה */
+    .seed-summary-card {
+        padding: 10px;
+        margin-bottom: 12px;
+    }
+
+    .seed-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .seed-chip {
+        padding: 5px 8px;
+        font-size: 0.76rem;
+        min-width: 0;
+    }
+
+    .seed-chip > span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .seed-chip > span + span {
+        display: none;
+    }
+
+    /* לוח המשחקים: כל משחק בשורה אחת (קבוצה מול קבוצה) במקום כרטיס גבוה */
+    #group-matches-container .matches-grid {
+        gap: 8px;
+    }
+
+    #group-matches-container .match-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #group-matches-container .match-header {
+        grid-column: 1 / -1;
+        padding: 3px 10px;
+        font-size: 0.7rem;
+    }
+
+    #group-matches-container .match-badge {
+        font-size: 0.66rem;
+        padding: 0 6px;
+    }
+
+    #group-matches-container .match-team-row {
+        padding: 6px 8px;
+        gap: 6px;
+        min-width: 0;
+        border-bottom: none;
+    }
+
+    #group-matches-container .match-team-row:last-child {
+        flex-direction: row-reverse;
+        border-right: 1px solid var(--border-color);
+    }
+
+    #group-matches-container .match-team-row:last-child .team-name {
+        text-align: left;
+    }
+
+    #group-matches-container .match-team-row.winner:last-child {
+        box-shadow: inset 4px 0 0 #16a34a;
+    }
+
+    #group-matches-container .match-team-row.draw-match:last-child {
+        border-right: 1px solid var(--border-color);
+        border-left: 4px solid #6b5b45;
+    }
+
+    .filter-tabs {
+        flex-wrap: nowrap;
+        gap: 8px;
     }
 
     .filter-select-wrap {
-        flex: 1 1 140px;
+        flex: 1 1 0;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 3px;
+    }
+
+    .filter-select-wrap .filter-select {
+        width: 100%;
     }
 
     .filter-select {

@@ -90,6 +90,16 @@ class TournamentApp {
         this.currentTeamFilter = 'all';
         this.alertTimeout = null;
 
+        // גרסת מובייל: עץ פלייאוף מוקטן שנכנס למסך, ומשחק נפתח לעריכה בהקשה
+        this.mobileQuery = window.matchMedia('(max-width: 640px)');
+        this.openPlayoffMatchId = null;
+        this.mobileQuery.addEventListener('change', () => {
+            this.openPlayoffMatchId = null;
+            if (document.querySelector('#playoff-bracket-container .bracket-tree')) {
+                this.renderPlayoffBracket();
+            }
+        });
+
         // העדפות צפייה מותאמות אישית לאורח (בחירת טורניר, בית וקבוצה למעקב)
         try {
             this.guestPreferences = JSON.parse(localStorage.getItem('tournament_guest_pref') || 'null');
@@ -1680,6 +1690,7 @@ class TournamentApp {
 
     switchTournament(newTourneyId, showNotification = true) {
         if (newTourneyId === this.activeTournamentId) return;
+        this.openPlayoffMatchId = null;
 
         // אורח/צופה מחובר אינו רשאי לעבור לטורניר אחר
         if (this.currentRole === 'viewer') {
@@ -2440,6 +2451,7 @@ class TournamentApp {
     }
 
     switchTab(tabId) {
+        this.openPlayoffMatchId = null;
         document.querySelectorAll('.tab-section').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
@@ -3253,6 +3265,28 @@ class TournamentApp {
             `;
         };
 
+        // כרטיס מוקטן לעץ במובייל: שמות ותוצאות בלבד, הקשה פותחת את המשחק המלא
+        const renderCompactCard = (m, isFinal = false) => {
+            if (!m) return '';
+            const isTie = (m.score1 !== null && m.score2 !== null && m.score1 === m.score2);
+            const miniRow = (team, score, isWinner) => `
+                <span class="mini-row ${isWinner ? 'winner' : ''} ${team ? '' : 'is-waiting'}">
+                    <span class="mini-name">${team ? team.teamName : 'ממתין'}</span>
+                    <span class="mini-score">${score !== null && score !== undefined ? score : '-'}</span>
+                </span>
+            `;
+            return `
+                <button type="button" class="bracket-mini-card ${isFinal ? 'is-final' : ''} ${isTie ? 'playoff-tie-card' : ''}"
+                        onclick="app.openPlayoffMatch('${m.id}')">
+                    ${miniRow(m.team1, m.score1, m.winner === 'team1')}
+                    ${miniRow(m.team2, m.score2, m.winner === 'team2')}
+                </button>
+            `;
+        };
+
+        const isMobile = this.mobileQuery.matches;
+        const renderTreeCard = isMobile ? renderCompactCard : renderPlayoffCard;
+
         let championBannerHtml = '';
         if (final && final.winner) {
             const championTeam = final.winner === 'team1' ? final.team1 : final.team2;
@@ -3289,7 +3323,7 @@ class TournamentApp {
                     ${r.matches.map((m, i) => {
                         const feeders = idx > 0 ? visibleRounds[idx - 1].matches.slice(i * 2, i * 2 + 2) : [];
                         const slotClasses = `${isSet(m) ? 'is-set' : ''} ${feeders.some(isSet) ? 'has-feed' : ''}`;
-                        return `<div class="bracket-slot ${slotClasses}">${renderPlayoffCard(m, !!r.isFinal)}</div>`;
+                        return `<div class="bracket-slot ${slotClasses}">${renderTreeCard(m, !!r.isFinal)}</div>`;
                     }).join('')}
                 </div>
             </div>
@@ -3298,18 +3332,41 @@ class TournamentApp {
         // שמירת מיקום הגלילה האופקית של העץ בין רינדורים (חשוב במובייל בזמן הזנת תוצאות)
         const prevScrollLeft = container.querySelector('.bracket-tree-scroll')?.scrollLeft || 0;
 
+        // במובייל: המשחק שנבחר נפתח מעל העץ בכרטיס מלא (שמות מלאים והזנת תוצאה)
+        const openMatch = (isMobile && this.openPlayoffMatchId) ? this.findPlayoffMatch(this.openPlayoffMatchId) : null;
+        const editorHtml = openMatch ? `
+            <div class="bracket-editor-backdrop" onclick="if (event.target === this) app.closePlayoffMatch()">
+                <div class="bracket-editor">
+                    ${renderPlayoffCard(openMatch, openMatch.id === 'final')}
+                    <button type="button" class="btn-secondary" onclick="app.closePlayoffMatch()">סגור</button>
+                </div>
+            </div>
+        ` : '';
+
         container.innerHTML = `
             ${seedsSummaryHtml}
+            ${isMobile ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
             <div class="bracket-tree-scroll">
                 <div class="bracket-tree" style="--rounds: ${visibleRounds.length};">
                     ${columnsHtml.join('')}
                 </div>
             </div>
             ${championBannerHtml}
+            ${editorHtml}
         `;
 
         const treeScroll = container.querySelector('.bracket-tree-scroll');
         if (treeScroll) treeScroll.scrollLeft = prevScrollLeft;
+    }
+
+    openPlayoffMatch(matchId) {
+        this.openPlayoffMatchId = matchId;
+        this.renderPlayoffBracket();
+    }
+
+    closePlayoffMatch() {
+        this.openPlayoffMatchId = null;
+        this.renderPlayoffBracket();
     }
 
     findPlayoffMatch(matchId) {
