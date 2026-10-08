@@ -3274,11 +3274,20 @@ class TournamentApp {
         if (sf.length > 0) rounds.push({ title: '🔥 חצי גמר', matches: sf });
         if (final) rounds.push({ title: '👑 משחק הגמר', matches: [final], isFinal: true });
 
-        const columnsHtml = rounds.map(r => `
+        // העץ נחשף בהדרגה: משחק בסיבוב מתקדם מופיע רק לאחר שלפחות אחת מהקבוצות שלו נקבעה,
+        // וסיבוב שלם מופיע רק כשיש בו משחק גלוי. הסיבוב הראשון מוצג תמיד.
+        const isRevealed = (m, roundIdx) => roundIdx === 0 || !!(m.team1 || m.team2);
+        const visibleRounds = rounds.filter((r, idx) => r.matches.some(m => isRevealed(m, idx)));
+
+        const columnsHtml = visibleRounds.map((r, idx) => `
             <div class="bracket-round-column">
                 <div class="round-header" style="${r.isFinal ? 'background:#b45309;' : ''}">${r.title}</div>
                 <div class="bracket-round-matches">
-                    ${r.matches.map(m => `<div class="bracket-slot">${renderPlayoffCard(m, !!r.isFinal)}</div>`).join('')}
+                    ${r.matches.map(m => {
+                        const decided = m.winner === 'team1' || m.winner === 'team2';
+                        const slotClasses = `${isRevealed(m, idx) ? '' : 'is-pending'} ${decided ? 'is-decided' : ''}`;
+                        return `<div class="bracket-slot ${slotClasses}">${renderPlayoffCard(m, !!r.isFinal)}</div>`;
+                    }).join('')}
                 </div>
             </div>
         `);
@@ -3289,7 +3298,7 @@ class TournamentApp {
         container.innerHTML = `
             ${seedsSummaryHtml}
             <div class="bracket-tree-scroll">
-                <div class="bracket-tree" style="--rounds: ${rounds.length};">
+                <div class="bracket-tree" style="--rounds: ${visibleRounds.length};">
                     ${columnsHtml.join('')}
                 </div>
             </div>
