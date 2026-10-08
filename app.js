@@ -886,7 +886,7 @@ class TournamentApp {
 
         const users = this.getAllUsers();
         if (users.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b; padding:16px;">אין משתמשים במערכת.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#6b5b45; padding:16px;">אין משתמשים במערכת.</td></tr>`;
             return;
         }
 
@@ -897,7 +897,7 @@ class TournamentApp {
             } else if (u.role === 'admin') {
                 roleBadge = `<span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">⚡ מנהל (Admin)</span>`;
             } else {
-                roleBadge = `<span style="background:#f1f5f9; color:#475569; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">👁️ צופה (Viewer)</span>`;
+                roleBadge = `<span style="background:#ede2cf; color:#57493a; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">👁️ צופה (Viewer)</span>`;
             }
 
             const isOwnerUser = u.email === this.OWNER_EMAIL.toLowerCase();
@@ -929,11 +929,11 @@ class TournamentApp {
 
             return `
                 <tr>
-                    <td style="font-weight:700; color:#0f172a;">${u.name}</td>
-                    <td style="direction:ltr; text-align:right; font-family:monospace; color:#334155;">${u.email}</td>
+                    <td style="font-weight:700; color:#271e16;">${u.name}</td>
+                    <td style="direction:ltr; text-align:right; font-family:monospace; color:#4a3c2e;">${u.email}</td>
                     <td>${roleBadge}</td>
-                    <td style="font-size:0.85rem; color:#64748b;">${u.provider === 'google' ? 'Google OAuth' : 'דוא"ל וסיסמה'}</td>
-                    <td style="color:#64748b; font-size:0.85rem;">${u.registeredAt || '-'}</td>
+                    <td style="font-size:0.85rem; color:#6b5b45;">${u.provider === 'google' ? 'Google OAuth' : 'דוא"ל וסיסמה'}</td>
+                    <td style="color:#6b5b45; font-size:0.85rem;">${u.registeredAt || '-'}</td>
                     <td style="text-align:center;">${actionsHtml}</td>
                 </tr>
             `;
@@ -2395,7 +2395,7 @@ class TournamentApp {
                                 <td style="font-weight:700;">${t.name}</td>
                                 <td>${fmtBadge}</td>
                                 <td>${statusBadge}</td>
-                                <td style="color:#64748b; font-size:0.85rem;">${t.createdAt || '-'}</td>
+                                <td style="color:#6b5b45; font-size:0.85rem;">${t.createdAt || '-'}</td>
                                 <td style="text-align:center;">
                                     <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
                                         <button type="button" class="btn-secondary btn-sm" onclick="app.viewTournamentFromList('${t.id}')" title="מעבר לצפייה בטורניר ובמשחקים">
@@ -3082,7 +3082,7 @@ class TournamentApp {
                                             </td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
-                                            <td style="color:#475569; font-weight:700;">${t.draws || 0}</td>
+                                            <td style="color:#57493a; font-weight:700;">${t.draws || 0}</td>
                                             <td style="color:#dc2626;">${t.losses}</td>
                                             <td>${t.pointsFor}</td>
                                             <td>${t.pointsAgainst}</td>
@@ -3167,16 +3167,16 @@ class TournamentApp {
 
         const seedsSummaryHtml = (this.playoffSeeds && this.playoffSeeds.length > 0) ? `
             <div class="seed-summary-card">
-                <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#0f172a;">
+                <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#271e16;">
                     🎯 ${this.playoffSeeds.length} הקבוצות המדורגות בפלייאוף:
                 </div>
                 <div class="seed-grid">
                     ${this.playoffSeeds.map(s => `
                         <div class="seed-chip">
-                            <span style="font-weight: 700; color: #1e293b;">
+                            <span style="font-weight: 700; color: #382c21;">
                                 <span class="seed-badge">${s.seed}</span> ${s.teamName}
                             </span>
-                            <span style="font-size: 0.78rem; color: #64748b;">
+                            <span style="font-size: 0.78rem; color: #6b5b45;">
                                 ${s.origin || ''}
                             </span>
                         </div>

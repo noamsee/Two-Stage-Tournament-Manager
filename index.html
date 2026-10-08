@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=3.11">
+    <link rel="stylesheet" href="./style.css?v=3.12">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -246,8 +246,8 @@
                 <!-- הודעת נוקאאוט בלבד (מופיעה כשהטורניר אינו כולל בתים) -->
                 <div id="group-knockout-notice" class="card hidden" style="text-align: center; padding: 36px 16px; margin-bottom: 20px;">
                     <div style="font-size: 2.2rem; margin-bottom: 8px;">⚔️</div>
-                    <h3 style="margin-top: 0; color: #0f172a; font-size: 1.3rem;">טורניר נוקאאוט ישיר בלבד</h3>
-                    <p style="color: #64748b; max-width: 520px; margin: 0 auto 16px auto; line-height: 1.5;">
+                    <h3 style="margin-top: 0; color: #271e16; font-size: 1.3rem;">טורניר נוקאאוט ישיר בלבד</h3>
+                    <p style="color: #6b5b45; max-width: 520px; margin: 0 auto 16px auto; line-height: 1.5;">
                         טורניר זה הוגדר בשיטת פלייאוף ישיר (ללא שלב בתים). כל המשחקים, ההצלבות והתוצאות מנוהלים ישירות בעץ הפלייאוף!
                     </p>
                     <button class="btn-primary" onclick="app.switchTab('playoffs')">🌳 עבור ישירות לשלב הפלייאוף</button>
@@ -314,8 +314,8 @@
                 <!-- הודעת טורניר בתים בלבד (מופיעה כשהטורניר ללא פלייאוף) -->
                 <div id="playoff-groups-only-notice" class="card hidden" style="text-align: center; padding: 36px 16px; margin-bottom: 20px;">
                     <div style="font-size: 2.2rem; margin-bottom: 8px;">⚽🏆</div>
-                    <h3 style="margin-top: 0; color: #0f172a; font-size: 1.3rem;">טורניר שלב בתים בלבד (ללא פלייאוף)</h3>
-                    <p style="color: #64748b; max-width: 520px; margin: 0 auto 16px auto; line-height: 1.5;">
+                    <h3 style="margin-top: 0; color: #271e16; font-size: 1.3rem;">טורניר שלב בתים בלבד (ללא פלייאוף)</h3>
+                    <p style="color: #6b5b45; max-width: 520px; margin: 0 auto 16px auto; line-height: 1.5;">
                         טורניר זה הוגדר במתכונת שלב בתים בלבד (ללא שלב נוקאאוט). האלופה של כל בית מוכרזת ישירות בטבלת הדירוג על פי נקודות והפרש שערים/סלים!
                     </p>
                     <button class="btn-primary" onclick="app.switchTab('group-stage')">⚽ עבור לטבלאות שלב הבתים</button>
@@ -354,7 +354,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
                             <div>
                                 <h3 style="margin: 0;">👥 ניהול משתמשים והרשאות (Users Management)</h3>
-                                <p style="font-size:0.9rem; color:#64748b; margin: 4px 0 0 0;">
+                                <p style="font-size:0.9rem; color:#6b5b45; margin: 4px 0 0 0;">
                                     צפייה בכל המשתמשים, הוספת משתמשים חדשים, עריכת פרטים (שם, סיסמה, הרשאה), איפוס סיסמאות ומחיקה:
                                 </p>
                             </div>
@@ -381,12 +381,12 @@
                         </div>
                     </div>
 
-                    <hr style="border:none; border-top:1px solid #e2e8f0; margin: 30px 0;">
+                    <hr style="border:none; border-top:1px solid #d9c9ae; margin: 30px 0;">
 
                     <!-- חלק 2: ניהול טורנירים וסגירת טורניר -->
                     <div class="tournament-management-box">
                         <h3>🏆 ניהול טורנירים וסגירת טורניר</h3>
-                        <p style="font-size:0.9rem; color:#64748b;">
+                        <p style="font-size:0.9rem; color:#6b5b45;">
                             באפשרותך להקים טורניר חדש באשף הטורניר, לסגור או לפתוח טורנירים, ולמחוק טורנירים לצמיתות (ההרשאה למחיקה שמורה ל-Owner בלבד):
                         </p>
                         
@@ -402,12 +402,12 @@
                         </div>
                     </div>
 
-                    <hr style="border:none; border-top:1px solid #e2e8f0; margin: 30px 0;">
+                    <hr style="border:none; border-top:1px solid #d9c9ae; margin: 30px 0;">
 
                     <!-- חלק 3: פעולות קריטיות -->
                     <div>
                         <h3 style="color:#dc2626;">⚠️ פעולות קריטיות</h3>
-                        <p style="font-size:0.9rem; color:#64748b;">איפוס כולל ימחק את תוצאות המשחקים ויאתחל את הטורניר למצב התחלתי.</p>
+                        <p style="font-size:0.9rem; color:#6b5b45;">איפוס כולל ימחק את תוצאות המשחקים ויאתחל את הטורניר למצב התחלתי.</p>
                         <button class="btn-danger" onclick="app.hardReset()">⚠️ אפס טורניר לחלוטין (Hard Reset)</button>
                     </div>
                 </div>
@@ -419,15 +419,15 @@
     <div id="github-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button class="modal-close-btn" onclick="app.closeGitHubModal()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 📦 ייצוא הפרויקט ל-GitHub
             </h2>
-            <p style="color:#475569; font-size:0.95rem; margin-bottom: 12px;">
+            <p style="color:#57493a; font-size:0.95rem; margin-bottom: 12px;">
                 קובץ <strong>README.md</strong> מעודכן נוצר והורד למחשבך עם כל נתוני הקבוצות, תוצאות המשחקים וטבלאות הדירוג בזמן אמת!
             </p>
-            <hr style="border:none; border-top:1px solid #e2e8f0; margin:16px 0;">
-            <h3 style="font-size:1.05rem; color:#0f172a; margin-bottom:8px;">🚀 פקודות Git להעלאה למאגר חדש ב-GitHub:</h3>
-            <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">
+            <hr style="border:none; border-top:1px solid #d9c9ae; margin:16px 0;">
+            <h3 style="font-size:1.05rem; color:#271e16; margin-bottom:8px;">🚀 פקודות Git להעלאה למאגר חדש ב-GitHub:</h3>
+            <p style="font-size:0.85rem; color:#6b5b45; margin-bottom:10px;">
                 פתח טרמינל בתיקיית הפרויקט במחשב והרץ את הרצף הבא (החלף את הכתובת בכתובת המאגר שלך):
             </p>
             <div class="code-block-wrap">
@@ -449,13 +449,13 @@ git push -u origin main</pre>
     <div id="profile-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button class="modal-close-btn" onclick="app.closeProfileModal()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 ⚙️ עריכת פרטים אישיים וסיסמה
             </h2>
             <form onsubmit="event.preventDefault(); app.saveProfileChanges();">
                 <div class="login-field" style="margin-top:16px;">
                     <label for="profileEmailDisplay">📧 אימייל משתמש (לקריאה בלבד):</label>
-                    <input type="email" id="profileEmailDisplay" class="login-input" disabled style="background:#f1f5f9; cursor:not-allowed;">
+                    <input type="email" id="profileEmailDisplay" class="login-input" disabled style="background:#ede2cf; cursor:not-allowed;">
                 </div>
                 <div class="login-field">
                     <label for="profileNameInput">👤 שם תצוגה מלא:</label>
@@ -481,7 +481,7 @@ git push -u origin main</pre>
     <div id="add-user-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button class="modal-close-btn" onclick="app.closeAddUserModal()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 ➕ הוספת משתמש חדש למערכת
             </h2>
             <form onsubmit="event.preventDefault(); app.submitAddUser();">
@@ -503,7 +503,7 @@ git push -u origin main</pre>
                 <div class="login-field">
                     <label for="newUserPasswordInput">🔒 סיסמה ראשונית:</label>
                     <input type="text" id="newUserPasswordInput" class="login-input" value="1234" required placeholder="סיסמה (ברירת מחדל: 1234)">
-                    <small style="color:#64748b; font-size:0.8rem;">המשתמש יוכל לשנות את הסיסמה הזו לאחר שיתחבר.</small>
+                    <small style="color:#6b5b45; font-size:0.8rem;">המשתמש יוכל לשנות את הסיסמה הזו לאחר שיתחבר.</small>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
                     <button type="submit" class="btn-primary">➕ צור משתמש</button>
@@ -517,10 +517,10 @@ git push -u origin main</pre>
     <div id="reset-password-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button class="modal-close-btn" onclick="app.closeResetPasswordModal()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 🔑 איפוס סיסמה למשתמש
             </h2>
-            <p style="font-size:0.9rem; color:#64748b; margin-bottom:12px;">
+            <p style="font-size:0.9rem; color:#6b5b45; margin-bottom:12px;">
                 איפוס סיסמה עבור: <strong id="resetPasswordUserEmailDisplay" style="direction:ltr; display:inline-block;"></strong>
             </p>
             <form onsubmit="event.preventDefault(); app.submitResetPassword();">
@@ -541,14 +541,14 @@ git push -u origin main</pre>
     <div id="edit-user-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button class="modal-close-btn" onclick="app.closeEditUserModal()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 ✏️ עריכת פרטי משתמש
             </h2>
             <form onsubmit="event.preventDefault(); app.submitEditUser();">
                 <input type="hidden" id="editUserOriginalEmail">
                 <div class="login-field" style="margin-top:16px;">
                     <label for="editUserEmailDisplay">📧 כתובת אימייל (לקריאה בלבד):</label>
-                    <input type="email" id="editUserEmailDisplay" class="login-input" disabled style="background:#f1f5f9; cursor:not-allowed;">
+                    <input type="email" id="editUserEmailDisplay" class="login-input" disabled style="background:#ede2cf; cursor:not-allowed;">
                 </div>
                 <div class="login-field">
                     <label for="editUserNameInput">👤 שם משתמש / שם תצוגה מלא:</label>
@@ -561,7 +561,7 @@ git push -u origin main</pre>
                         <option value="admin">⚡ מנהל מורשה (Admin - עריכת תוצאות)</option>
                         <option value="viewer">👁️ צופה בלבד (Viewer - צפייה בלבד)</option>
                     </select>
-                    <small id="editUserRoleNote" style="color:#64748b; font-size:0.8rem; margin-top:4px; display:block;"></small>
+                    <small id="editUserRoleNote" style="color:#6b5b45; font-size:0.8rem; margin-top:4px; display:block;"></small>
                 </div>
                 <div class="login-field">
                     <label for="editUserPasswordInput">🔒 סיסמה:</label>
@@ -579,10 +579,10 @@ git push -u origin main</pre>
     <div id="new-tournament-wizard-modal" class="modal-overlay hidden">
         <div class="modal-card wizard-modal-card">
             <button class="modal-close-btn" onclick="app.closeTournamentWizard()">✕</button>
-            <h2 id="wizardModalTitle" style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 id="wizardModalTitle" style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 ✨ אשף הקמת טורניר חדש
             </h2>
-            <p id="wizardModalSubtitle" style="font-size:0.9rem; color:#64748b; margin-bottom:14px;">
+            <p id="wizardModalSubtitle" style="font-size:0.9rem; color:#6b5b45; margin-bottom:14px;">
                 הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר, עם שליטה מלאה על שיטת הניקוד והדירוג.
             </p>
 
@@ -709,10 +709,10 @@ git push -u origin main</pre>
     <div id="guest-preferences-modal" class="modal-overlay hidden">
         <div class="modal-card" style="max-width: 520px;">
             <button class="modal-close-btn" onclick="app.closeGuestPreferencesModal()">✕</button>
-            <h2 style="margin-top:0; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
                 ⭐ התאמת צפייה בטורניר
             </h2>
-            <p style="color:#64748b; font-size:0.9rem; margin-top:-4px; margin-bottom:18px;">
+            <p style="color:#6b5b45; font-size:0.9rem; margin-top:-4px; margin-bottom:18px;">
                 ברוך הבא! בחר את הטורניר, הבית והקבוצה שברצונך לעקוב אחריהם. טבלת הבית ומשחקי הקבוצה שלך יוצגו בראש העמוד:
             </p>
 
@@ -751,7 +751,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=3.11"></script>
+    <script src="./app.js?v=3.12"></script>
 </body>
 </html>
 

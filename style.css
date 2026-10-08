@@ -1,19 +1,19 @@
 :root {
-    --primary-color: #334155; /* Slate 700 - Silver Minimal */
-    --primary-dark: #1e293b;  /* Slate 800 */
+    --primary-color: #4a3c2e; /* Dark warm brown - Soft Beige theme */
+    --primary-dark: #382c21;  /* Deep brown */
     --primary-accent: #2563eb;
     --success-color: #059669;
     --success-dark: #047857;
     --danger-color: #dc2626;
     --warning-color: #d97706;
-    --bg-light: #f8fafc;
-    --card-bg: #ffffff;
-    --text-main: #0f172a;
-    --text-muted: #64748b;
-    --border-color: #e2e8f0;
-    --border-light: #f1f5f9;
-    --input-bg: #f8fafc;
-    --neutral-grey: #f1f5f9;
+    --bg-light: #e8dcc8;
+    --card-bg: #fffdf8;
+    --text-main: #271e16;
+    --text-muted: #6b5b45;
+    --border-color: #d9c9ae;
+    --border-light: #ede2cf;
+    --input-bg: #f4ebdc;
+    --neutral-grey: #ede2cf;
     --winner-bg: #bbf7d0; /* Clear, saturated winner highlight */
     --qualify-bg: #bbf7d0;
     --candidate-bg: #fde68a;
@@ -94,7 +94,7 @@ header h1 {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 800;
-    color: #0f172a;
+    color: #271e16;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -105,7 +105,7 @@ header h1 {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #ffffff;
+    background: #fffdf8;
     padding: 6px 12px;
     border-radius: 10px;
     border: 1px solid var(--border-color);
@@ -123,8 +123,8 @@ header h1 {
     font-size: 0.92rem;
     font-weight: 700;
     border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    background-color: #f8fafc;
+    border: 1px solid #c4b08f;
+    background-color: #f4ebdc;
     color: var(--text-main);
     cursor: pointer;
 }
@@ -132,13 +132,13 @@ header h1 {
 /* שורת טאבים (1A Segmented Pill Switcher) */
 .tabs {
     display: inline-flex;
-    background: #e2e8f0;
+    background: #d9c9ae;
     padding: 4px;
     border-radius: 14px;
     gap: 4px;
     margin-bottom: 20px;
     overflow-x: auto;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
 }
 
 .tab-btn {
@@ -149,7 +149,7 @@ header h1 {
     border: 1px solid transparent;
     border-radius: 10px;
     cursor: pointer;
-    color: #64748b;
+    color: #6b5b45;
     transition: all 0.18s ease;
     white-space: nowrap;
     display: inline-flex;
@@ -158,14 +158,14 @@ header h1 {
 }
 
 .tab-btn:hover:not(.active) {
-    color: #0f172a;
+    color: #271e16;
     background: rgba(255, 255, 255, 0.4);
 }
 
 .tab-btn.active {
-    background: #ffffff;
-    color: #0f172a;
-    border: 1px solid #cbd5e1;
+    background: #fffdf8;
+    color: #271e16;
+    border: 1px solid #c4b08f;
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
@@ -175,7 +175,7 @@ header h1 {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    background: #ffffff;
+    background: #fffdf8;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 8px 12px;
@@ -241,7 +241,7 @@ header h1 {
     margin-top: 0;
     margin-bottom: 12px;
     font-size: 1.35rem;
-    color: #0f172a;
+    color: #271e16;
 }
 
 .section-subtitle {
@@ -268,7 +268,7 @@ header h1 {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    background: #f8fafc;
+    background: #f4ebdc;
     padding: 12px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
@@ -277,17 +277,17 @@ header h1 {
 .team-input-group label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #475569;
+    color: #57493a;
 }
 
 .team-input-group input {
     padding: 8px 10px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
     border-radius: 6px;
     background-color: var(--input-bg);
     font-size: 0.95rem;
     font-weight: 600;
-    color: #0f172a;
+    color: #271e16;
     transition: border-color 0.2s;
 }
 
@@ -313,29 +313,29 @@ header h1 {
 }
 
 .btn-primary {
-    background: #334155;
-    color: #ffffff;
-    border-color: #1e293b;
+    background: #4a3c2e;
+    color: #fffdf8;
+    border-color: #382c21;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .btn-primary:hover {
-    background: #1e293b;
-    border-color: #0f172a;
+    background: #382c21;
+    border-color: #271e16;
     box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
 }
 
 .btn-secondary {
-    background: #ffffff;
-    color: #334155;
-    border: 1px solid #e2e8f0;
+    background: #fffdf8;
+    color: #4a3c2e;
+    border: 1px solid #d9c9ae;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .btn-secondary:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #0f172a;
+    background: #f4ebdc;
+    border-color: #c4b08f;
+    color: #271e16;
 }
 
 .btn-success {
@@ -363,9 +363,9 @@ header h1 {
 }
 
 .btn-csv {
-    background: #ffffff;
+    background: #fffdf8;
     color: #065f46;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
@@ -375,15 +375,15 @@ header h1 {
 }
 
 .btn-profile {
-    background: #ffffff;
-    color: #334155;
-    border: 1px solid #e2e8f0;
+    background: #fffdf8;
+    color: #4a3c2e;
+    border: 1px solid #d9c9ae;
 }
 
 .btn-profile:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #0f172a;
+    background: #f4ebdc;
+    border-color: #c4b08f;
+    color: #271e16;
 }
 
 .btn-sm {
@@ -412,7 +412,7 @@ header h1 {
     font-weight: 800;
     margin-top: 0;
     margin-bottom: 14px;
-    color: #0f172a;
+    color: #271e16;
     letter-spacing: -0.01em;
 }
 
@@ -434,7 +434,7 @@ header h1 {
     gap: 6px;
     font-size: 0.82rem;
     font-weight: 700;
-    color: #64748b;
+    color: #6b5b45;
     white-space: nowrap;
 }
 
@@ -445,21 +445,21 @@ header h1 {
     font-family: inherit;
     font-size: 0.86rem;
     font-weight: 700;
-    color: #0f172a;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
+    color: #271e16;
+    background: #fffdf8;
+    border: 1px solid #c4b08f;
     border-radius: 8px;
     cursor: pointer;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .filter-select:hover {
-    border-color: #94a3b8;
+    border-color: #a08c6c;
 }
 
 .filter-select:focus {
     outline: none;
-    border-color: #64748b;
+    border-color: #6b5b45;
     box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
 }
 
@@ -483,12 +483,12 @@ header h1 {
 
 .match-card:hover {
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-    border-color: #cbd5e1;
+    border-color: #c4b08f;
 }
 
 .match-header {
-    background: #f8fafc;
-    color: #334155;
+    background: #f4ebdc;
+    color: #4a3c2e;
     text-align: center;
     padding: 8px 12px;
     font-weight: 700;
@@ -500,13 +500,13 @@ header h1 {
 }
 
 .match-badge {
-    background: #e2e8f0;
-    color: #475569;
+    background: #d9c9ae;
+    color: #57493a;
     font-size: 0.74rem;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 6px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
 }
 
 .match-team-row {
@@ -514,7 +514,7 @@ header h1 {
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid #ede2cf;
     transition: background-color 0.18s;
 }
 
@@ -525,7 +525,7 @@ header h1 {
 .match-team-row .team-name {
     font-weight: 700;
     font-size: 0.92rem;
-    color: #1e293b;
+    color: #382c21;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -551,25 +551,25 @@ header h1 {
     height: 36px;
     text-align: center;
     padding: 4px;
-    background-color: #f8fafc;
-    border: 1px solid #cbd5e1;
+    background-color: #f4ebdc;
+    border: 1px solid #c4b08f;
     border-radius: 8px;
     font-weight: 800;
     font-size: 1.05rem;
-    color: #0f172a;
+    color: #271e16;
     transition: all 0.18s ease;
 }
 
 .match-team-row input.score-input:focus {
     outline: none;
-    border-color: #64748b;
+    border-color: #6b5b45;
     box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2);
-    background-color: #ffffff;
+    background-color: #fffdf8;
 }
 
 /* טבלאות דירוג (Standings - 1A Silver Styling) */
 .standings-group-card {
-    background: #ffffff;
+    background: #fffdf8;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     margin-bottom: 20px;
@@ -578,8 +578,8 @@ header h1 {
 }
 
 .standings-group-header {
-    background: #f8fafc;
-    color: #1e293b;
+    background: #f4ebdc;
+    color: #382c21;
     border-bottom: 1px solid var(--border-color);
     padding: 10px 14px;
     font-size: 0.92rem;
@@ -601,25 +601,25 @@ header h1 {
 }
 
 .standings-table th {
-    background: #f1f5f9;
-    color: #475569;
+    background: #ede2cf;
+    color: #57493a;
     font-weight: 700;
     padding: 8px 6px;
     font-size: 0.8rem;
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #c4b08f;
 }
 
 .standings-table td {
     padding: 8px 6px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #334155;
+    border-bottom: 1px solid #d9c9ae;
+    color: #4a3c2e;
     font-weight: 600;
 }
 
 .standings-table td.team-cell {
     text-align: right;
     font-weight: 700;
-    color: #0f172a;
+    color: #271e16;
     padding-right: 10px;
 }
 
@@ -658,8 +658,8 @@ header h1 {
 }
 
 .rank-out {
-    background: #cbd5e1;
-    color: #475569;
+    background: #c4b08f;
+    color: #57493a;
 }
 
 .diff-positive {
@@ -673,7 +673,7 @@ header h1 {
 }
 
 .diff-zero {
-    color: #64748b;
+    color: #6b5b45;
 }
 
 .standings-legend {
@@ -683,7 +683,7 @@ header h1 {
     font-size: 0.8rem;
     margin-top: 10px;
     margin-bottom: 16px;
-    color: #475569;
+    color: #57493a;
 }
 
 .legend-item {
@@ -705,7 +705,7 @@ header h1 {
 }
 
 .seed-summary-card {
-    background: #f8fafc;
+    background: #f4ebdc;
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 16px;
@@ -726,12 +726,12 @@ header h1 {
     padding: 8px 12px;
     background: white;
     border-radius: 8px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
     font-size: 0.88rem;
 }
 
 .seed-badge {
-    background: #0f172a;
+    background: #271e16;
     color: white;
     font-weight: 800;
     padding: 2px 8px;
@@ -749,7 +749,7 @@ header h1 {
 
 .bracket-tree {
     --bracket-gap: 18px;
-    --bracket-line: #94a3b8;
+    --bracket-line: #a08c6c;
     display: flex;
     align-items: stretch;
     max-width: calc(var(--rounds, 3) * 340px);
@@ -819,8 +819,8 @@ header h1 {
 }
 
 .round-header {
-    background: #f8fafc;
-    color: #1e293b;
+    background: #f4ebdc;
+    color: #382c21;
     border: 1px solid var(--border-color);
     padding: 10px;
     text-align: center;
@@ -843,7 +843,7 @@ header h1 {
 
 .playoff-match-card:hover {
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-    border-color: #cbd5e1;
+    border-color: #c4b08f;
 }
 
 .playoff-match-card.is-final {
@@ -916,9 +916,9 @@ body.role-admin .tab-btn.owner-only {
     font-style: italic; 
     text-align: center; 
     padding: 24px;
-    background: #f8fafc;
+    background: #f4ebdc;
     border-radius: 8px;
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed #c4b08f;
 }
 
 /* Modal for GitHub Export Guide */
@@ -954,7 +954,7 @@ body.role-admin .tab-btn.owner-only {
     position: absolute;
     top: 18px;
     left: 18px;
-    background: #f1f5f9;
+    background: #ede2cf;
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
@@ -964,13 +964,13 @@ body.role-admin .tab-btn.owner-only {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: #57493a;
     transition: all 0.2s;
 }
 
 .modal-close-btn:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: #d9c9ae;
+    color: #271e16;
 }
 
 .code-block-wrap {
@@ -979,7 +979,7 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .code-block {
-    background: #0f172a;
+    background: #271e16;
     color: #38bdf8;
     padding: 16px;
     border-radius: 8px;
@@ -995,7 +995,7 @@ body.role-admin .tab-btn.owner-only {
 
 .btn-github {
     background: #24292f;
-    color: #ffffff;
+    color: #fffdf8;
     font-weight: 700;
     padding: 8px 14px;
     border-radius: 8px;
@@ -1009,12 +1009,12 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .btn-github:hover {
-    background: #0f172a;
+    background: #271e16;
 }
 
 .btn-csv {
     background: #107c41;
-    color: #ffffff;
+    color: #fffdf8;
     font-weight: 700;
     padding: 8px 14px;
     border-radius: 8px;
@@ -1044,7 +1044,7 @@ body.role-admin .tab-btn.owner-only {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: #f8fafc;
+    background: var(--bg-light);
 }
 
 .login-card {
@@ -1062,9 +1062,9 @@ body.role-admin .tab-btn.owner-only {
     width: 52px;
     height: 52px;
     margin: 0 auto 14px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    color: #1e293b;
+    background: #ede2cf;
+    border: 1px solid #d9c9ae;
+    color: #382c21;
     border-radius: 14px;
     display: flex;
     align-items: center;
@@ -1076,7 +1076,7 @@ body.role-admin .tab-btn.owner-only {
 .login-card h1 {
     font-size: 1.45rem;
     font-weight: 800;
-    color: #0f172a;
+    color: #271e16;
     margin: 0 0 6px;
     letter-spacing: -0.01em;
 }
@@ -1103,16 +1103,16 @@ body.role-admin .tab-btn.owner-only {
 .login-field label {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #475569;
+    color: #57493a;
 }
 
 .login-input {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
     border-radius: 10px;
     font-size: 0.95rem;
-    background-color: #f8fafc;
+    background-color: #f4ebdc;
     color: var(--text-main);
     transition: all 0.18s ease;
     direction: ltr;
@@ -1121,19 +1121,19 @@ body.role-admin .tab-btn.owner-only {
 
 .login-input:focus {
     outline: none;
-    border-color: #64748b;
-    background-color: #ffffff;
+    border-color: #6b5b45;
+    background-color: #fffdf8;
     box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15);
 }
 
 .login-tournament-select {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
     border-radius: 10px;
     font-size: 0.92rem;
     font-weight: 600;
-    background-color: #f8fafc;
+    background-color: #f4ebdc;
     color: var(--text-main);
     cursor: pointer;
 }
@@ -1143,9 +1143,9 @@ body.role-admin .tab-btn.owner-only {
     padding: 11px;
     font-size: 0.98rem;
     font-weight: 700;
-    background: #334155;
-    color: #ffffff;
-    border: 1px solid #1e293b;
+    background: #4a3c2e;
+    color: #fffdf8;
+    border: 1px solid #382c21;
     border-radius: 10px;
     cursor: pointer;
     transition: background 0.18s, transform 0.1s;
@@ -1153,7 +1153,7 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .login-btn-primary:hover {
-    background: #1e293b;
+    background: #382c21;
 }
 
 .login-btn-guest {
@@ -1161,29 +1161,29 @@ body.role-admin .tab-btn.owner-only {
     padding: 10px;
     font-size: 0.9rem;
     font-weight: 600;
-    background: #ffffff;
-    color: #475569;
-    border: 1px solid #e2e8f0;
+    background: #fffdf8;
+    color: #57493a;
+    border: 1px solid #d9c9ae;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.18s ease;
 }
 
 .login-btn-guest:hover {
-    background: #f8fafc;
-    color: #0f172a;
-    border-color: #cbd5e1;
+    background: #f4ebdc;
+    color: #271e16;
+    border-color: #c4b08f;
 }
 
 /* לשוניות מעבר: כניסה / הרשמה (Auth Tabs - 1A Pill Switcher) */
 .auth-tabs {
     display: flex;
-    background: #f1f5f9;
+    background: #ede2cf;
     border-radius: 12px;
     padding: 4px;
     margin-bottom: 20px;
     gap: 4px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d9c9ae;
 }
 
 .auth-tab {
@@ -1192,7 +1192,7 @@ body.role-admin .tab-btn.owner-only {
     border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
-    color: #64748b;
+    color: #6b5b45;
     font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
@@ -1200,14 +1200,14 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .auth-tab.active {
-    background: #ffffff;
-    color: #0f172a;
-    border-color: #cbd5e1;
+    background: #fffdf8;
+    color: #271e16;
+    border-color: #c4b08f;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .auth-tab:hover:not(.active) {
-    color: #1e293b;
+    color: #382c21;
     background: rgba(255, 255, 255, 0.5);
 }
 
@@ -1223,7 +1223,7 @@ body.role-admin .tab-btn.owner-only {
     justify-content: center;
     gap: 12px;
     padding: 12px 16px;
-    background: #ffffff;
+    background: #fffdf8;
     color: #3c4043;
     border: 1px solid #dadce0;
     border-radius: 8px;
@@ -1236,14 +1236,14 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .btn-google-auth:hover {
-    background: #f8fafc;
+    background: #f4ebdc;
     border-color: #c2c7d0;
     box-shadow: 0 2px 6px rgba(60, 64, 67, 0.15);
     transform: translateY(-1px);
 }
 
 .btn-google-auth:active {
-    background: #f1f5f9;
+    background: #ede2cf;
     transform: translateY(0);
 }
 
@@ -1257,7 +1257,7 @@ body.role-admin .tab-btn.owner-only {
     align-items: center;
     margin: 16px 0 20px;
     text-align: center;
-    color: #94a3b8;
+    color: #a08c6c;
     font-size: 0.82rem;
     font-weight: 600;
 }
@@ -1266,7 +1266,7 @@ body.role-admin .tab-btn.owner-only {
 .auth-divider::after {
     content: "";
     flex: 1;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #d9c9ae;
 }
 
 .auth-divider span {
@@ -1275,7 +1275,7 @@ body.role-admin .tab-btn.owner-only {
 
 .auth-switch-note {
     font-size: 0.86rem;
-    color: #64748b;
+    color: #6b5b45;
     margin-top: 14px;
     text-align: center;
 }
@@ -1317,14 +1317,14 @@ body.role-admin .tab-btn.owner-only {
 
 .google-modal-header h2 {
     font-size: 1.35rem;
-    color: #0f172a;
+    color: #271e16;
     margin: 0 0 6px;
     font-weight: 800;
 }
 
 .google-modal-sub {
     font-size: 0.9rem;
-    color: #64748b;
+    color: #6b5b45;
     margin: 0;
     line-height: 1.5;
 }
@@ -1341,16 +1341,16 @@ body.role-admin .tab-btn.owner-only {
     align-items: center;
     gap: 14px;
     padding: 12px 14px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d9c9ae;
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: #ffffff;
+    background: #fffdf8;
     text-align: right;
 }
 
 .google-account-item:hover {
-    background: #f8fafc;
+    background: #f4ebdc;
     border-color: #2563eb;
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
     transform: translateY(-1px);
@@ -1375,8 +1375,8 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .google-avatar-other {
-    background: #e2e8f0;
-    color: #475569;
+    background: #d9c9ae;
+    color: #57493a;
 }
 
 .google-account-info {
@@ -1387,7 +1387,7 @@ body.role-admin .tab-btn.owner-only {
 .google-account-name {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #271e16;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1405,13 +1405,13 @@ body.role-admin .tab-btn.owner-only {
 
 .google-account-email {
     font-size: 0.82rem;
-    color: #64748b;
+    color: #6b5b45;
     direction: ltr;
     text-align: right;
 }
 
 .google-account-arrow {
-    color: #94a3b8;
+    color: #a08c6c;
     font-size: 1.1rem;
     transition: transform 0.2s;
 }
@@ -1424,8 +1424,8 @@ body.role-admin .tab-btn.owner-only {
 .custom-google-box {
     margin-top: 10px;
     padding: 12px;
-    background: #f8fafc;
-    border: 1px dashed #cbd5e1;
+    background: #f4ebdc;
+    border: 1px dashed #c4b08f;
     border-radius: 10px;
     text-align: right;
 }
@@ -1433,18 +1433,18 @@ body.role-admin .tab-btn.owner-only {
 .custom-google-box label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #334155;
+    color: #4a3c2e;
 }
 
 .google-modal-footer {
     padding-top: 12px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid #ede2cf;
 }
 
 .google-modal-footer p {
     margin: 0;
     font-size: 0.78rem;
-    color: #64748b;
+    color: #6b5b45;
     line-height: 1.4;
 }
 
@@ -1452,16 +1452,16 @@ body.role-admin .tab-btn.owner-only {
     margin-top: 24px;
     padding: 14px;
     border-radius: 10px;
-    background: #f8fafc;
-    border: 1px dashed #cbd5e1;
+    background: #f4ebdc;
+    border: 1px dashed #c4b08f;
     font-size: 0.8rem;
-    color: #64748b;
+    color: #6b5b45;
     text-align: right;
     line-height: 1.6;
 }
 
 .login-role-guide strong {
-    color: #1e293b;
+    color: #382c21;
 }
 
 /* ===================================================
@@ -1497,26 +1497,26 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .user-badge-viewer {
-    background: #f8fafc;
-    color: #475569;
-    border: 1px solid #cbd5e1;
+    background: #f4ebdc;
+    color: #57493a;
+    border: 1px solid #c4b08f;
 }
 
 .tournament-select-wrap {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #ffffff;
+    background: #fffdf8;
     padding: 4px 10px;
     border-radius: 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d9c9ae;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .tournament-select-wrap label {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #64748b;
+    color: #6b5b45;
 }
 
 .tournament-select-wrap select {
@@ -1524,7 +1524,7 @@ body.role-admin .tab-btn.owner-only {
     background: transparent;
     font-weight: 700;
     font-size: 0.88rem;
-    color: #0f172a;
+    color: #271e16;
     cursor: pointer;
     outline: none;
 }
@@ -1533,7 +1533,7 @@ body.role-admin .tab-btn.owner-only {
     padding: 6px 12px;
     font-size: 0.84rem;
     font-weight: 600;
-    background: #ffffff;
+    background: #fffdf8;
     color: #dc2626;
     border: 1px solid #fecaca;
     border-radius: 10px;
@@ -1579,7 +1579,7 @@ body.role-admin .tab-btn.owner-only {
     flex: 1;
     min-width: 250px;
     padding: 10px 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #c4b08f;
     border-radius: 8px;
     font-size: 0.95rem;
     direction: ltr;
@@ -1593,17 +1593,17 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .admins-table th {
-    background: #f8fafc;
+    background: #f4ebdc;
     padding: 10px;
     text-align: right;
     font-size: 0.85rem;
-    color: #475569;
-    border-bottom: 2px solid #e2e8f0;
+    color: #57493a;
+    border-bottom: 2px solid #d9c9ae;
 }
 
 .admins-table td {
     padding: 10px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #d9c9ae;
     font-size: 0.9rem;
 }
 
@@ -1638,11 +1638,11 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .wizard-format-card {
-    border: 2px solid #cbd5e1;
+    border: 2px solid #c4b08f;
     border-radius: 12px;
     padding: 14px 10px;
     cursor: pointer;
-    background: #ffffff;
+    background: #fffdf8;
     transition: all 0.2s ease;
     text-align: center;
     position: relative;
@@ -1661,7 +1661,7 @@ body.role-admin .tab-btn.owner-only {
 
 .wizard-format-card:hover {
     border-color: #3b82f6;
-    background: #f8fafc;
+    background: #f4ebdc;
 }
 
 .wizard-format-card.active {
@@ -1678,19 +1678,19 @@ body.role-admin .tab-btn.owner-only {
 .wizard-card-title {
     font-weight: 800;
     font-size: 0.95rem;
-    color: #0f172a;
+    color: #271e16;
     margin-bottom: 4px;
 }
 
 .wizard-card-desc {
     font-size: 0.8rem;
-    color: #64748b;
+    color: #6b5b45;
     line-height: 1.4;
 }
 
 .wizard-settings-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: #f4ebdc;
+    border: 1px solid #d9c9ae;
     border-radius: 12px;
     padding: 14px;
     margin-top: 14px;
@@ -1742,7 +1742,7 @@ body.role-admin .tab-btn.owner-only {
     align-items: center;
     justify-content: center;
     background: #2563eb;
-    color: #ffffff;
+    color: #fffdf8;
     font-weight: 800;
     font-size: 0.8rem;
     min-width: 28px;
@@ -1755,8 +1755,8 @@ body.role-admin .tab-btn.owner-only {
 
 /* תוצאת תיקו במשחק */
 .match-team-row.draw-match {
-    background-color: #e2e8f0 !important;
-    border-right: 4px solid #64748b;
+    background-color: #d9c9ae !important;
+    border-right: 4px solid #6b5b45;
 }
 
 .match-team-row.draw-match .team-name::after {
@@ -1781,7 +1781,7 @@ body.role-admin .tab-btn.owner-only {
 /* אלופת הבית (טורניר בתים בלבד) */
 .rank-champion {
     background: #eab308;
-    color: #ffffff;
+    color: #fffdf8;
     box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
 }
 
@@ -1817,12 +1817,12 @@ body:not(.role-viewer) .guest-only-btn {
     min-width: 44px;
     height: 36px;
     padding: 0 6px;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    background: #ede2cf;
+    border: 1px solid #c4b08f;
     border-radius: 6px;
     font-weight: 800;
     font-size: 1.1rem;
-    color: #0f172a;
+    color: #271e16;
 }
 
 .match-team-row.winner .score-display-viewer {
@@ -1835,7 +1835,7 @@ body:not(.role-viewer) .guest-only-btn {
    מעקב אישי: באנר עליון, הדגשת קבוצה ובלוק משחקים מועדף (Concept 1A)
    ========================================================================== */
 .guest-followed-banner {
-    background: #ffffff;
+    background: #fffdf8;
     border: 1px solid #bfdbfe;
     border-radius: 12px;
     padding: 12px 18px;
@@ -1878,7 +1878,7 @@ body:not(.role-viewer) .guest-only-btn {
 }
 
 .followed-matches-container {
-    background: #ffffff;
+    background: #fffdf8;
     border: 1px solid #bbf7d0;
     border-radius: 12px;
     padding: 16px;
@@ -1899,10 +1899,10 @@ body:not(.role-viewer) .guest-only-btn {
 .all-matches-divider {
     font-size: 1.05rem;
     font-weight: 800;
-    color: #0f172a;
+    color: #271e16;
     margin: 22px 0 12px 0;
     padding-bottom: 8px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #d9c9ae;
     display: flex;
     align-items: center;
     gap: 8px;
