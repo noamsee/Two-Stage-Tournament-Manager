@@ -89,6 +89,11 @@ class TournamentApp {
         this.currentFilter = 'all';
         this.alertTimeout = null;
 
+        // מצב תצוגה מותאם למובייל - שלבי פלייאוף וטבלאות דירוג (בהשראת Challonge)
+        this.selectedBracketRound = 0;
+        this.bracketViewMode = 'single'; // 'single' (נוח למובייל ללא גלילה אופקית) או 'all' (עץ מלא בגלילה)
+        this.expandedStandingsGroups = {}; // מעקב אחרי בתים שהורחבו לתצוגה מלאה במובייל
+
         // העדפות צפייה מותאמות אישית לאורח (בחירת טורניר, בית וקבוצה למעקב)
         try {
             this.guestPreferences = JSON.parse(localStorage.getItem('tournament_guest_pref') || 'null');
@@ -2978,27 +2983,33 @@ class TournamentApp {
             const grpMatches = this.matches.filter(m => m.groupId === grpKey);
             const grpPlayed = grpMatches.filter(m => m.score1 !== null && m.score2 !== null).length;
             const totalMatchesInGroup = grpMatches.length;
+            const isExpanded = !!(this.expandedStandingsGroups && this.expandedStandingsGroups[grpKey]);
 
             html += `
                 <div class="standings-group-card">
                     <div class="standings-group-header">
-                        <span>${headers[grpKey] || grpKey}</span>
-                        <span style="font-size:0.8rem; font-weight:normal; opacity:0.9;">שוחקו: ${grpPlayed}/${totalMatchesInGroup} משחקים</span>
+                        <div class="standings-header-title-box">
+                            <span>${headers[grpKey] || grpKey}</span>
+                            <span class="group-progress-text">שוחקו: ${grpPlayed}/${totalMatchesInGroup} משחקים</span>
+                        </div>
+                        <button type="button" class="btn-toggle-stats-detail" onclick="app.toggleStandingsDetails('${grpKey}')" title="הצג/הסתר פירוט עמודות מלא">
+                            ${isExpanded ? '⚡ תצוגה מקוצרת' : '📊 פירוט מלא'}
+                        </button>
                     </div>
-                    <div class="standings-table-wrap">
+                    <div class="standings-table-wrap ${isExpanded ? 'show-all-stats' : ''}">
                         <table class="standings-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 42px;">מיקום</th>
+                                    <th style="width: 38px;">מיקום</th>
                                     <th style="text-align: right; padding-right: 10px;">קבוצה</th>
-                                    <th>מש'</th>
-                                    <th>ניצ'</th>
-                                    <th>תיקו</th>
-                                    <th>הפ'</th>
-                                    <th>זכות</th>
-                                    <th>חובה</th>
-                                    <th>הפרש</th>
-                                    <th class="pts-th">נק'</th>
+                                    <th style="width: 34px;">מש'</th>
+                                    <th style="width: 34px;">ניצ'</th>
+                                    <th class="col-stat-detail" style="width: 34px;">תיקו</th>
+                                    <th class="col-stat-detail" style="width: 34px;">הפ'</th>
+                                    <th class="col-stat-detail" style="width: 36px;">זכות</th>
+                                    <th class="col-stat-detail" style="width: 36px;">חובה</th>
+                                    <th style="width: 44px;">הפרש</th>
+                                    <th class="pts-th" style="width: 46px;">נק'</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3047,16 +3058,16 @@ class TournamentApp {
                                             <td><span class="rank-indicator ${rankClass}">${rankDisplay}</span></td>
                                             <td class="team-cell" title="${t.teamName}">
                                                 ${isFollowed ? '<span class="followed-team-star">⭐</span>' : ''}
-                                                ${t.teamName}
+                                                <span class="team-name-text">${t.teamName}</span>
                                             </td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
-                                            <td style="color:#475569; font-weight:700;">${t.draws || 0}</td>
-                                            <td style="color:#dc2626;">${t.losses}</td>
-                                            <td>${t.pointsFor}</td>
-                                            <td>${t.pointsAgainst}</td>
+                                            <td class="col-stat-detail" style="color:#475569; font-weight:700;">${t.draws || 0}</td>
+                                            <td class="col-stat-detail" style="color:#dc2626;">${t.losses}</td>
+                                            <td class="col-stat-detail">${t.pointsFor}</td>
+                                            <td class="col-stat-detail">${t.pointsAgainst}</td>
                                             <td class="${diffClass}">${diffStr}</td>
-                                            <td class="pts-td">${t.pts}</td>
+                                            <td class="pts-td"><span class="pts-pill">${t.pts}</span></td>
                                         </tr>
                                     `;
                                 }).join('')}
@@ -3068,6 +3079,12 @@ class TournamentApp {
         }
 
         container.innerHTML = html;
+    }
+
+    toggleStandingsDetails(grpKey) {
+        if (!this.expandedStandingsGroups) this.expandedStandingsGroups = {};
+        this.expandedStandingsGroups[grpKey] = !this.expandedStandingsGroups[grpKey];
+        this.renderStandings();
     }
 
     /* ========================================================
@@ -3143,7 +3160,7 @@ class TournamentApp {
                     ${this.playoffSeeds.map(s => `
                         <div class="seed-chip">
                             <span style="font-weight: 700; color: #1e293b;">
-                                <span class="seed-badge">${s.seed}</span> ${s.teamName}
+                                <span class="seed-badge">#${s.seed}</span> ${s.teamName}
                             </span>
                             <span style="font-size: 0.78rem; color: #64748b;">
                                 ${s.origin || ''}
@@ -3159,64 +3176,121 @@ class TournamentApp {
         const sf = this.playoffMatches?.sf || [];
         const final = this.playoffMatches?.final || null;
 
+        const roundsList = [];
+        if (r16.length > 0) {
+            roundsList.push({ id: 'r16', name: 'שמינית גמר', icon: '⚔️', matches: r16 });
+        }
+        if (qf.length > 0) {
+            roundsList.push({ id: 'qf', name: 'רבע גמר', icon: '⚔️', matches: qf });
+        }
+        if (sf.length > 0) {
+            roundsList.push({ id: 'sf', name: 'חצי גמר', icon: '🔥', matches: sf });
+        }
+        if (final) {
+            roundsList.push({ id: 'final', name: 'משחק הגמר', icon: '👑', matches: [final], isFinal: true });
+        }
+
+        if (roundsList.length === 0) {
+            container.innerHTML = `
+                ${seedsSummaryHtml}
+                <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
+            `;
+            return;
+        }
+
+        // ודא שאינדקס השלב הפעיל חוקי
+        if (typeof this.selectedBracketRound !== 'number' || this.selectedBracketRound < 0 || this.selectedBracketRound >= roundsList.length) {
+            if (final && final.winner) {
+                this.selectedBracketRound = roundsList.length - 1;
+            } else {
+                const firstPendingIdx = roundsList.findIndex(r => r.matches.some(m => !m.winner));
+                this.selectedBracketRound = firstPendingIdx !== -1 ? firstPendingIdx : 0;
+            }
+        }
+
         const renderPlayoffCard = (m, isFinal = false) => {
             if (!m) return '';
             const team1Name = m.team1 ? m.team1.teamName : 'ממתין לתוצאה...';
             const team2Name = m.team2 ? m.team2.teamName : 'ממתין לתוצאה...';
-            const team1Seed = m.team1?.seed ? `(#${m.team1.seed})` : '';
-            const team2Seed = m.team2?.seed ? `(#${m.team2.seed})` : '';
+            const team1Seed = m.team1?.seed || m.seed1;
+            const team2Seed = m.team2?.seed || m.seed2;
 
-            const row1Winner = m.winner === 'team1' ? 'winner' : '';
-            const row2Winner = m.winner === 'team2' ? 'winner' : '';
+            const isRow1Winner = m.winner === 'team1';
+            const isRow2Winner = m.winner === 'team2';
+            const row1Winner = isRow1Winner ? 'winner' : '';
+            const row2Winner = isRow2Winner ? 'winner' : '';
 
             const score1Val = m.score1 !== null ? m.score1 : '';
             const score2Val = m.score2 !== null ? m.score2 : '';
             const disabledInputs = isViewer || !m.team1 || !m.team2;
 
             const isTie = (m.score1 !== null && m.score2 !== null && m.score1 === m.score2);
-            const tieBadge = isTie ? '<span class="tie-badge" title="שוויון - נדרשת הכרעה">⚖️ שוויון</span>' : '';
+            let statusBadge = '';
+            if (isTie) {
+                statusBadge = '<span class="match-status-pill status-tie" title="שוויון - נדרשת הכרעה">⚖️ שוויון</span>';
+            } else if (m.winner) {
+                statusBadge = '<span class="match-status-pill status-done">✓ הסתיים</span>';
+            } else if (m.score1 !== null || m.score2 !== null) {
+                statusBadge = '<span class="match-status-pill status-live">⏱️ משוחק</span>';
+            } else if (m.team1 && m.team2) {
+                statusBadge = '<span class="match-status-pill status-ready">מוכן למשחק</span>';
+            } else {
+                statusBadge = '<span class="match-status-pill status-waiting">ממתין לעולות</span>';
+            }
 
             return `
                 <div class="match-card playoff-match-card ${isFinal ? 'is-final' : ''} ${isTie ? 'playoff-tie-card' : ''}" id="playoff-card-${m.id}">
-                    <div class="match-header" style="${isFinal ? 'background: #b45309;' : ''}">
-                        <span>${m.roundName}</span>
-                        ${tieBadge}
+                    <div class="match-header" style="${isFinal ? 'background: linear-gradient(135deg, #b45309, #d97706); color: white;' : ''}">
+                        <span class="match-header-title">${m.roundName}</span>
+                        ${statusBadge}
                     </div>
 
-                    <div class="match-team-row ${row1Winner}" id="prow-${m.id}-1">
-                        <span class="team-name" title="${team1Name}">
-                            ${team1Name} <small style="font-weight:normal; opacity:0.8;">${team1Seed}</small>
-                        </span>
-                        ${isViewer ? `
-                            <span class="score-display-viewer">${score1Val !== '' ? score1Val : '-'}</span>
-                        ` : `
-                            <input type="number" min="0" step="1" 
-                                   id="playoff-score-${m.id}-1"
-                                   class="score-input ${isTie ? 'score-tie' : ''}" 
-                                   value="${score1Val}" 
-                                   placeholder="-"
-                                   ${disabledInputs ? 'disabled' : ''}
-                                   oninput="app.handlePlayoffScore('${m.id}', 1, this.value, this)"
-                                   onchange="app.checkPlayoffDrawOnBlur('${m.id}')">
-                        `}
-                    </div>
+                    <div class="match-teams-list">
+                        <div class="match-team-row ${row1Winner}" id="prow-${m.id}-1">
+                            <div class="team-meta-wrap">
+                                ${team1Seed ? `<span class="challonge-seed-badge">#${team1Seed}</span>` : ''}
+                                <span class="team-name" title="${team1Name}">
+                                    ${isRow1Winner ? '<span class="winner-trophy-icon">🏆</span> ' : ''}${team1Name}
+                                </span>
+                            </div>
+                            <div class="score-input-wrap">
+                                ${isViewer ? `
+                                    <span class="score-display-viewer ${isRow1Winner ? 'score-winner' : ''}">${score1Val !== '' ? score1Val : '-'}</span>
+                                ` : `
+                                    <input type="number" min="0" step="1" 
+                                           id="playoff-score-${m.id}-1"
+                                           class="score-input ${isTie ? 'score-tie' : ''} ${isRow1Winner ? 'score-winner' : ''}" 
+                                           value="${score1Val}" 
+                                           placeholder="-"
+                                           ${disabledInputs ? 'disabled' : ''}
+                                           oninput="app.handlePlayoffScore('${m.id}', 1, this.value, this)"
+                                           onchange="app.checkPlayoffDrawOnBlur('${m.id}')">
+                                `}
+                            </div>
+                        </div>
 
-                    <div class="match-team-row ${row2Winner}" id="prow-${m.id}-2">
-                        <span class="team-name" title="${team2Name}">
-                            ${team2Name} <small style="font-weight:normal; opacity:0.8;">${team2Seed}</small>
-                        </span>
-                        ${isViewer ? `
-                            <span class="score-display-viewer">${score2Val !== '' ? score2Val : '-'}</span>
-                        ` : `
-                            <input type="number" min="0" step="1" 
-                                   id="playoff-score-${m.id}-2"
-                                   class="score-input ${isTie ? 'score-tie' : ''}" 
-                                   value="${score2Val}" 
-                                   placeholder="-"
-                                   ${disabledInputs ? 'disabled' : ''}
-                                   oninput="app.handlePlayoffScore('${m.id}', 2, this.value, this)"
-                                   onchange="app.checkPlayoffDrawOnBlur('${m.id}')">
-                        `}
+                        <div class="match-team-row ${row2Winner}" id="prow-${m.id}-2">
+                            <div class="team-meta-wrap">
+                                ${team2Seed ? `<span class="challonge-seed-badge">#${team2Seed}</span>` : ''}
+                                <span class="team-name" title="${team2Name}">
+                                    ${isRow2Winner ? '<span class="winner-trophy-icon">🏆</span> ' : ''}${team2Name}
+                                </span>
+                            </div>
+                            <div class="score-input-wrap">
+                                ${isViewer ? `
+                                    <span class="score-display-viewer ${isRow2Winner ? 'score-winner' : ''}">${score2Val !== '' ? score2Val : '-'}</span>
+                                ` : `
+                                    <input type="number" min="0" step="1" 
+                                           id="playoff-score-${m.id}-2"
+                                           class="score-input ${isTie ? 'score-tie' : ''} ${isRow2Winner ? 'score-winner' : ''}" 
+                                           value="${score2Val}" 
+                                           placeholder="-"
+                                           ${disabledInputs ? 'disabled' : ''}
+                                           oninput="app.handlePlayoffScore('${m.id}', 2, this.value, this)"
+                                           onchange="app.checkPlayoffDrawOnBlur('${m.id}')">
+                                `}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -3236,47 +3310,92 @@ class TournamentApp {
             `;
         }
 
-        const columnsHtml = [];
-        if (r16.length > 0) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header">⚔️ שמינית גמר</div>
-                    ${r16.map(m => renderPlayoffCard(m)).join('')}
+        // סרגל ניווט טאבים למובייל (Pills Navigation)
+        const mobileNavHtml = `
+            <div class="bracket-mobile-top-bar">
+                <div class="bracket-mobile-nav">
+                    ${roundsList.map((r, idx) => {
+                        const isActive = idx === this.selectedBracketRound;
+                        const matchCount = r.matches.length;
+                        return `
+                            <button type="button" 
+                                    class="bracket-nav-pill ${isActive ? 'active' : ''}" 
+                                    onclick="app.setBracketRound(${idx})">
+                                <span class="pill-title">${r.icon} ${r.name}</span>
+                                <span class="pill-count">${matchCount} ${matchCount === 1 ? 'משחק' : 'משחקים'}</span>
+                            </button>
+                        `;
+                    }).join('')}
                 </div>
-            `);
-        }
-        if (qf.length > 0) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header">⚔️ רבע גמר</div>
-                    ${qf.map(m => renderPlayoffCard(m)).join('')}
+                <div class="bracket-mode-toggle-wrap">
+                    <button type="button" 
+                            class="bracket-mode-btn ${this.bracketViewMode !== 'all' ? 'active' : ''}" 
+                            onclick="app.setBracketViewMode('single')" 
+                            title="תצוגת שלב ממוקד מותאמת לנייד">
+                        📱 שלב ממוקד
+                    </button>
+                    <button type="button" 
+                            class="bracket-mode-btn ${this.bracketViewMode === 'all' ? 'active' : ''}" 
+                            onclick="app.setBracketViewMode('all')" 
+                            title="תצוגת עץ מלאה עם גלילה">
+                        📜 עץ מלא
+                    </button>
                 </div>
-            `);
-        }
-        if (sf.length > 0) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header">🔥 חצי גמר</div>
-                    ${sf.map(m => renderPlayoffCard(m)).join('')}
+            </div>
+        `;
+
+        // בניית עמודות השלבים
+        const columnsHtml = roundsList.map((r, idx) => {
+            const isActive = idx === this.selectedBracketRound;
+            const prevRound = idx > 0 ? roundsList[idx - 1] : null;
+            const nextRound = idx < roundsList.length - 1 ? roundsList[idx + 1] : null;
+
+            const bottomNavHtml = `
+                <div class="bracket-step-nav-bar">
+                    ${prevRound ? `
+                        <button type="button" class="btn-bracket-step" onclick="app.setBracketRound(${idx - 1})">
+                            ➡️ ${prevRound.name}
+                        </button>
+                    ` : '<span style="flex:1;"></span>'}
+                    ${nextRound ? `
+                        <button type="button" class="btn-bracket-step btn-bracket-next" onclick="app.setBracketRound(${idx + 1})">
+                            ${nextRound.name} ⬅️
+                        </button>
+                    ` : '<span style="flex:1;"></span>'}
                 </div>
-            `);
-        }
-        if (final) {
-            columnsHtml.push(`
-                <div class="bracket-round-column">
-                    <div class="round-header" style="background:#b45309;">👑 משחק הגמר</div>
-                    ${renderPlayoffCard(final, true)}
+            `;
+
+            return `
+                <div class="bracket-round-column ${isActive ? 'active-round' : ''}" data-round-index="${idx}">
+                    <div class="round-header" style="${r.isFinal ? 'background:#b45309; color:white; border-color:#92400e;' : ''}">
+                        ${r.icon} ${r.name}
+                    </div>
+                    <div class="round-matches-list">
+                        ${r.matches.map(m => renderPlayoffCard(m, !!r.isFinal)).join('')}
+                    </div>
+                    ${bottomNavHtml}
                 </div>
-            `);
-        }
+            `;
+        }).join('');
 
         container.innerHTML = `
             ${seedsSummaryHtml}
-            <div class="bracket-rounds-container">
-                ${columnsHtml.join('')}
+            ${mobileNavHtml}
+            <div class="bracket-rounds-container ${this.bracketViewMode === 'all' ? 'bracket-mode-all' : ''}">
+                ${columnsHtml}
             </div>
             ${championBannerHtml}
         `;
+    }
+
+    setBracketRound(idx) {
+        this.selectedBracketRound = idx;
+        this.renderPlayoffBracket();
+    }
+
+    setBracketViewMode(mode) {
+        this.bracketViewMode = mode;
+        this.renderPlayoffBracket();
     }
 
     findPlayoffMatch(matchId) {
