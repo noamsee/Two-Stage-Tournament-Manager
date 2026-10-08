@@ -826,6 +826,15 @@ class TournamentApp {
             badge.innerHTML = `${googleIconHtml}${this.currentUser.displayName}`;
             badge.className = `user-badge user-badge-${this.currentUser.role}`;
         }
+        this.updateGuestTournamentBadge();
+    }
+
+    updateGuestTournamentBadge() {
+        const guestTourneyEl = document.getElementById('guestTournamentName');
+        const currTourney = this.tournaments.find(t => t.id === this.activeTournamentId) || this.tournaments[0];
+        if (guestTourneyEl && currTourney) {
+            guestTourneyEl.textContent = currTourney.name + (currTourney.isArchived ? ' (סגור)' : '');
+        }
     }
 
     isCurrentTournamentClosed() {
@@ -900,6 +909,7 @@ class TournamentApp {
         if (this.playoffMatches) {
             this.renderPlayoffBracket();
         }
+        this.updateGuestTournamentBadge();
     }
 
     getAllUsers() {
@@ -1458,6 +1468,9 @@ class TournamentApp {
         if (loginSelect) loginSelect.innerHTML = optionsHtml;
         if (signupSelect) signupSelect.innerHTML = optionsHtml;
         if (headerSelect) headerSelect.innerHTML = optionsHtml;
+
+        // עדכון תג שם הטורניר עבור אורח
+        this.updateGuestTournamentBadge();
 
         // סנכרון מיידי של שדות הבית והקבוצה במסך הכניסה
         const currentLoginTourneyId = loginSelect && loginSelect.value ? loginSelect.value : this.activeTournamentId;
@@ -3747,7 +3760,7 @@ class TournamentApp {
         };
 
         const rows = [];
-        rows.push([escapeCSV("🏆 מנהל טורניר - נתוני טורניר וטבלאות דירוג")]);
+        rows.push([escapeCSV("🏆 טורנירשת - נתוני טורניר וטבלאות דירוג")]);
         const currentTourney = this.tournaments.find(t => t.id === this.activeTournamentId);
         rows.push([escapeCSV("שם טורניר"), escapeCSV(currentTourney?.name || "טורניר פעיל")]);
         const formatLabel = (this.format === 'knockout_only') ? 'נוקאאוט בלבד' :
@@ -3885,7 +3898,7 @@ class TournamentApp {
         this.calculateStandings();
         const currentTourney = this.tournaments.find(t => t.id === this.activeTournamentId);
 
-        let md = `# 🏆 מנהל טורניר דו-שלבי - Two-Stage Tournament Manager\n\n`;
+        let md = `# 🏆 טורנירשת - Two-Stage Tournament Manager\n\n`;
         md += `טורניר: **${currentTourney?.name || "טורניר פעיל"}**\n\n`;
         md += `אפליקציית Web לניהול מלא של טורניר 15 קבוצות (3 בתים של 5 קבוצות, לוח Round-Robin בן 30 משחקים, אימות איסור תיקו, ופלייאוף נוקאאוט Top 8).\n\n`;
         md += `> תאריך יצירת הדוח: ${new Date().toLocaleString('he-IL')}\n\n`;
