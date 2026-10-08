@@ -783,13 +783,8 @@ header h1 {
     direction: rtl;
 }
 
-/* משחק שעדיין לא נחשף שומר על מקומו בעץ אך אינו מוצג */
-.bracket-slot.is-pending {
-    visibility: hidden;
-}
-
-/* קו יוצא ממשחק שהוכרע אל המשחק הבא (זוג משחקים מתחבר לנקודה אחת) */
-.bracket-round-column:not(:last-child) .bracket-slot.is-decided::after {
+/* קו יוצא מכל משחק אל המשחק הבא (זוג משחקים מתחבר לנקודה אחת) */
+.bracket-round-column:not(:last-child) .bracket-slot::after {
     content: '';
     position: absolute;
     right: 0;
@@ -800,13 +795,13 @@ header h1 {
     box-sizing: border-box;
 }
 
-.bracket-round-column:not(:last-child) .bracket-slot.is-decided:nth-child(odd)::after {
+.bracket-round-column:not(:last-child) .bracket-slot:nth-child(odd)::after {
     top: 50%;
     border-top-width: 2px;
     border-top-right-radius: 6px;
 }
 
-.bracket-round-column:not(:last-child) .bracket-slot.is-decided:nth-child(even)::after {
+.bracket-round-column:not(:last-child) .bracket-slot:nth-child(even)::after {
     bottom: 50%;
     border-bottom-width: 2px;
     border-bottom-right-radius: 6px;
