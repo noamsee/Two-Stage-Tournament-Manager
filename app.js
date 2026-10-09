@@ -2925,7 +2925,16 @@ class TournamentApp {
             `;
         }
 
+        // שמירת הפוקוס בשדה התוצאה שבעריכה גם כשהלוח מרונדר מחדש בעקבות סנכרון מהענן
+        const focusedEl = document.activeElement;
+        const focusedRow = (focusedEl && container.contains(focusedEl)) ? focusedEl.closest('.match-team-row') : null;
+        const focusedRowId = focusedRow ? focusedRow.id : null;
+
         container.innerHTML = contentHtml;
+
+        if (focusedRowId) {
+            this.refocusScoreInput(document.getElementById(focusedRowId)?.querySelector('.score-input'));
+        }
     }
 
     filterMatches(groupKey) {
@@ -3313,9 +3322,22 @@ class TournamentApp {
         this.showAlert(`שלב הבתים ננעל בהצלחה! ${playoffSize} הקבוצות המובילות שובצו לעץ הפלייאוף.`, "success");
     }
 
+    // החזרת הפוקוס לשדה תוצאה אחרי רינדור מחדש, עם הסמן בסוף, כדי שאפשר יהיה להמשיך להקליד ספרה נוספת
+    refocusScoreInput(inputEl) {
+        if (!inputEl || inputEl.disabled) return;
+        inputEl.focus({ preventScroll: true });
+        const val = inputEl.value;
+        inputEl.value = '';
+        inputEl.value = val;
+    }
+
     renderPlayoffBracket() {
         const container = document.getElementById('playoff-bracket-container');
         if (!container) return;
+
+        // כל רינדור (כולל סנכרון מהענן מיד אחרי שמירה) מחליף את השדות, ולכן זוכרים איזה שדה היה בעריכה
+        const focusedEl = document.activeElement;
+        const focusedInputId = (focusedEl && focusedEl.id && container.contains(focusedEl)) ? focusedEl.id : null;
 
         const isViewer = (this.currentRole === 'viewer') || this.isCurrentTournamentClosed();
 
@@ -3543,6 +3565,10 @@ class TournamentApp {
 
         const treeScroll = container.querySelector('.bracket-tree-scroll');
         if (treeScroll) treeScroll.scrollLeft = prevScrollLeft;
+
+        if (focusedInputId && document.activeElement?.id !== focusedInputId) {
+            this.refocusScoreInput(document.getElementById(focusedInputId));
+        }
     }
 
     toggleEnlargedRound(roundKey) {
