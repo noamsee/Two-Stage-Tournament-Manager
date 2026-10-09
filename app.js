@@ -2930,25 +2930,35 @@ class TournamentApp {
                 : `מיועד ל-Admin/Owner בלבד. הזן או עדכן שמות ל-${this.teams.length} הקבוצות (מחולקות ל-${numGroups} בתים של ${teamsPerGroup} קבוצות):`;
             if (genBtn) genBtn.textContent = `⚡ ייצר לוח משחקים לשלב הבתים (${this.matches.length || (numGroups * (teamsPerGroup * (teamsPerGroup - 1)) / 2)} משחקים)`;
 
-            this.teams.forEach((teamName, index) => {
-                const groupIdx = Math.floor(index / teamsPerGroup);
-                const posInGroup = (index % teamsPerGroup) + 1;
+            // הקבוצות מוצגות מקובצות לפי בתים: כותרת לכל בית ומתחתיה הקבוצות שלו
+            const escAttr = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            for (let groupIdx = 0; groupIdx * teamsPerGroup < this.teams.length; groupIdx++) {
                 const groupHe = groupHebrew[groupIdx] || (groupIdx + 1);
+                const houseTeams = this.teams
+                    .map((teamName, index) => ({ teamName, index }))
+                    .slice(groupIdx * teamsPerGroup, (groupIdx + 1) * teamsPerGroup);
 
-                const div = document.createElement('div');
-                div.className = 'team-input-group';
-                div.innerHTML = `
-                    <label class="team-label-rtl">
-                        <span class="team-num-prefix">${index + 1}</span>
-                        <span>בית ${groupHe} - קבוצה ${posInGroup}</span>
-                    </label>
-                    <input type="text" value="${teamName}" data-index="${index}" 
-                           ${isReadOnly ? 'disabled' : ''}
-                           onchange="app.updateTeamName(${index}, this.value)"
-                           placeholder="הזן שם קבוצה">
+                const section = document.createElement('div');
+                section.className = 'team-house-section';
+                section.innerHTML = `
+                    <div class="team-house-title">🏠 בית ${groupHe} <span class="team-house-count">${houseTeams.length} קבוצות</span></div>
+                    <div class="teams-grid team-house-grid">
+                        ${houseTeams.map(({ teamName, index }, pos) => `
+                            <div class="team-input-group">
+                                <label class="team-label-rtl">
+                                    <span class="team-num-prefix">${pos + 1}</span>
+                                    <span>קבוצה ${pos + 1}</span>
+                                </label>
+                                <input type="text" value="${escAttr(teamName)}" data-index="${index}"
+                                       ${isReadOnly ? 'disabled' : ''}
+                                       onchange="app.updateTeamName(${index}, this.value)"
+                                       placeholder="הזן שם קבוצה">
+                            </div>
+                        `).join('')}
+                    </div>
                 `;
-                container.appendChild(div);
-            });
+                container.appendChild(section);
+            }
         }
     }
 

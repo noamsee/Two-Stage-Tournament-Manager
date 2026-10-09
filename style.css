@@ -264,6 +264,39 @@ header h1 {
     margin-bottom: 24px;
 }
 
+/* הגדרות טורניר: הקבוצות מקובצות לפי בתים */
+.team-house-section {
+    grid-column: 1 / -1;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 14px 14px;
+}
+
+.team-house-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.team-house-count {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--neutral-grey);
+    padding: 2px 8px;
+    border-radius: 9999px;
+}
+
+.teams-grid.team-house-grid {
+    margin-bottom: 0;
+    gap: 10px;
+}
+
 .team-input-group {
     display: flex;
     flex-direction: column;
@@ -2770,5 +2803,28 @@ html, body {
     .guest-followed-banner {
         padding: 10px 12px;
         font-size: 0.88rem;
+    }
+}
+
+/* הגדרות טורניר במובייל: שתי קבוצות בשורה בכל בית, כדי שהרשימה לא תהיה ארוכה מדי */
+@media (max-width: 640px) {
+    .team-house-section {
+        padding: 10px;
+    }
+
+    .teams-grid.team-house-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .team-house-grid .team-input-group {
+        padding: 8px;
+        min-width: 0;
+    }
+
+    .team-house-grid .team-input-group input {
+        width: 100%;
+        min-width: 0;
+        font-size: 16px;
     }
 }
