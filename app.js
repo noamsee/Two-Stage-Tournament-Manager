@@ -3100,16 +3100,16 @@ class TournamentApp {
         if (legendContainer) {
             if (this.format === 'groups_only') {
                 legendContainer.innerHTML = `
-                    <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #eab308;"></span> 🏆 מקום 1 (אלופת הבית המובילה בדירוג)</span>
+                    <span class="legend-item"><span class="legend-color" style="background:#fde68a; border:1px solid #eab308;"></span> 🏆 מקום 1 (אלופת הבית המובילה בדירוג)</span>
                 `;
             } else if (this.numGroups === 2) {
                 legendContainer.innerHTML = `
-                    <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה לפלייאוף (מקומות 1-2)</span>
+                    <span class="legend-item"><span class="legend-color" style="background:#bbf7d0; border:1px solid #22c55e;"></span> עולה ישירה לפלייאוף (מקומות 1-2)</span>
                 `;
             } else {
                 legendContainer.innerHTML = `
-                    <span class="legend-item"><span class="legend-color" style="background:#ecfdf5; border:1px solid #22c55e;"></span> עולה ישירה (מקומות 1-2)</span>
-                    <span class="legend-item"><span class="legend-color" style="background:#fefce8; border:1px solid #f59e0b;"></span> מועמד (מקום 3 הטוב ביותר)</span>
+                    <span class="legend-item"><span class="legend-color" style="background:#bbf7d0; border:1px solid #22c55e;"></span> עולה ישירה (מקומות 1-2)</span>
+                    <span class="legend-item"><span class="legend-color" style="background:#fde68a; border:1px solid #f59e0b;"></span> מועמד (מקום 3 הטוב ביותר)</span>
                 `;
             }
         }
@@ -3155,24 +3155,24 @@ class TournamentApp {
                             <span>${headers[grpKey] || grpKey}</span>
                             <span class="group-progress-text">שוחקו: ${grpPlayed}/${totalMatchesInGroup} משחקים</span>
                         </div>
-                        <button type="button" class="btn-toggle-stats-detail" onclick="app.toggleStandingsDetails('${grpKey}')" title="הצג/הסתר פירוט עמודות מלא">
-                            ${isExpanded ? '⚡ תצוגה מקוצרת' : '📊 פירוט מלא'}
+                        <button type="button" class="btn-toggle-stats-detail" onclick="app.toggleStandingsDetails('${grpKey}')" title="הצג/הסתר את עמודות נקודות הזכות, החובה וההפרש">
+                            ${isExpanded ? '⚡ תצוגה מקוצרת' : '📊 תצוגה מורחבת'}
                         </button>
                     </div>
                     <div class="standings-table-wrap ${isExpanded ? 'show-all-stats' : ''}">
                         <table class="standings-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 38px;">מיקום</th>
+                                    <th>מיקום</th>
                                     <th style="text-align: right; padding-right: 10px;">קבוצה</th>
-                                    <th style="width: 34px;">מש'</th>
-                                    <th style="width: 34px;">ניצ'</th>
-                                    <th class="col-stat-detail" style="width: 34px;">תיקו</th>
-                                    <th class="col-stat-detail" style="width: 34px;">הפ'</th>
-                                    <th class="col-stat-detail" style="width: 36px;">זכות</th>
-                                    <th class="col-stat-detail" style="width: 36px;">חובה</th>
-                                    <th style="width: 44px;">הפרש</th>
-                                    <th class="pts-th" style="width: 46px;">נק'</th>
+                                    <th>משחקים</th>
+                                    <th>ניצחונות</th>
+                                    <th>הפסדים</th>
+                                    <th>תיקו</th>
+                                    <th class="col-stat-detail">נקודות זכות</th>
+                                    <th class="col-stat-detail">נקודות חובה</th>
+                                    <th class="col-stat-detail">הפרש</th>
+                                    <th class="pts-th">נקודות</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3225,11 +3225,11 @@ class TournamentApp {
                                             </td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
-                                            <td style="color:#57493a; font-weight:700;">${t.draws || 0}</td>
                                             <td style="color:#dc2626;">${t.losses}</td>
-                                            <td>${t.pointsFor}</td>
-                                            <td>${t.pointsAgainst}</td>
-                                            <td class="${diffClass}">${diffStr}</td>
+                                            <td style="color:#57493a; font-weight:700;">${t.draws || 0}</td>
+                                            <td class="col-stat-detail">${t.pointsFor}</td>
+                                            <td class="col-stat-detail">${t.pointsAgainst}</td>
+                                            <td class="col-stat-detail ${diffClass}">${diffStr}</td>
                                             <td class="pts-td"><span class="pts-pill">${t.pts}</span></td>
                                         </tr>
                                     `;
