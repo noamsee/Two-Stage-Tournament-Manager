@@ -87,12 +87,22 @@ class TournamentApp {
         this.playoffMatches = { qf: [], sf: [], final: null };
 
         this.currentFilter = 'all';
+        this.currentTeamFilter = 'all';
         this.alertTimeout = null;
 
-        // מצב תצוגה מותאם למובייל - שלבי פלייאוף וטבלאות דירוג (בהשראת Challonge)
-        this.selectedBracketRound = 0;
-        this.bracketViewMode = 'single'; // 'single' (נוח למובייל ללא גלילה אופקית) או 'all' (עץ מלא בגלילה)
-        this.expandedStandingsGroups = {}; // מעקב אחרי בתים שהורחבו לתצוגה מלאה במובייל
+        // הטאב שהיה פתוח לפני רענון הדף. נקרא כאן, לפני שתהליך הטעינה מחליף טאבים ודורס את הערך השמור
+        this.savedTabOnLoad = null;
+        try { this.savedTabOnLoad = sessionStorage.getItem('tournament_active_tab'); } catch (e) {}
+
+        // גרסת מובייל: עץ פלייאוף מוקטן שנכנס למסך, ומשחק נפתח לעריכה בהקשה
+        this.mobileQuery = window.matchMedia('(max-width: 640px)');
+        this.openPlayoffMatchId = null;
+        this.mobileQuery.addEventListener('change', () => {
+            this.openPlayoffMatchId = null;
+            if (document.querySelector('#playoff-bracket-container .bracket-tree')) {
+                this.renderPlayoffBracket();
+            }
+        });
 
         // העדפות צפייה מותאמות אישית לאורח (בחירת טורניר, בית וקבוצה למעקב)
         try {
@@ -761,6 +771,17 @@ class TournamentApp {
         };
         sessionStorage.setItem('tournament_current_user', JSON.stringify(this.currentUser));
 
+        // שחזור טאב בכניסה אוטומטית (רענון דף או אימות חוזר): הטאב שנשמר בטעינת הדף,
+        // ואם כבר שוחזר - הטאב הנוכחי, כדי שאימות חוזר ברקע לא יקפיץ לטאב ברירת המחדל
+        let tabToRestore = null;
+        if (!showNotification) {
+            tabToRestore = this.savedTabOnLoad;
+            if (!tabToRestore) {
+                try { tabToRestore = sessionStorage.getItem('tournament_active_tab'); } catch (e) {}
+            }
+        }
+        this.savedTabOnLoad = null;
+
         this.switchRole(role);
         this.updateUserSessionUI();
         this.showMainScreen();
@@ -787,12 +808,19 @@ class TournamentApp {
             const targetTab = (this.format === 'knockout_only') ? 'playoffs' : 'group-stage';
             this.switchTab(targetTab);
         }
+
+        // שחזור הטאב לאחר רענון, רק אם הוא קיים ומותר לתפקיד הנוכחי
+        const tabAllowed = tabToRestore && document.getElementById(`tab-${tabToRestore}`)
+            && !(role === 'viewer' && (tabToRestore === 'setup' || tabToRestore === 'users'))
+            && !(role !== 'owner' && tabToRestore === 'users');
+        if (tabAllowed) this.switchTab(tabToRestore);
     }
 
     logout() {
         const loggedOutEmail = this.currentUser ? this.currentUser.email : '';
         this.currentUser = null;
         sessionStorage.removeItem('tournament_current_user');
+        sessionStorage.removeItem('tournament_active_tab');
 
         if (this.auth) {
             try { this.auth.signOut(); } catch (e) {}
@@ -926,7 +954,7 @@ class TournamentApp {
 
         const users = this.getAllUsers();
         if (users.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b; padding:16px;">אין משתמשים במערכת.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#6b5b45; padding:16px;">אין משתמשים במערכת.</td></tr>`;
             return;
         }
 
@@ -937,7 +965,7 @@ class TournamentApp {
             } else if (u.role === 'admin') {
                 roleBadge = `<span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">⚡ מנהל (Admin)</span>`;
             } else {
-                roleBadge = `<span style="background:#f1f5f9; color:#475569; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">👁️ צופה (Viewer)</span>`;
+                roleBadge = `<span style="background:#ede2cf; color:#57493a; padding:3px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">👁️ צופה (Viewer)</span>`;
             }
 
             const isOwnerUser = u.email === this.OWNER_EMAIL.toLowerCase();
@@ -969,11 +997,11 @@ class TournamentApp {
 
             return `
                 <tr>
-                    <td style="font-weight:700; color:#0f172a;">${u.name}</td>
-                    <td style="direction:ltr; text-align:right; font-family:monospace; color:#334155;">${u.email}</td>
+                    <td style="font-weight:700; color:#271e16;">${u.name}</td>
+                    <td style="direction:ltr; text-align:right; font-family:monospace; color:#4a3c2e;">${u.email}</td>
                     <td>${roleBadge}</td>
-                    <td style="font-size:0.85rem; color:#64748b;">${u.provider === 'google' ? 'Google OAuth' : 'דוא"ל וסיסמה'}</td>
-                    <td style="color:#64748b; font-size:0.85rem;">${u.registeredAt || '-'}</td>
+                    <td style="font-size:0.85rem; color:#6b5b45;">${u.provider === 'google' ? 'Google OAuth' : 'דוא"ל וסיסמה'}</td>
+                    <td style="color:#6b5b45; font-size:0.85rem;">${u.registeredAt || '-'}</td>
                     <td style="text-align:center;">${actionsHtml}</td>
                 </tr>
             `;
@@ -1744,6 +1772,7 @@ class TournamentApp {
 
     switchTournament(newTourneyId, showNotification = true) {
         if (newTourneyId === this.activeTournamentId) return;
+        this.openPlayoffMatchId = null;
 
         // אורח/צופה מחובר אינו רשאי לעבור לטורניר אחר
         if (this.currentRole === 'viewer') {
@@ -2476,7 +2505,7 @@ class TournamentApp {
                                 <td style="font-weight:700;">${t.name}</td>
                                 <td>${fmtBadge}</td>
                                 <td>${statusBadge}</td>
-                                <td style="color:#64748b; font-size:0.85rem;">${t.createdAt || '-'}</td>
+                                <td style="color:#6b5b45; font-size:0.85rem;">${t.createdAt || '-'}</td>
                                 <td style="text-align:center;">
                                     <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
                                         <button type="button" class="btn-secondary btn-sm" onclick="app.viewTournamentFromList('${t.id}')" title="מעבר לצפייה בטורניר ובמשחקים">
@@ -2521,6 +2550,8 @@ class TournamentApp {
     }
 
     switchTab(tabId) {
+        this.openPlayoffMatchId = null;
+        try { sessionStorage.setItem('tournament_active_tab', tabId); } catch (e) {}
         document.querySelectorAll('.tab-section').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
@@ -2731,6 +2762,7 @@ class TournamentApp {
 
         // איפוס סינון בתים כדי שלא יישאר מסונן על בית ישן שנמחק (כמו בית ג')
         this.currentFilter = 'all';
+        this.currentTeamFilter = 'all';
 
         this.matches = this.generateDynamicRoundRobin(groups, this.teams, teamsPerGroup);
         this.renderTeamInputs();
@@ -2798,31 +2830,55 @@ class TournamentApp {
         const filterContainer = document.getElementById('group-filter-container');
         if (!container) return;
 
-        // רינדור כפתורי סינון דינמיים לפי הבתים הקיימים בטורניר
+        const groupMatches = this.currentFilter === 'all'
+            ? this.matches
+            : this.matches.filter(m => m.groupId === this.currentFilter);
+
+        // רשימת הקבוצות לסינון - רק קבוצות מהבית שנבחר
+        const teamNames = [...new Set(groupMatches.flatMap(m => [m.team1Name, m.team2Name]))]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'he'));
+        if (this.currentTeamFilter !== 'all' && !teamNames.includes(this.currentTeamFilter)) {
+            this.currentTeamFilter = 'all';
+        }
+
+        // רינדור רשימות סינון נפתחות (בית + קבוצה) לפי נתוני הטורניר
         if (filterContainer && this.groups && Object.keys(this.groups).length > 0) {
             const groupHebrew = {
                 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
                 'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
             };
+            const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
             const grpKeys = Object.keys(this.groups);
-            filterContainer.innerHTML = `
-                <button class="filter-chip ${this.currentFilter === 'all' ? 'active' : ''}" onclick="app.filterMatches('all', this)">
-                    כל הבתים (${this.matches.length})
-                </button>
-                ${grpKeys.map(k => {
-                    const count = this.matches.filter(m => m.groupId === k).length;
-                    return `
-                        <button class="filter-chip ${this.currentFilter === k ? 'active' : ''}" onclick="app.filterMatches('${k}', this)">
-                            ${groupHebrew[k] || k} (${count})
-                        </button>
-                    `;
-                }).join('')}
+            const filtersHtml = `
+                <label class="filter-select-wrap">
+                    <span>🏠 בית</span>
+                    <select id="matchGroupFilter" class="filter-select" onchange="app.filterMatches(this.value)">
+                        <option value="all" ${this.currentFilter === 'all' ? 'selected' : ''}>כל הבתים (${this.matches.length})</option>
+                        ${grpKeys.map(k => {
+                            const count = this.matches.filter(m => m.groupId === k).length;
+                            return `<option value="${k}" ${this.currentFilter === k ? 'selected' : ''}>${groupHebrew[k] || k} (${count})</option>`;
+                        }).join('')}
+                    </select>
+                </label>
+                <label class="filter-select-wrap">
+                    <span>👥 קבוצה</span>
+                    <select id="matchTeamFilter" class="filter-select" onchange="app.filterMatchesByTeam(this.value)">
+                        <option value="all" ${this.currentTeamFilter === 'all' ? 'selected' : ''}>כל הקבוצות</option>
+                        ${teamNames.map(name => `<option value="${escAttr(name)}" ${this.currentTeamFilter === name ? 'selected' : ''}>${escAttr(name)}</option>`).join('')}
+                    </select>
+                </label>
             `;
+            // עדכון רק כשיש שינוי, כדי לא לסגור רשימה פתוחה בזמן סנכרון נתונים
+            if (filterContainer.dataset.rendered !== filtersHtml) {
+                filterContainer.innerHTML = filtersHtml;
+                filterContainer.dataset.rendered = filtersHtml;
+            }
         }
 
-        const filteredMatches = this.currentFilter === 'all'
-            ? this.matches
-            : this.matches.filter(m => m.groupId === this.currentFilter);
+        const filteredMatches = this.currentTeamFilter === 'all'
+            ? groupMatches
+            : groupMatches.filter(m => m.team1Name === this.currentTeamFilter || m.team2Name === this.currentTeamFilter);
 
         if (filteredMatches.length === 0) {
             container.innerHTML = '<p class="placeholder-text">אין משחקים להצגה.</p>';
@@ -2872,11 +2928,16 @@ class TournamentApp {
         container.innerHTML = contentHtml;
     }
 
-    filterMatches(groupKey, buttonEl) {
+    filterMatches(groupKey) {
         this.currentFilter = groupKey;
-        document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
-        if (buttonEl) buttonEl.classList.add('active');
         this.renderMatches();
+        document.getElementById('matchGroupFilter')?.focus();
+    }
+
+    filterMatchesByTeam(teamName) {
+        this.currentTeamFilter = teamName;
+        this.renderMatches();
+        document.getElementById('matchTeamFilter')?.focus();
     }
 
     /* ========================================================
@@ -3164,10 +3225,10 @@ class TournamentApp {
                                             </td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
-                                            <td class="col-stat-detail" style="color:#475569; font-weight:700;">${t.draws || 0}</td>
-                                            <td class="col-stat-detail" style="color:#dc2626;">${t.losses}</td>
-                                            <td class="col-stat-detail">${t.pointsFor}</td>
-                                            <td class="col-stat-detail">${t.pointsAgainst}</td>
+                                            <td style="color:#57493a; font-weight:700;">${t.draws || 0}</td>
+                                            <td style="color:#dc2626;">${t.losses}</td>
+                                            <td>${t.pointsFor}</td>
+                                            <td>${t.pointsAgainst}</td>
                                             <td class="${diffClass}">${diffStr}</td>
                                             <td class="pts-td"><span class="pts-pill">${t.pts}</span></td>
                                         </tr>
@@ -3258,18 +3319,27 @@ class TournamentApp {
 
         const isViewer = (this.currentRole === 'viewer') || this.isCurrentTournamentClosed();
 
+        // קבוצות שהודחו: כל מי שהפסידה במשחק פלייאוף שהוכרע
+        const eliminatedSeeds = new Set();
+        const pm = this.playoffMatches || {};
+        [...(pm.r16 || []), ...(pm.qf || []), ...(pm.sf || []), pm.final].forEach(m => {
+            if (!m || (m.winner !== 'team1' && m.winner !== 'team2')) return;
+            const loser = m.winner === 'team1' ? m.team2 : m.team1;
+            if (loser) eliminatedSeeds.add(loser.seed);
+        });
+
         const seedsSummaryHtml = (this.playoffSeeds && this.playoffSeeds.length > 0) ? `
             <div class="seed-summary-card">
-                <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#0f172a;">
+                <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#271e16;">
                     🎯 ${this.playoffSeeds.length} הקבוצות המדורגות בפלייאוף:
                 </div>
                 <div class="seed-grid">
                     ${this.playoffSeeds.map(s => `
-                        <div class="seed-chip">
-                            <span style="font-weight: 700; color: #1e293b;">
-                                <span class="seed-badge">#${s.seed}</span> ${s.teamName}
+                        <div class="seed-chip ${eliminatedSeeds.has(s.seed) ? 'is-eliminated' : ''}" ${eliminatedSeeds.has(s.seed) ? 'title="הודחה מהטורניר"' : ''}>
+                            <span style="font-weight: 700; color: #382c21;">
+                                <span class="seed-badge">${s.seed}</span> ${s.teamName}
                             </span>
-                            <span style="font-size: 0.78rem; color: #64748b;">
+                            <span style="font-size: 0.78rem; color: #6b5b45;">
                                 ${s.origin || ''}
                             </span>
                         </div>
@@ -3282,38 +3352,6 @@ class TournamentApp {
         const qf = this.playoffMatches?.qf || [];
         const sf = this.playoffMatches?.sf || [];
         const final = this.playoffMatches?.final || null;
-
-        const roundsList = [];
-        if (r16.length > 0) {
-            roundsList.push({ id: 'r16', name: 'שמינית גמר', icon: '⚔️', matches: r16 });
-        }
-        if (qf.length > 0) {
-            roundsList.push({ id: 'qf', name: 'רבע גמר', icon: '⚔️', matches: qf });
-        }
-        if (sf.length > 0) {
-            roundsList.push({ id: 'sf', name: 'חצי גמר', icon: '🔥', matches: sf });
-        }
-        if (final) {
-            roundsList.push({ id: 'final', name: 'משחק הגמר', icon: '👑', matches: [final], isFinal: true });
-        }
-
-        if (roundsList.length === 0) {
-            container.innerHTML = `
-                ${seedsSummaryHtml}
-                <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
-            `;
-            return;
-        }
-
-        // ודא שאינדקס השלב הפעיל חוקי
-        if (typeof this.selectedBracketRound !== 'number' || this.selectedBracketRound < 0 || this.selectedBracketRound >= roundsList.length) {
-            if (final && final.winner) {
-                this.selectedBracketRound = roundsList.length - 1;
-            } else {
-                const firstPendingIdx = roundsList.findIndex(r => r.matches.some(m => !m.winner));
-                this.selectedBracketRound = firstPendingIdx !== -1 ? firstPendingIdx : 0;
-            }
-        }
 
         const renderPlayoffCard = (m, isFinal = false) => {
             if (!m) return '';
@@ -3403,6 +3441,28 @@ class TournamentApp {
             `;
         };
 
+        // כרטיס מוקטן לעץ במובייל: שמות ותוצאות בלבד, הקשה פותחת את המשחק המלא
+        const renderCompactCard = (m, isFinal = false) => {
+            if (!m) return '';
+            const isTie = (m.score1 !== null && m.score2 !== null && m.score1 === m.score2);
+            const miniRow = (team, score, isWinner) => `
+                <span class="mini-row ${isWinner ? 'winner' : ''} ${team ? '' : 'is-waiting'}">
+                    <span class="mini-name">${team ? team.teamName : 'ממתין'}</span>
+                    <span class="mini-score">${score !== null && score !== undefined ? score : '-'}</span>
+                </span>
+            `;
+            return `
+                <button type="button" class="bracket-mini-card ${isFinal ? 'is-final' : ''} ${isTie ? 'playoff-tie-card' : ''}"
+                        onclick="app.openPlayoffMatch('${m.id}')">
+                    ${miniRow(m.team1, m.score1, m.winner === 'team1')}
+                    ${miniRow(m.team2, m.score2, m.winner === 'team2')}
+                </button>
+            `;
+        };
+
+        const isMobile = this.mobileQuery.matches;
+        const renderTreeCard = isMobile ? renderCompactCard : renderPlayoffCard;
+
         let championBannerHtml = '';
         if (final && final.winner) {
             const championTeam = final.winner === 'team1' ? final.team1 : final.team2;
@@ -3417,91 +3477,71 @@ class TournamentApp {
             `;
         }
 
-        // סרגל ניווט טאבים למובייל (Pills Navigation)
-        const mobileNavHtml = `
-            <div class="bracket-mobile-top-bar">
-                <div class="bracket-mobile-nav">
-                    ${roundsList.map((r, idx) => {
-                        const isActive = idx === this.selectedBracketRound;
-                        const matchCount = r.matches.length;
-                        return `
-                            <button type="button" 
-                                    class="bracket-nav-pill ${isActive ? 'active' : ''}" 
-                                    onclick="app.setBracketRound(${idx})">
-                                <span class="pill-title">${r.icon} ${r.name}</span>
-                                <span class="pill-count">${matchCount} ${matchCount === 1 ? 'משחק' : 'משחקים'}</span>
-                            </button>
-                        `;
+        // עץ הפלייאוף: הסיבוב הראשון (העלים) משמאל, הגמר מימין
+        const rounds = [];
+        if (r16.length > 0) rounds.push({ title: '⚔️ שמינית גמר', matches: r16 });
+        if (qf.length > 0) rounds.push({ title: '⚔️ רבע גמר', matches: qf });
+        if (sf.length > 0) rounds.push({ title: '🔥 חצי גמר', matches: sf });
+        if (final) rounds.push({ title: '👑 משחק הגמר', matches: [final], isFinal: true });
+
+        // העץ נחשף בהדרגה, תמיד שכבה אחת קדימה: שני הסיבובים הראשונים מוצגים מההתחלה,
+        // וכל סיבוב נוסף מופיע ברגע שבסיבוב שלפניו נקבע משחק עם שתי קבוצות ידועות.
+        const visibleRounds = rounds.filter((r, idx) =>
+            idx <= 1 || rounds[idx - 1].matches.some(m => m.team1 && m.team2));
+
+        // קו חיבור יוצא ממשחק רק כאשר שתי הקבוצות המתמודדות בו כבר ידועות
+        const isSet = (m) => !!(m && m.team1 && m.team2);
+
+        const columnsHtml = visibleRounds.map((r, idx) => `
+            <div class="bracket-round-column">
+                <div class="round-header" style="${r.isFinal ? 'background:#b45309;' : ''}">${r.title}</div>
+                <div class="bracket-round-matches">
+                    ${r.matches.map((m, i) => {
+                        const feeders = idx > 0 ? visibleRounds[idx - 1].matches.slice(i * 2, i * 2 + 2) : [];
+                        const slotClasses = `${isSet(m) ? 'is-set' : ''} ${feeders.some(isSet) ? 'has-feed' : ''}`;
+                        return `<div class="bracket-slot ${slotClasses}">${renderTreeCard(m, !!r.isFinal)}</div>`;
                     }).join('')}
                 </div>
-                <div class="bracket-mode-toggle-wrap">
-                    <button type="button" 
-                            class="bracket-mode-btn ${this.bracketViewMode !== 'all' ? 'active' : ''}" 
-                            onclick="app.setBracketViewMode('single')" 
-                            title="תצוגת שלב ממוקד מותאמת לנייד">
-                        📱 שלב ממוקד
-                    </button>
-                    <button type="button" 
-                            class="bracket-mode-btn ${this.bracketViewMode === 'all' ? 'active' : ''}" 
-                            onclick="app.setBracketViewMode('all')" 
-                            title="תצוגת עץ מלאה עם גלילה">
-                        📜 עץ מלא
-                    </button>
+            </div>
+        `);
+
+        // שמירת מיקום הגלילה האופקית של העץ בין רינדורים (חשוב במובייל בזמן הזנת תוצאות)
+        const prevScrollLeft = container.querySelector('.bracket-tree-scroll')?.scrollLeft || 0;
+
+        // במובייל: המשחק שנבחר נפתח מעל העץ בכרטיס מלא (שמות מלאים והזנת תוצאה)
+        const openMatch = (isMobile && this.openPlayoffMatchId) ? this.findPlayoffMatch(this.openPlayoffMatchId) : null;
+        const editorHtml = openMatch ? `
+            <div class="bracket-editor-backdrop" onclick="if (event.target === this) app.closePlayoffMatch()">
+                <div class="bracket-editor">
+                    ${renderPlayoffCard(openMatch, openMatch.id === 'final')}
+                    <button type="button" class="btn-secondary" onclick="app.closePlayoffMatch()">סגור</button>
                 </div>
             </div>
-        `;
-
-        // בניית עמודות השלבים
-        const columnsHtml = roundsList.map((r, idx) => {
-            const isActive = idx === this.selectedBracketRound;
-            const prevRound = idx > 0 ? roundsList[idx - 1] : null;
-            const nextRound = idx < roundsList.length - 1 ? roundsList[idx + 1] : null;
-
-            const bottomNavHtml = `
-                <div class="bracket-step-nav-bar">
-                    ${prevRound ? `
-                        <button type="button" class="btn-bracket-step" onclick="app.setBracketRound(${idx - 1})">
-                            ➡️ ${prevRound.name}
-                        </button>
-                    ` : '<span style="flex:1;"></span>'}
-                    ${nextRound ? `
-                        <button type="button" class="btn-bracket-step btn-bracket-next" onclick="app.setBracketRound(${idx + 1})">
-                            ${nextRound.name} ⬅️
-                        </button>
-                    ` : '<span style="flex:1;"></span>'}
-                </div>
-            `;
-
-            return `
-                <div class="bracket-round-column ${isActive ? 'active-round' : ''}" data-round-index="${idx}">
-                    <div class="round-header" style="${r.isFinal ? 'background:#b45309; color:white; border-color:#92400e;' : ''}">
-                        ${r.icon} ${r.name}
-                    </div>
-                    <div class="round-matches-list">
-                        ${r.matches.map(m => renderPlayoffCard(m, !!r.isFinal)).join('')}
-                    </div>
-                    ${bottomNavHtml}
-                </div>
-            `;
-        }).join('');
+        ` : '';
 
         container.innerHTML = `
             ${seedsSummaryHtml}
-            ${mobileNavHtml}
-            <div class="bracket-rounds-container ${this.bracketViewMode === 'all' ? 'bracket-mode-all' : ''}">
-                ${columnsHtml}
+            ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
+            <div class="bracket-tree-scroll">
+                <div class="bracket-tree" style="--rounds: ${visibleRounds.length};">
+                    ${columnsHtml.join('')}
+                </div>
             </div>
             ${championBannerHtml}
+            ${editorHtml}
         `;
+
+        const treeScroll = container.querySelector('.bracket-tree-scroll');
+        if (treeScroll) treeScroll.scrollLeft = prevScrollLeft;
     }
 
-    setBracketRound(idx) {
-        this.selectedBracketRound = idx;
+    openPlayoffMatch(matchId) {
+        this.openPlayoffMatchId = matchId;
         this.renderPlayoffBracket();
     }
 
-    setBracketViewMode(mode) {
-        this.bracketViewMode = mode;
+    closePlayoffMatch() {
+        this.openPlayoffMatchId = null;
         this.renderPlayoffBracket();
     }
 
