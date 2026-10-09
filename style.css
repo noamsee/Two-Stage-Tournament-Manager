@@ -1572,6 +1572,94 @@ body.role-admin .tab-btn.owner-only {
     background: #382c21;
 }
 
+/* מסך הפתיחה: בחירה בין כניסת צופה לכניסת מנהל */
+.login-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.login-choice-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 16px 18px;
+    font-family: inherit;
+    text-align: right;
+    color: #271e16;
+    background: #fffdf8;
+    border: 1px solid #c4b08f;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+
+.login-choice-btn:hover,
+.login-choice-btn:focus-visible {
+    outline: none;
+    background: #f4ebdc;
+    border-color: #a08c6c;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+}
+
+.login-choice-btn.login-choice-manager {
+    color: #fffdf8;
+    background: #4a3c2e;
+    border-color: #382c21;
+}
+
+.login-choice-btn.login-choice-manager:hover,
+.login-choice-btn.login-choice-manager:focus-visible {
+    background: #382c21;
+    border-color: #271e16;
+}
+
+.login-choice-icon {
+    flex-shrink: 0;
+    font-size: 1.7rem;
+    line-height: 1;
+}
+
+.login-choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.login-choice-text strong {
+    font-size: 1.08rem;
+    font-weight: 800;
+}
+
+.login-choice-text small {
+    font-size: 0.8rem;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.login-back-link {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 6px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #6b5b45;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.login-back-link:hover {
+    color: #271e16;
+    text-decoration: underline;
+}
+
 .login-btn-guest {
     width: 100%;
     padding: 10px;

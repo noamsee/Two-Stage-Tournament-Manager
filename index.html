@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.7">
+    <link rel="stylesheet" href="./style.css?v=4.8">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -27,6 +27,58 @@
             <div class="login-icon-box">🏆</div>
             <h1>טורנירשת</h1>
             <p class="subtitle">מערכת חכמה לניהול לוחות משחקים, טבלאות דירוג ועצי נוקאאוט</p>
+
+            <!-- שלב 1: בחירת סוג הכניסה - צופה או מנהל -->
+            <div id="login-step-choice" class="login-step login-choice">
+                <button type="button" class="login-choice-btn" onclick="app.showLoginStep('viewer')">
+                    <span class="login-choice-icon">👁️</span>
+                    <span class="login-choice-text">
+                        <strong>המשך כצופה</strong>
+                        <small>צפייה בלוחות המשחקים, בטבלאות ובעץ הפלייאוף</small>
+                    </span>
+                </button>
+                <button type="button" class="login-choice-btn login-choice-manager" onclick="app.showLoginStep('manager')">
+                    <span class="login-choice-icon">🔑</span>
+                    <span class="login-choice-text">
+                        <strong>המשך כמנהל</strong>
+                        <small>התחברות לניהול הטורניר והזנת תוצאות</small>
+                    </span>
+                </button>
+            </div>
+
+            <!-- שלב 2א: כניסת צופה - בחירת טורניר, בית וקבוצה למעקב -->
+            <div id="login-step-viewer" class="login-step login-form hidden">
+                <div class="login-field" id="loginTournamentPickerGroup">
+                    <label for="loginTournamentSelect">🏆 1. בחר טורניר לצפייה:</label>
+                    <select id="loginTournamentSelect" class="login-tournament-select" onchange="app.onLoginTournamentChange(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <!-- שדות בחירת בית וקבוצה ישירות במסך הכניסה -->
+                <div class="login-field" id="loginHouseGroup">
+                    <label for="loginHouseSelect">🏠 2. בחר בית (אופציונלי):</label>
+                    <select id="loginHouseSelect" class="login-input" onchange="app.onLoginHouseChange(this.value)">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <div class="login-field" id="loginTeamGroup">
+                    <label for="loginTeamSelect">⚽ 3. בחר קבוצה מועדפת (אופציונלי):</label>
+                    <select id="loginTeamSelect" class="login-input">
+                        <!-- דינמי דרך JS -->
+                    </select>
+                </div>
+
+                <button type="button" class="login-btn-primary" onclick="app.loginAsGuest()">
+                    👁️ כניסה כצופה
+                </button>
+
+                <button type="button" class="login-back-link" onclick="app.showLoginStep('choice')">→ חזרה</button>
+            </div>
+
+            <!-- שלב 2ב: כניסת מנהל - התחברות בלבד, ללא בחירת טורניר וללא כניסת אורח -->
+            <div id="login-step-manager" class="login-step hidden">
 
             <!-- לשוניות מעבר: כניסה / הרשמה (Login vs Sign-Up) -->
             <div class="auth-tabs" role="tablist">
@@ -59,7 +111,7 @@
             <form id="form-login" class="login-form" onsubmit="event.preventDefault(); app.handleLogin();">
                 <div class="login-field">
                     <label for="loginEmail">📧 כתובת אימייל:</label>
-                    <input type="email" id="loginEmail" class="login-input" placeholder="name@example.com" autofocus autocomplete="email">
+                    <input type="email" id="loginEmail" class="login-input" placeholder="name@example.com" autocomplete="email">
                 </div>
 
                 <div class="login-field">
@@ -67,34 +119,8 @@
                     <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" autocomplete="current-password">
                 </div>
 
-                <div class="login-field" id="loginTournamentPickerGroup">
-                    <label for="loginTournamentSelect">🏆 1. בחר טורניר לצפייה:</label>
-                    <select id="loginTournamentSelect" class="login-tournament-select" onchange="app.onLoginTournamentChange(this.value)">
-                        <!-- דינמי דרך JS -->
-                    </select>
-                </div>
-
-                <!-- שדות בחירת בית וקבוצה ישירות במסך הכניסה -->
-                <div class="login-field" id="loginHouseGroup">
-                    <label for="loginHouseSelect">🏠 2. בחר בית (אופציונלי):</label>
-                    <select id="loginHouseSelect" class="login-input" onchange="app.onLoginHouseChange(this.value)">
-                        <!-- דינמי דרך JS -->
-                    </select>
-                </div>
-
-                <div class="login-field" id="loginTeamGroup">
-                    <label for="loginTeamSelect">⚽ 3. בחר קבוצה מועדפת (אופציונלי):</label>
-                    <select id="loginTeamSelect" class="login-input">
-                        <!-- דינמי דרך JS -->
-                    </select>
-                </div>
-
                 <button type="submit" class="login-btn-primary">
                     🚀 כניסה למערכת (Login)
-                </button>
-
-                <button type="button" class="login-btn-guest" onclick="app.loginAsGuest()">
-                    👁️ כניסה ישירה כאורח (Guest)
                 </button>
             </form>
 
@@ -135,6 +161,9 @@
                     כבר יש לך חשבון? <a href="javascript:void(0)" onclick="app.switchAuthMode('login')">עבור למסך כניסה</a>
                 </p>
             </form>
+
+                <button type="button" class="login-back-link" onclick="app.showLoginStep('choice')">→ חזרה</button>
+            </div>
         </div>
     </section>
 
@@ -758,7 +787,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.7"></script>
+    <script src="./app.js?v=4.8"></script>
 </body>
 </html>
 

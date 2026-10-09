@@ -354,11 +354,24 @@ class TournamentApp {
        ניהול מסכים ותצוגה (Screens: Login vs Main)
        ======================================================== */
 
+    // מסך הכניסה בנוי משלבים: בחירה (צופה/מנהל), כניסת צופה, וכניסת מנהל
+    showLoginStep(step = 'choice') {
+        ['choice', 'viewer', 'manager'].forEach(name => {
+            const el = document.getElementById(`login-step-${name}`);
+            if (el) el.classList.toggle('hidden', name !== step);
+        });
+        if (step === 'manager') {
+            this.switchAuthMode('login');
+            document.getElementById('loginEmail')?.focus();
+        }
+    }
+
     showLoginScreen() {
         const loginScreen = document.getElementById('screen-login');
         const mainScreen = document.getElementById('screen-main');
         if (loginScreen) loginScreen.classList.remove('hidden');
         if (mainScreen) mainScreen.classList.add('hidden');
+        this.showLoginStep('choice');
         this.populateTournamentSelectors();
         
         const loginEmail = document.getElementById('loginEmail');
