@@ -2976,7 +2976,6 @@ class TournamentApp {
         this.saveActiveFilters();
         this.renderStandings();
         this.renderMatches();
-        if (document.querySelector('#playoff-bracket-container .bracket-tree')) this.renderPlayoffBracket();
         document.getElementById(sourceId)?.focus({ preventScroll: true });
     }
 
@@ -3367,27 +3366,6 @@ class TournamentApp {
         const sf = this.playoffMatches?.sf || [];
         const final = this.playoffMatches?.final || null;
 
-        // סינון הקבוצה בעמוד הפלייאוף משתמש באותה בחירה של עמוד הבתים (שמתחילה מהקבוצה המועדפת).
-        // קבוצה שלא עלתה לפלייאוף לא נחשבת כאן, ואז העמוד נפתח ללא קבוצה מודגשת.
-        const playoffTeamNames = [...new Set([
-            ...(this.playoffSeeds || []).map(s => s.teamName),
-            ...[...r16, ...qf, ...sf, final].flatMap(m => m ? [m.team1?.teamName, m.team2?.teamName] : [])
-        ])].filter(Boolean).sort((a, b) => a.localeCompare(b, 'he'));
-        const chosenTeam = playoffTeamNames.includes(this.currentTeamFilter) ? this.currentTeamFilter : null;
-        const chosenClass = (team) => (chosenTeam && team && team.teamName === chosenTeam) ? 'is-chosen-team' : '';
-        const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const teamFilterHtml = playoffTeamNames.length > 0 ? `
-            <div class="filter-tabs filter-tabs-top">
-                <label class="filter-select-wrap">
-                    <span>👥 קבוצה</span>
-                    <select id="playoffTeamFilter" class="filter-select" onchange="app.filterPlayoffTeam(this.value)">
-                        <option value="all" ${chosenTeam ? '' : 'selected'}>כל הקבוצות</option>
-                        ${playoffTeamNames.map(name => `<option value="${escAttr(name)}" ${chosenTeam === name ? 'selected' : ''}>${escAttr(name)}</option>`).join('')}
-                    </select>
-                </label>
-            </div>
-        ` : '';
-
         const renderPlayoffCard = (m, isFinal = false) => {
             if (!m) return '';
             const team1Name = m.team1 ? m.team1.teamName : 'ממתין לתוצאה...';
@@ -3429,7 +3407,7 @@ class TournamentApp {
                         <div class="match-team-row ${row1Winner}" id="prow-${m.id}-1">
                             <div class="team-meta-wrap">
                                 ${team1Seed ? `<span class="challonge-seed-badge">#${team1Seed}</span>` : ''}
-                                <span class="team-name ${chosenClass(m.team1)}" title="${team1Name}">
+                                <span class="team-name" title="${team1Name}">
                                     ${isRow1Winner ? '<span class="winner-trophy-icon">🏆</span> ' : ''}${team1Name}
                                 </span>
                             </div>
@@ -3452,7 +3430,7 @@ class TournamentApp {
                         <div class="match-team-row ${row2Winner}" id="prow-${m.id}-2">
                             <div class="team-meta-wrap">
                                 ${team2Seed ? `<span class="challonge-seed-badge">#${team2Seed}</span>` : ''}
-                                <span class="team-name ${chosenClass(m.team2)}" title="${team2Name}">
+                                <span class="team-name" title="${team2Name}">
                                     ${isRow2Winner ? '<span class="winner-trophy-icon">🏆</span> ' : ''}${team2Name}
                                 </span>
                             </div>
@@ -3482,7 +3460,7 @@ class TournamentApp {
             const isTie = (m.score1 !== null && m.score2 !== null && m.score1 === m.score2);
             const miniRow = (team, score, isWinner) => `
                 <span class="mini-row ${isWinner ? 'winner' : ''} ${team ? '' : 'is-waiting'}">
-                    <span class="mini-name ${chosenClass(team)}">${team ? team.teamName : 'ממתין'}</span>
+                    <span class="mini-name">${team ? team.teamName : 'ממתין'}</span>
                     <span class="mini-score">${score !== null && score !== undefined ? score : '-'}</span>
                 </span>
             `;
@@ -3563,7 +3541,6 @@ class TournamentApp {
         ` : '';
 
         container.innerHTML = `
-            ${teamFilterHtml}
             ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
             ${visibleRounds.some(canEnlarge) ? '<p class="bracket-mobile-hint">🔍 לחץ על כותרת סיבוב (למשל רבע גמר) כדי להגדיל את המשחקים שלו. לחיצה נוספת מקטינה חזרה</p>' : ''}
             <div class="bracket-tree-scroll">
@@ -3581,16 +3558,6 @@ class TournamentApp {
         if (focusedInputId && document.activeElement?.id !== focusedInputId) {
             this.refocusScoreInput(document.getElementById(focusedInputId));
         }
-    }
-
-    // בחירת קבוצה בעמוד הפלייאוף מדגישה אותה בעץ, ומשותפת עם סינון הקבוצה של עמוד הבתים
-    filterPlayoffTeam(teamName) {
-        this.currentTeamFilter = teamName;
-        this.saveActiveFilters();
-        this.renderPlayoffBracket();
-        this.renderStandings();
-        this.renderMatches();
-        document.getElementById('playoffTeamFilter')?.focus({ preventScroll: true });
     }
 
     toggleEnlargedRound(roundKey) {
