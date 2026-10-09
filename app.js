@@ -224,6 +224,17 @@ class TournamentApp {
                         cloudTournaments.push({ id: doc.id, ...doc.data() });
                     });
                     
+                    // טורניר שהוקם זה עתה במכשיר הזה ועדיין לא הגיע מהענן נשמר ברשימה,
+                    // אחרת המנהל היה מוחזר לטורניר אחר באמצע הזנת שמות הקבוצות
+                    if (this.pendingCreatedTournamentId) {
+                        if (cloudTournaments.some(t => t.id === this.pendingCreatedTournamentId)) {
+                            this.pendingCreatedTournamentId = null;
+                        } else {
+                            const localNew = this.tournaments.find(t => t.id === this.pendingCreatedTournamentId);
+                            if (localNew) cloudTournaments.push(localNew);
+                        }
+                    }
+
                     // מיון כך שהטורניר הפעיל יהיה ראשון
                     cloudTournaments.sort((a, b) => {
                         if (a.isArchived === b.isArchived) return (b.createdAt || '').localeCompare(a.createdAt || '');
@@ -2333,15 +2344,14 @@ class TournamentApp {
         this.saveTournamentsList();
         this.closeTournamentWizard();
         this.activeTournamentId = targetId;
+        // עד שהענן מאשר את הטורניר החדש, עדכון סנכרון שעדיין אינו כולל אותו לא יחזיר את המנהל לטורניר אחר
+        this.pendingCreatedTournamentId = targetId;
         this.loadTournamentData(targetId);
         this.populateTournamentSelectors();
         this.renderOwnerTournamentsList();
 
-        if (format === 'knockout_only') {
-            this.switchTab('playoffs');
-        } else {
-            this.switchTab('setup');
-        }
+        // לאחר הקמת טורניר חדש עוברים תמיד להגדרות הטורניר (הזנת שמות הקבוצות)
+        this.switchTab('setup');
 
         this.showAlert(`הטורניר '${tourneyName}' הוקם בהצלחה עם ${teams.length} קבוצות!`, "success");
     }
