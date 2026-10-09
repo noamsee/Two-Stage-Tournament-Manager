@@ -2808,9 +2808,6 @@ class TournamentApp {
                                         <button type="button" class="btn-secondary btn-sm" onclick="app.viewTournamentFromList('${t.id}')" title="מעבר לצפייה בטורניר ובמשחקים">
                                             ${isCurrentlyActive ? '👁️ צפה (פעיל)' : '👁️ צפה בטורניר'}
                                         </button>
-                                        <button type="button" class="btn-edit-user btn-sm" onclick="app.openEditTournamentModal('${t.id}')" title="${t.isArchived ? 'לא ניתן לערוך טורניר סגור' : 'עריכת מבנה טורניר'}" ${t.isArchived ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>
-                                            ⚙️ ערוך
-                                        </button>
                                         <button type="button" class="btn-sm btn-secondary" onclick="app.toggleCloseTournament('${t.id}')" title="${t.isArchived ? 'פתח טורניר מחדש' : 'סגור טורניר והעבר לארכיון'}">
                                             ${t.isArchived ? '🔓 פתח' : '🔒 סגור'}
                                         </button>
