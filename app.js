@@ -105,8 +105,12 @@ class TournamentApp {
         // גרסת מובייל: עץ פלייאוף מוקטן שנכנס למסך, ומשחק נפתח לעריכה בהקשה
         this.mobileQuery = window.matchMedia('(max-width: 640px)');
         this.openPlayoffMatchId = null;
+        // חוצצי הקלדה במובייל: הספרות נשמרות כאן ונרשמות לטורניר רק בסיום ההקלדה
+        this.scoreDrafts = {};        // שלב הבתים: מפתח "מזהה משחק:מספר קבוצה"
+        this.scoreDraftTimers = {};
+        this.playoffDraft = {};       // כרטיס המשחק הפתוח בפלייאוף
         this.mobileQuery.addEventListener('change', () => {
-            this.openPlayoffMatchId = null;
+            this.finishPlayoffEditing();
             if (document.querySelector('#playoff-bracket-container .bracket-tree')) {
                 this.renderPlayoffBracket();
             }
@@ -935,6 +939,9 @@ class TournamentApp {
     }
 
     logout() {
+        // רישום הקלדות שעדיין בחוצץ לפני היציאה
+        this.flushAllScoreDrafts();
+        this.finishPlayoffEditing();
         this.closeAdminTournamentChooser();
         const loggedOutEmail = this.currentUser ? this.currentUser.email : '';
         this.currentUser = null;
@@ -1934,7 +1941,8 @@ class TournamentApp {
 
     switchTournament(newTourneyId, showNotification = true) {
         if (newTourneyId === this.activeTournamentId) return;
-        this.openPlayoffMatchId = null;
+        this.flushAllScoreDrafts();
+        this.finishPlayoffEditing();
 
         // אורח/צופה מחובר אינו רשאי לעבור לטורניר אחר.
         // לפני ההתחברות (במסך הכניסה) אין עדיין משתמש, והבחירה שנעשתה שם חייבת לחול
@@ -2897,7 +2905,8 @@ class TournamentApp {
                 tabId = 'setup';
             }
         }
-        this.openPlayoffMatchId = null;
+        this.flushAllScoreDrafts();
+        this.finishPlayoffEditing();
         try { sessionStorage.setItem('tournament_active_tab', tabId); } catch (e) {}
         document.querySelectorAll('.tab-section').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -3213,8 +3222,10 @@ class TournamentApp {
         const isTie = this.isTiedScore(m);
         const row1WinnerClass = isTie ? 'draw-match' : (m.winner === 'team1' ? 'winner' : '');
         const row2WinnerClass = isTie ? 'draw-match' : (m.winner === 'team2' ? 'winner' : '');
-        const score1Val = m.score1 !== null ? m.score1 : '';
-        const score2Val = m.score2 !== null ? m.score2 : '';
+        const groupDraft1 = this.scoreDrafts ? this.scoreDrafts[`${m.id}:1`] : undefined;
+        const groupDraft2 = this.scoreDrafts ? this.scoreDrafts[`${m.id}:2`] : undefined;
+        const score1Val = groupDraft1 !== undefined ? groupDraft1 : (m.score1 !== null ? m.score1 : '');
+        const score2Val = groupDraft2 !== undefined ? groupDraft2 : (m.score2 !== null ? m.score2 : '');
 
         const score1Field = isReadOnlyStage
             ? `<span class="score-display-viewer">${score1Val !== '' ? score1Val : '-'}</span>`
@@ -3355,9 +3366,16 @@ class TournamentApp {
        אלגוריתם 2: אימות תוצאות ואיסור תיקו מוחלט (No-Ties Rule)
        ======================================================== */
 
-    handleScoreChange(matchId, teamNum, rawValue, inputElement) {
+    handleScoreChange(matchId, teamNum, rawValue, inputElement, commit = false) {
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+
+        // במובייל ההקלדה נאגרת ונרשמת רק כשהמנהל מפסיק להקליד או יוצא מהשדה,
+        // כדי שסנכרון מהענן באמצע הקלדה מהירה לא ידרוס ספרות
+        if (!commit && this.mobileQuery.matches) {
+            this.bufferScoreInput(matchId, teamNum, rawValue);
             return;
         }
 
@@ -3382,7 +3400,7 @@ class TournamentApp {
         const parsed = Number(rawValue);
         if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) {
             this.showAlert("שגיאת תוצאה: יש להזין מספר שלם וחיובי (0 ומעלה) בלבד.", "error");
-            inputElement.value = '';
+            if (inputElement) inputElement.value = '';
             if (teamNum === 1) match.score1 = null;
             if (teamNum === 2) match.score2 = null;
             match.winner = null;
@@ -3433,7 +3451,30 @@ class TournamentApp {
             && Number(match.score1) === Number(match.score2);
     }
 
+    bufferScoreInput(matchId, teamNum, rawValue) {
+        const key = `${matchId}:${teamNum}`;
+        this.scoreDrafts[key] = rawValue;
+        clearTimeout(this.scoreDraftTimers[key]);
+        this.scoreDraftTimers[key] = setTimeout(() => this.commitScoreDraft(key), 900);
+    }
+
+    commitScoreDraft(key) {
+        clearTimeout(this.scoreDraftTimers[key]);
+        delete this.scoreDraftTimers[key];
+        const rawValue = this.scoreDrafts[key];
+        if (rawValue === undefined) return;
+        delete this.scoreDrafts[key];
+        const sep = key.lastIndexOf(':');
+        this.handleScoreChange(key.slice(0, sep), Number(key.slice(sep + 1)), rawValue, null, true);
+    }
+
+    flushAllScoreDrafts() {
+        Object.keys(this.scoreDrafts || {}).forEach(key => this.commitScoreDraft(key));
+    }
+
     checkGroupDrawOnBlur(matchId) {
+        // יציאה מהשדה: רושמים מיד את מה שנאגר עבור המשחק הזה
+        [1, 2].forEach(teamNum => this.commitScoreDraft(`${matchId}:${teamNum}`));
         const match = this.matches.find(m => m.id === matchId);
         if (this.isTiedScore(match)) {
             this.showAlert("⚠️ אין תיקו בכדורשת: יש להזין תוצאה עם מנצחת כדי שהמשחק ייספר בטבלה.", "warning");
@@ -3783,8 +3824,10 @@ class TournamentApp {
             const row1Winner = isRow1Winner ? 'winner' : '';
             const row2Winner = isRow2Winner ? 'winner' : '';
 
-            const score1Val = m.score1 !== null ? m.score1 : '';
-            const score2Val = m.score2 !== null ? m.score2 : '';
+            const draft1 = this.playoffDraft ? this.playoffDraft[`${m.id}:1`] : undefined;
+            const draft2 = this.playoffDraft ? this.playoffDraft[`${m.id}:2`] : undefined;
+            const score1Val = draft1 !== undefined ? draft1 : (m.score1 !== null ? m.score1 : '');
+            const score2Val = draft2 !== undefined ? draft2 : (m.score2 !== null ? m.score2 : '');
             const disabledInputs = isViewer || !m.team1 || !m.team2;
 
             const isTie = (m.score1 !== null && m.score2 !== null && m.score1 === m.score2);
@@ -3975,13 +4018,36 @@ class TournamentApp {
     }
 
     openPlayoffMatch(matchId) {
+        this.finishPlayoffEditing();
         this.openPlayoffMatchId = matchId;
         this.renderPlayoffBracket();
     }
 
+    // יציאה מכרטיס המשחק במובייל: רק עכשיו התוצאה שהוקלדה נרשמת, נשמרת ומקדמת את המנצחת
     closePlayoffMatch() {
-        this.openPlayoffMatchId = null;
+        const closedMatchId = this.openPlayoffMatchId;
+        const committed = this.finishPlayoffEditing();
         this.renderPlayoffBracket();
+        if (committed && closedMatchId) this.checkPlayoffDrawOnBlur(closedMatchId);
+    }
+
+    // רושם את מה שהוקלד בכרטיס הפתוח (אם הוקלד) וסוגר אותו. מחזיר true אם נרשם שינוי
+    finishPlayoffEditing() {
+        const matchId = this.openPlayoffMatchId;
+        const draft = this.playoffDraft || {};
+        this.openPlayoffMatchId = null;
+        this.playoffDraft = {};
+        if (!matchId) return false;
+
+        let committed = false;
+        [1, 2].forEach(teamNum => {
+            const key = `${matchId}:${teamNum}`;
+            if (draft[key] !== undefined) {
+                this.handlePlayoffScore(matchId, teamNum, draft[key], null, true);
+                committed = true;
+            }
+        });
+        return committed;
     }
 
     findPlayoffMatch(matchId) {
@@ -4020,9 +4086,16 @@ class TournamentApp {
         }
     }
 
-    handlePlayoffScore(matchId, teamNum, rawValue, inputElement) {
+    handlePlayoffScore(matchId, teamNum, rawValue, inputElement, commit = false) {
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+
+        // במובייל, בזמן שכרטיס המשחק פתוח, ההקלדה רק נאגרת: בלי רינדור מחדש ובלי שמירה.
+        // כך גם ספרות שמוקלדות מהר נקלטות נכון, והתוצאה נרשמת רק ביציאה מהכרטיס.
+        if (!commit && this.mobileQuery.matches && this.openPlayoffMatchId === matchId) {
+            this.playoffDraft[`${matchId}:${teamNum}`] = rawValue;
             return;
         }
 
