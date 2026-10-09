@@ -836,6 +836,7 @@ header h1 {
 .bracket-tree {
     --bracket-gap: 18px;
     --bracket-line: #a08c6c;
+    --bracket-win-line: #16a34a;
     display: flex;
     align-items: stretch;
     max-width: calc(var(--rounds, 3) * 340px);
@@ -1013,6 +1014,15 @@ header h1 {
     margin: 0 var(--bracket-gap) 8px;
     direction: rtl;
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+/* מסלול המנצחת: הקו ממשחק שהוכרע אל המשחק הבא נצבע בירוק */
+.bracket-round-column:not(:last-child) .bracket-slot.is-set.is-decided::after {
+    border-color: var(--bracket-win-line);
+}
+
+.bracket-round-column:not(:first-child) .bracket-slot.has-feed.has-winner-feed::before {
+    border-top-color: var(--bracket-win-line);
 }
 
 /* כותרת סיבוב לחיצה: מגדילה את משחקי הסיבוב לצפייה נוחה */

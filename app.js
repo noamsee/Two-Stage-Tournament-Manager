@@ -3491,6 +3491,7 @@ class TournamentApp {
 
         // קו חיבור יוצא ממשחק רק כאשר שתי הקבוצות המתמודדות בו כבר ידועות
         const isSet = (m) => !!(m && m.team1 && m.team2);
+        const isDecided = (m) => !!(m && (m.winner === 'team1' || m.winner === 'team2'));
 
         // לחיצה על כותרת סיבוב מגדילה את המשחקים שלו לצפייה נוחה.
         // סיבוב שעדיין אין בו אף משחק עם שתי קבוצות ידועות אינו לחיץ.
@@ -3505,7 +3506,8 @@ class TournamentApp {
                 <div class="bracket-round-matches">
                     ${r.matches.map((m, i) => {
                         const feeders = idx > 0 ? visibleRounds[idx - 1].matches.slice(i * 2, i * 2 + 2) : [];
-                        const slotClasses = `${isSet(m) ? 'is-set' : ''} ${feeders.some(isSet) ? 'has-feed' : ''}`;
+                        // מסלול המנצחת: קו ממשחק שהוכרע אל המשחק הבא נצבע בירוק
+                        const slotClasses = `${isSet(m) ? 'is-set' : ''} ${feeders.some(isSet) ? 'has-feed' : ''} ${isDecided(m) ? 'is-decided' : ''} ${feeders.some(isDecided) ? 'has-winner-feed' : ''}`;
                         return `<div class="bracket-slot ${slotClasses}">${renderTreeCard(m, !!r.isFinal)}</div>`;
                     }).join('')}
                 </div>
@@ -3528,6 +3530,7 @@ class TournamentApp {
 
         container.innerHTML = `
             ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
+            ${visibleRounds.some(canEnlarge) ? '<p class="bracket-mobile-hint">🔍 לחץ על כותרת סיבוב (למשל רבע גמר) כדי להגדיל את המשחקים שלו. לחיצה נוספת מקטינה חזרה</p>' : ''}
             <div class="bracket-tree-scroll">
                 <div class="bracket-tree" style="--rounds: ${visibleRounds.length + (enlargedRound ? 1 : 0)};">
                     ${columnsHtml.join('')}
