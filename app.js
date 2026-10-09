@@ -3243,7 +3243,6 @@ class TournamentApp {
                                             <td><span class="rank-indicator ${rankClass}">${rankDisplay}</span></td>
                                             <td class="team-cell" title="${t.teamName}">
                                                 <span class="team-name-text">${t.teamName}</span>
-                                                ${isFollowed ? '<span class="followed-team-star">⭐</span>' : ''}
                                             </td>
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>

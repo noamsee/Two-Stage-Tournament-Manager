@@ -667,10 +667,6 @@ header h1 {
     transition: background 0.12s ease;
 }
 
-.standings-table tbody tr:hover {
-    background-color: #f8fafc;
-}
-
 .standings-table td.team-cell {
     text-align: right;
     font-weight: 700;
@@ -2402,20 +2398,15 @@ body:not(.role-viewer) .guest-only-btn {
     align-items: center;
 }
 
-/* הקבוצה במעקב מודגשת בטקסט בלבד (מודגש + קו תחתון + כוכב בסוף השם),
-   בלי צבע רקע, כדי לא להתבלבל עם צבעי העולות והמועמדות */
+/* הקבוצה במעקב מודגשת בטקסט בלבד (מודגש במיוחד + קו תחתון), בלי צבע רקע,
+   כדי לא להתבלבל עם צבעי העולות והמועמדות. העיבוי נעשה בקו מתאר ולא במשקל גופן
+   כבד יותר, כי במשקלים 800-900 העברית מוחלפת בגופן אחר בחלק מהמכשירים */
 .row-followed-team td.team-cell .team-name-text {
     font-weight: 700;
+    -webkit-text-stroke: 0.7px currentColor;
     text-decoration: underline;
     text-decoration-thickness: 2px;
     text-underline-offset: 3px;
-}
-
-.followed-team-star {
-    margin-right: 4px;
-    font-size: 0.9rem;
-    display: inline-block;
-    vertical-align: middle;
 }
 
 .followed-matches-container {
@@ -2579,9 +2570,8 @@ html, body {
         vertical-align: middle;
     }
 
-    /* מקום לכוכב שאחרי השם, ולקו התחתון שלא ייחתך */
+    /* מקום לקו התחתון שלא ייחתך */
     .standings-table .row-followed-team td.team-cell .team-name-text {
-        max-width: 100px;
         padding-bottom: 4px;
     }
 
