@@ -433,12 +433,21 @@ header h1 {
     margin-bottom: 20px;
 }
 
-/* הקבוצה הנבחרת בלוח המשחקים: מודגשת במיוחד עם קו תחתון (כמו בטבלת הבתים) */
+/* הקבוצה הנבחרת בלוח המשחקים ובעץ הפלייאוף: מודגשת במיוחד עם קו תחתון (כמו בטבלת הבתים) */
+.mini-name.is-chosen-team,
 .match-team-row .team-name.is-chosen-team {
     -webkit-text-stroke: 0.7px currentColor;
     text-decoration: underline;
     text-decoration-thickness: 2px;
     text-underline-offset: 3px;
+}
+
+/* בכרטיס המוקטן השם נחתך בגובה השורה, ולכן נדרש מרווח תחתון כדי שהקו התחתון ייראה */
+.mini-name.is-chosen-team {
+    -webkit-text-stroke: 0.4px currentColor;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 2px;
+    padding-bottom: 3px;
 }
 
 .filter-select-wrap {
