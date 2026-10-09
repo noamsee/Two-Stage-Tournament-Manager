@@ -2599,7 +2599,31 @@ class TournamentApp {
         this.switchRole(this.currentRole);
     }
 
+    // יש אלופה: משחק הגמר של הפלייאוף הוכרע
+    hasPlayoffChampion() {
+        const final = this.playoffMatches?.final;
+        return !!final && (final.winner === 'team1' || final.winner === 'team2');
+    }
+
+    // כפתור "העבר לארכיון" בסרגל העליון מוצג רק כשלפלייאוף יש אלופה והטורניר עדיין פתוח
+    updateArchiveButtonUI() {
+        const btn = document.getElementById('headerArchiveTournamentBtn');
+        if (!btn) return;
+        const canArchive = this.format !== 'groups_only' && this.hasPlayoffChampion() && !this.isCurrentTournamentClosed();
+        btn.classList.toggle('hidden', !canArchive);
+    }
+
+    archiveActiveTournament() {
+        if (this.isCurrentTournamentClosed()) return;
+        if (!this.hasPlayoffChampion()) {
+            this.showAlert("ניתן להעביר טורניר לארכיון רק לאחר שנקבעה אלופה בפלייאוף.", "warning");
+            return;
+        }
+        this.toggleCloseTournament(this.activeTournamentId);
+    }
+
     updateCloseButtonUI() {
+        this.updateArchiveButtonUI();
         const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
         const isClosed = curr ? curr.isArchived : false;
 
@@ -2808,9 +2832,7 @@ class TournamentApp {
                                         <button type="button" class="btn-secondary btn-sm" onclick="app.viewTournamentFromList('${t.id}')" title="מעבר לצפייה בטורניר ובמשחקים">
                                             ${isCurrentlyActive ? '👁️ צפה (פעיל)' : '👁️ צפה בטורניר'}
                                         </button>
-                                        <button type="button" class="btn-sm btn-secondary" onclick="app.toggleCloseTournament('${t.id}')" title="${t.isArchived ? 'פתח טורניר מחדש' : 'סגור טורניר והעבר לארכיון'}">
-                                            ${t.isArchived ? '🔓 פתח' : '🔒 סגור'}
-                                        </button>
+                                        ${t.isArchived ? `<button type="button" class="btn-sm btn-secondary" onclick="app.toggleCloseTournament('${t.id}')" title="פתח טורניר מחדש">🔓 פתח</button>` : ''}
                                         ${deleteBtnHtml}
                                     </div>
                                 </td>
@@ -3818,6 +3840,9 @@ class TournamentApp {
 
         const treeScroll = container.querySelector('.bracket-tree-scroll');
         if (treeScroll) treeScroll.scrollLeft = prevScrollLeft;
+
+        // הכרעת הגמר (או ביטולה) קובעת אם כפתור "העבר לארכיון" מוצג
+        this.updateArchiveButtonUI();
 
         if (focusedInputId && document.activeElement?.id !== focusedInputId) {
             this.refocusScoreInput(document.getElementById(focusedInputId));

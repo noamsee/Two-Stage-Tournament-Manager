@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.24">
+    <link rel="stylesheet" href="./style.css?v=4.25">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -152,6 +152,11 @@
                     ✨ טורניר חדש
                 </button>
 
+                <!-- כפתור העברה לארכיון: מופיע רק לאחר שלפלייאוף יש אלופה -->
+                <button type="button" id="headerArchiveTournamentBtn" class="btn-secondary btn-sm admin-editable hidden" onclick="app.archiveActiveTournament()" title="העברת הטורניר שהסתיים לארכיון (קריאה בלבד)">
+                    📦 העבר לארכיון
+                </button>
+
                 <!-- כפתור מחיקת טורניר (Owner בלבד) -->
                 <button type="button" class="btn-danger-delete btn-sm owner-only" onclick="app.deleteActiveTournament()" title="מחיקת הטורניר הנוכחי לצמיתות (Owner בלבד)">
                     🗑️ מחק טורניר
@@ -198,9 +203,6 @@
                         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                             <button type="button" class="btn-success btn-sm admin-editable btn-new-tourney" onclick="app.openTournamentWizard()" title="הקמת טורניר חדש באשף">
                                 ✨ טורניר חדש
-                            </button>
-                            <button type="button" id="setupCloseTournamentBtn" class="btn-secondary btn-sm admin-editable" onclick="app.toggleCloseActiveTournament()" title="סגירת טורניר או פתיחתו מחדש">
-                                🔒 סגור טורניר
                             </button>
                             <button type="button" id="setupDeleteTournamentBtn" class="btn-danger-delete btn-sm owner-only" onclick="app.deleteActiveTournament()" title="מחיקת הטורניר הנוכחי לצמיתות מהמערכת (Owner בלבד)">
                                 🗑️ מחק טורניר
@@ -380,7 +382,6 @@
                             <button type="button" class="btn-success" onclick="app.openTournamentWizard()" style="padding: 10px 18px; font-weight:800;">
                                 ✨ פתח אשף הקמת טורניר חדש (Wizard)
                             </button>
-                            <button type="button" id="ownerCloseTourneyBtn" class="btn-secondary" onclick="app.toggleCloseActiveTournament()">🔒 סגור טורניר נוכחי</button>
                         </div>
 
                         <div id="ownerTournamentsList">
@@ -681,11 +682,6 @@ git push -u origin main</pre>
                     </div>
                 </div>
 
-                <!-- סיכום חי -->
-                <div id="wizardSummaryBox" class="wizard-summary-pill">
-                    <!-- ייווצר דינמית ע"י ה-JS -->
-                </div>
-
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px;">
                     <button type="submit" id="wizardSubmitBtn" class="btn-primary" style="padding:10px 20px; font-size:1rem; font-weight:800;">
                         🚀 צור טורניר והפעל לוח משחקים
@@ -744,7 +740,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.24"></script>
+    <script src="./app.js?v=4.25"></script>
 </body>
 </html>
 
