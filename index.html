@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.22">
+    <link rel="stylesheet" href="./style.css?v=4.23">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -153,7 +153,7 @@
                 </button>
 
                 <!-- כפתור עריכת טורניר קיים -->
-                <button class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת שם הטורניר ושיטת הניקוד">
+                <button class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת שם הטורניר">
                     ⚙️ ערוך טורניר
                 </button>
 
@@ -206,7 +206,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
                         <h2 id="setup-header-title" style="margin: 0;">הזנת קבוצות הטורניר</h2>
                         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                            <button type="button" class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת שם הטורניר ושיטת הניקוד">
+                            <button type="button" class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת שם הטורניר">
                                 ⚙️ ערוך טורניר
                             </button>
                             <button type="button" class="btn-success btn-sm admin-editable btn-new-tourney" onclick="app.openTournamentWizard()" title="הקמת טורניר חדש באשף">
@@ -600,7 +600,7 @@ git push -u origin main</pre>
                 ✨ אשף הקמת טורניר חדש
             </h2>
             <p id="wizardModalSubtitle" style="font-size:0.9rem; color:#6b5b45; margin-bottom:14px;">
-                הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר, עם שליטה מלאה על שיטת הניקוד והדירוג.
+                הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר.
             </p>
 
             <form onsubmit="event.preventDefault(); app.submitTournamentWizard();">
@@ -665,18 +665,6 @@ git push -u origin main</pre>
                                 <option value="9">9</option>
                                 <option value="10">10</option>
                             </select>
-                        </div>
-                    </div>
-
-                    <!-- שיטת הניקוד לפי חוקי הכדורשת: נקודות לניצחון ונקודות להפסד (אין תיקו) -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:10px;">
-                        <div class="login-field">
-                            <label for="wizardPointsWin">🥇 נקודות לניצחון במשחק:</label>
-                            <input type="number" id="wizardPointsWin" class="login-input" min="1" max="10" value="2" onchange="app.updateWizardSummary()">
-                        </div>
-                        <div class="login-field">
-                            <label for="wizardPointsLoss">🥈 נקודות להפסד במשחק:</label>
-                            <input type="number" id="wizardPointsLoss" class="login-input" min="0" max="10" value="1" onchange="app.updateWizardSummary()">
                         </div>
                     </div>
 
@@ -768,7 +756,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.22"></script>
+    <script src="./app.js?v=4.23"></script>
 </body>
 </html>
 

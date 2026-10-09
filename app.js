@@ -1742,11 +1742,9 @@ class TournamentApp {
         this.numGroups = parseInt(tData.numGroups, 10) || (tData.groups ? Object.keys(tData.groups).length : 2);
         this.teamsPerGroup = parseInt(tData.teamsPerGroup, 10) || 4;
         this.playoffSize = parseInt(tData.playoffSize, 10) || (this.numGroups * this.teamsPerGroup >= 8 ? 8 : 4);
-        // חוקי הכדורשת: 2 נקודות לניצחון, נקודה אחת להפסד, ואין תיקו.
-        // טורניר שנשמר לפני המעבר לשיטה זו (ללא הגדרת נקודות להפסד) מקבל את ניקוד הכדורשת.
-        const hasCatchballScoring = tData.pointsPerLoss !== undefined;
-        this.pointsPerWin = (hasCatchballScoring && tData.pointsPerWin !== undefined) ? parseInt(tData.pointsPerWin, 10) : 2;
-        this.pointsPerLoss = hasCatchballScoring ? parseInt(tData.pointsPerLoss, 10) : 1;
+        // חוקי הכדורשת, קבועים לכל הטורנירים: 2 נקודות לניצחון, נקודה אחת להפסד, ואין תיקו
+        this.pointsPerWin = 2;
+        this.pointsPerLoss = 1;
         this.teams = tData.teams ? [...tData.teams] : [...this.defaultTeams];
 
         // בדיקה וסנכרון תקינות של מבנה הבתים והמשחקים (מניעת ערבוב בתים שאינם קיימים)
@@ -1978,8 +1976,6 @@ class TournamentApp {
         const teamsPerGroupSelect = document.getElementById('wizardTeamsPerGroup');
         const playoffSizeSelect = document.getElementById('wizardPlayoffSize');
         const knockoutTeamsSelect = document.getElementById('wizardKnockoutTeams');
-        const pointsWinInp = document.getElementById('wizardPointsWin');
-        const pointsLossInp = document.getElementById('wizardPointsLoss');
         const formatRadios = document.querySelectorAll('input[name="wizardFormat"]');
 
         if (isEdit) {
@@ -1992,7 +1988,7 @@ class TournamentApp {
             }
 
             if (modalTitle) modalTitle.innerHTML = `⚙️ עריכת טורניר: ${tourney.name}`;
-            if (modalSub) modalSub.innerHTML = `ניתן לעדכן את שם הטורניר ושיטת הניקוד.<br><span style="color:#b45309; font-weight:700;">🔒 מבנה הטורניר (כמות הקבוצות, הבתים והפלייאוף) נעול לשינויים כדי לשמור על תקינות לוח המשחקים.</span> שמות הקבוצות ניתנים לעריכה במסך "קבוצות". במידה ודרוש מבנה חדש, יש לפתוח טורניר חדש באשף.`;
+            if (modalSub) modalSub.innerHTML = `ניתן לעדכן את שם הטורניר.<br><span style="color:#b45309; font-weight:700;">🔒 מבנה הטורניר (כמות הקבוצות, הבתים והפלייאוף) נעול לשינויים כדי לשמור על תקינות לוח המשחקים.</span> שמות הקבוצות ניתנים לעריכה במסך "קבוצות". במידה ודרוש מבנה חדש, יש לפתוח טורניר חדש באשף.`;
             if (submitBtn) submitBtn.innerHTML = `💾 שמור שינויים`;
 
             if (nameInp) nameInp.value = tourney.name;
@@ -2018,12 +2014,9 @@ class TournamentApp {
                 knockoutTeamsSelect.value = String(tourney.teams?.length || 8);
                 knockoutTeamsSelect.disabled = true;
             }
-            const tourneyHasCatchballScoring = tourney.pointsPerLoss !== undefined;
-            if (pointsWinInp) pointsWinInp.value = String((tourneyHasCatchballScoring && tourney.pointsPerWin !== undefined) ? tourney.pointsPerWin : 2);
-            if (pointsLossInp) pointsLossInp.value = String(tourneyHasCatchballScoring ? tourney.pointsPerLoss : 1);
         } else {
             if (modalTitle) modalTitle.innerHTML = `✨ אשף הקמת טורניר חדש`;
-            if (modalSub) modalSub.textContent = `הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר, עם שליטה מלאה על שיטת הניקוד והדירוג.`;
+            if (modalSub) modalSub.textContent = `הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר.`;
             if (submitBtn) submitBtn.innerHTML = `🚀 צור טורניר והפעל לוח משחקים`;
 
             if (nameInp) nameInp.value = `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
@@ -2048,8 +2041,6 @@ class TournamentApp {
                 knockoutTeamsSelect.value = '8';
                 knockoutTeamsSelect.disabled = false;
             }
-            if (pointsWinInp) pointsWinInp.value = '2';
-            if (pointsLossInp) pointsLossInp.value = '1';
         }
 
         this.updateWizardPlayoffOptions();
@@ -2149,8 +2140,8 @@ class TournamentApp {
         const summaryBox = document.getElementById('wizardSummaryBox');
         if (!summaryBox) return;
 
-        const pointsWin = parseInt(document.getElementById('wizardPointsWin')?.value || '2', 10);
-        const pointsLoss = parseInt(document.getElementById('wizardPointsLoss')?.value || '1', 10);
+        const pointsWin = 2;
+        const pointsLoss = 1;
 
         if (format === 'groups_only') {
             const numGroups = parseInt(document.getElementById('wizardNumGroups')?.value || '3', 10);
@@ -2207,12 +2198,12 @@ class TournamentApp {
 
         const nameInp = document.getElementById('wizardTourneyName');
         const tourneyName = (nameInp && nameInp.value.trim()) ? nameInp.value.trim() : `טורניר ${new Date().toLocaleDateString('he-IL')}`;
-        const pointsPerWin = parseInt(document.getElementById('wizardPointsWin')?.value || '2', 10);
-        const pointsPerLoss = parseInt(document.getElementById('wizardPointsLoss')?.value || '1', 10);
+        const pointsPerWin = 2;
+        const pointsPerLoss = 1;
 
         if (isEdit && existingTourney) {
             // בעריכת טורניר קיים: לא משנים מבנה ולא מוסיפים/מוחקים קבוצות!
-            // מעדכנים רק שם ושיטת ניקוד
+            // מעדכנים רק את השם (הניקוד קבוע: 2 לניצחון, 1 להפסד)
             existingTourney.name = tourneyName;
             existingTourney.pointsPerWin = pointsPerWin;
             existingTourney.pointsPerLoss = pointsPerLoss;
