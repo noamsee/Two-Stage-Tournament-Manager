@@ -3036,6 +3036,153 @@ class TournamentApp {
         }
     }
 
+    /* ========================================================
+       מועדי משחקים: תאריך, שעה ומיקום לכל משחק (בתים ופלייאוף)
+       ======================================================== */
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // קביעת מועד אינה הזנת תוצאה, ולכן מותרת גם אחרי נעילת שלב הבתים - אך לא בטורניר סגור
+    canEditSchedule() {
+        return (this.currentRole === 'owner' || this.currentRole === 'admin') && !this.isCurrentTournamentClosed();
+    }
+
+    findAnyMatch(matchId) {
+        return (this.matches || []).find(m => m.id === matchId) || this.findPlayoffMatch(matchId) || null;
+    }
+
+    getMatchDate(m) {
+        if (!m || !m.scheduledAt) return null;
+        const d = new Date(m.scheduledAt);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    formatMatchSchedule(m) {
+        const parts = [];
+        const d = this.getMatchDate(m);
+        if (d) {
+            parts.push(`🗓️ ${d.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' })}`);
+            parts.push(`🕒 ${d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`);
+        }
+        if (m && m.location) parts.push(`📍 ${this.escapeHtml(m.location)}`);
+        return parts.join(' • ');
+    }
+
+    renderMatchScheduleHtml(m) {
+        const label = this.formatMatchSchedule(m);
+        const canEdit = this.canEditSchedule();
+        if (!label && !canEdit) return '';
+        return `
+            <div class="match-schedule-row ${label ? '' : 'is-unset'}">
+                <span class="match-schedule-text">${label || 'טרם נקבע מועד'}</span>
+                ${canEdit ? `<button type="button" class="btn-schedule-match" onclick="app.openScheduleModal('${m.id}')" title="קביעת תאריך, שעה ומיקום למשחק">${label ? '✏️ עדכן' : '🗓️ קבע מועד'}</button>` : ''}
+            </div>
+        `;
+    }
+
+    // המשחקים הבאים: משחקים עם מועד שטרם הוזנה להם תוצאה, לפי סינון הבית והקבוצה הנוכחי
+    renderUpcomingMatches(groupMatches, teamFilter) {
+        const container = document.getElementById('upcoming-matches-container');
+        if (!container) return;
+
+        const pool = teamFilter === 'all'
+            ? groupMatches
+            : groupMatches.filter(m => m.team1Name === teamFilter || m.team2Name === teamFilter);
+        const upcoming = pool
+            .filter(m => this.getMatchDate(m) && (m.score1 == null || m.score2 == null))
+            .sort((a, b) => this.getMatchDate(a) - this.getMatchDate(b))
+            .slice(0, 3);
+
+        if (upcoming.length === 0) {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.innerHTML = `
+            <h3 class="upcoming-title">⏭️ המשחקים הבאים</h3>
+            <div class="upcoming-list">
+                ${upcoming.map(m => `
+                    <div class="upcoming-item">
+                        <div class="upcoming-teams">${this.escapeHtml(m.team1Name)} <span class="upcoming-vs">נגד</span> ${this.escapeHtml(m.team2Name)}</div>
+                        <div class="upcoming-meta">${m.groupNameHe} • ${this.formatMatchSchedule(m)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        container.classList.remove('hidden');
+    }
+
+    openScheduleModal(matchId) {
+        if (!this.canEditSchedule()) {
+            this.showAlert("רק מנהל (Admin) או Owner רשאים לקבוע מועדי משחקים בטורניר פעיל.", "error");
+            return;
+        }
+        const match = this.findAnyMatch(matchId);
+        const modal = document.getElementById('match-schedule-modal');
+        if (!match || !modal) return;
+
+        const team1 = match.team1Name || match.team1?.teamName || 'ממתין לעולה';
+        const team2 = match.team2Name || match.team2?.teamName || 'ממתין לעולה';
+        const stage = match.groupNameHe ? `${match.groupNameHe} • מחזור ${match.round}` : match.roundName;
+
+        document.getElementById('scheduleMatchId').value = matchId;
+        document.getElementById('scheduleMatchTitle').textContent = `${stage}: ${team1} נגד ${team2}`;
+        document.getElementById('scheduleDateTimeInput').value = match.scheduledAt || '';
+        document.getElementById('scheduleLocationInput').value = match.location || '';
+        modal.classList.remove('hidden');
+    }
+
+    closeScheduleModal() {
+        const modal = document.getElementById('match-schedule-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    submitMatchSchedule(clear = false) {
+        if (!this.canEditSchedule()) {
+            this.showAlert("רק מנהל (Admin) או Owner רשאים לקבוע מועדי משחקים בטורניר פעיל.", "error");
+            return;
+        }
+        const match = this.findAnyMatch(document.getElementById('scheduleMatchId')?.value || '');
+        if (!match) return;
+
+        const dateTime = clear ? '' : (document.getElementById('scheduleDateTimeInput')?.value || '');
+        const location = clear ? '' : (document.getElementById('scheduleLocationInput')?.value || '').trim();
+
+        // null ולא undefined: Firestore דוחה שדות undefined
+        match.scheduledAt = dateTime || null;
+        match.location = location || null;
+
+        this.closeScheduleModal();
+        this.renderMatches();
+        if (!match.groupId) this.renderPlayoffBracket();
+        this.saveActiveTournamentData();
+        this.showAlert((dateTime || location) ? "מועד המשחק נשמר בהצלחה." : "מועד המשחק נוקה.", (dateTime || location) ? "success" : "warning");
+    }
+
+    // שיבוץ מחדש של הפלייאוף בונה עץ חדש; המועדים שכבר נקבעו למשחקים נשמרים לפי מזהה המשחק
+    copyPlayoffSchedule(fromBracket, toBracket) {
+        if (!fromBracket || !toBracket) return;
+        const collect = (bracket) => [
+            ...(bracket.r16 || []), ...(bracket.qf || []), ...(bracket.sf || []),
+            ...(bracket.final ? [bracket.final] : [])
+        ];
+        const previous = collect(fromBracket);
+        collect(toBracket).forEach(m => {
+            const old = previous.find(p => p.id === m.id);
+            if (old && (old.scheduledAt || old.location)) {
+                m.scheduledAt = old.scheduledAt || null;
+                m.location = old.location || null;
+            }
+        });
+    }
+
     renderMatchCardHtml(m, isViewer, chosenTeam = null) {
         const chosenClass = (name) => (chosenTeam && name === chosenTeam) ? 'is-chosen-team' : '';
         const isReadOnlyStage = isViewer || this.isGroupStageLocked();
@@ -3066,7 +3213,8 @@ class TournamentApp {
                     <span>${m.groupNameHe} • מחזור ${m.round}</span>
                     <span class="match-badge">משחק #${m.matchNumber}</span>
                 </div>
-                
+                ${this.renderMatchScheduleHtml(m)}
+
                 <div class="match-team-row ${row1WinnerClass}" id="row-${m.id}-1">
                     <span class="team-name ${chosenClass(m.team1Name)}" title="${m.team1Name}">${m.team1Name}</span>
                     ${score1Field}
@@ -3130,6 +3278,8 @@ class TournamentApp {
 
         // הקבוצה שמודגשת בלוח המשחקים: זו שנבחרה בסינון הקבוצה
         const chosenTeam = teamFilter !== 'all' ? teamFilter : null;
+
+        this.renderUpcomingMatches(groupMatches, teamFilter);
 
         const filteredMatches = teamFilter === 'all'
             ? groupMatches
@@ -3537,7 +3687,9 @@ class TournamentApp {
             ...t
         }));
 
+        const previousBracket = this.playoffMatches;
         this.playoffMatches = this.buildInitialKnockoutBracket(this.playoffSeeds, playoffSize);
+        this.copyPlayoffSchedule(previousBracket, this.playoffMatches);
 
         this.renderPlayoffBracket();
         this.saveActiveTournamentData();
@@ -3605,6 +3757,7 @@ class TournamentApp {
                         <span class="match-header-title">${m.roundName}</span>
                         ${statusBadge}
                     </div>
+                    ${this.renderMatchScheduleHtml(m)}
 
                     <div class="match-teams-list">
                         <div class="match-team-row ${row1Winner}" id="prow-${m.id}-1">
@@ -4041,6 +4194,10 @@ class TournamentApp {
             const str = String(val);
             return `"${str.replace(/"/g, '""')}"`;
         };
+        const scheduleStr = (m) => {
+            const d = this.getMatchDate(m);
+            return d ? d.toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : "";
+        };
 
         const rows = [];
         rows.push([escapeCSV("🏆 טורנירשת - נתוני טורניר וטבלאות דירוג")]);
@@ -4084,7 +4241,8 @@ class TournamentApp {
             rows.push([
                 escapeCSV("מספר משחק"), escapeCSV("בית"), escapeCSV("מחזור"),
                 escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"),
-                escapeCSV("קבוצה 2"), escapeCSV("מנצחת המשחק"), escapeCSV("סטטוס משחק")
+                escapeCSV("קבוצה 2"), escapeCSV("מנצחת המשחק"), escapeCSV("סטטוס משחק"),
+                escapeCSV("מועד"), escapeCSV("מיקום")
             ]);
 
             this.matches.forEach(m => {
@@ -4104,7 +4262,8 @@ class TournamentApp {
                 rows.push([
                     escapeCSV(m.matchNumber), escapeCSV(m.groupNameHe), escapeCSV(`מחזור ${m.round}`),
                     escapeCSV(m.team1Name), escapeCSV(score1Str), escapeCSV(score2Str),
-                    escapeCSV(m.team2Name), escapeCSV(winnerStr), escapeCSV(statusStr)
+                    escapeCSV(m.team2Name), escapeCSV(winnerStr), escapeCSV(statusStr),
+                    escapeCSV(scheduleStr(m)), escapeCSV(m.location || "")
                 ]);
             });
             rows.push([]);
@@ -4126,7 +4285,7 @@ class TournamentApp {
 
         if (this.playoffMatches) {
             rows.push([escapeCSV("--- משחקי פלייאוף ותוצאות ---")]);
-            rows.push([escapeCSV("שלב"), escapeCSV("משחק"), escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"), escapeCSV("קבוצה 2"), escapeCSV("מנצחת / מעפילה")]);
+            rows.push([escapeCSV("שלב"), escapeCSV("משחק"), escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"), escapeCSV("קבוצה 2"), escapeCSV("מנצחת / מעפילה"), escapeCSV("מועד"), escapeCSV("מיקום")]);
 
             ['r16', 'qf', 'sf'].forEach(roundKey => {
                 const matches = this.playoffMatches[roundKey];
@@ -4135,7 +4294,7 @@ class TournamentApp {
                         const s1 = m.score1 !== null ? m.score1 : "";
                         const s2 = m.score2 !== null ? m.score2 : "";
                         const win = m.winner ? (m.winner === 'team1' ? m.team1?.teamName : m.team2?.teamName) : "ממתין להכרעה";
-                        rows.push([escapeCSV(roundKey.toUpperCase()), escapeCSV(m.roundName), escapeCSV(m.team1?.teamName || "ממתין"), escapeCSV(s1), escapeCSV(s2), escapeCSV(m.team2?.teamName || "ממתין"), escapeCSV(win)]);
+                        rows.push([escapeCSV(roundKey.toUpperCase()), escapeCSV(m.roundName), escapeCSV(m.team1?.teamName || "ממתין"), escapeCSV(s1), escapeCSV(s2), escapeCSV(m.team2?.teamName || "ממתין"), escapeCSV(win), escapeCSV(scheduleStr(m)), escapeCSV(m.location || "")]);
                     });
                 }
             });
@@ -4145,7 +4304,7 @@ class TournamentApp {
                 const s1 = fn.score1 !== null ? fn.score1 : "";
                 const s2 = fn.score2 !== null ? fn.score2 : "";
                 const win = fn.winner ? (fn.winner === 'team1' ? fn.team1?.teamName : fn.team2?.teamName) : "ממתין להכרעה";
-                rows.push([escapeCSV("גמר"), escapeCSV(fn.roundName), escapeCSV(fn.team1?.teamName || "ממתין"), escapeCSV(s1), escapeCSV(s2), escapeCSV(fn.team2?.teamName || "ממתין"), escapeCSV(win)]);
+                rows.push([escapeCSV("גמר"), escapeCSV(fn.roundName), escapeCSV(fn.team1?.teamName || "ממתין"), escapeCSV(s1), escapeCSV(s2), escapeCSV(fn.team2?.teamName || "ממתין"), escapeCSV(win), escapeCSV(scheduleStr(fn)), escapeCSV(fn.location || "")]);
                 if (fn.winner) {
                     const champ = fn.winner === 'team1' ? fn.team1?.teamName : fn.team2?.teamName;
                     rows.push([]);

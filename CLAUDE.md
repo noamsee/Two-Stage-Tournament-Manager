@@ -113,6 +113,15 @@ When writing code or introducing features:
 
 ---
 
+## 🗓️ Match Scheduling (v4.21)
+- Every match object (group matches in `matches[]` and playoff matches in `playoffMatches`) may carry two optional fields: `scheduledAt` (local `YYYY-MM-DDTHH:MM` string from a `datetime-local` input) and `location` (free text). Unset values are stored as `null`, never `undefined` (Firestore rejects `undefined`).
+- Admin/Owner set them through the `#match-schedule-modal` (`openScheduleModal` / `submitMatchSchedule`). Scheduling stays allowed after the group stage is locked, but not in a closed tournament.
+- `renderUpcomingMatches` shows the next 3 scheduled, unplayed group matches above the group-stage toolbar, following the current house/team filters.
+- `seedPlayoffs` rebuilds the bracket; `copyPlayoffSchedule` carries schedules over by match id. Regenerating the group schedule (`generateTournamentGroups`) discards group match schedules along with scores.
+- The CSV export includes `מועד` and `מיקום` columns.
+
+---
+
 ## 📝 Recent Bug Fixes & Context (October 2026)
 - **User Management Deletion**: Fixed an issue where deleted users reappeared on reload. Deletions now call `deleteDoc()` on Firestore document IDs directly.
 - **Tournament Actions**: Added "Close Tournament" (`סגור טורניר`) / "Reopen Tournament" (`פתח טורניר מחדש`). Owner retains exclusive button to permanently delete tournaments.

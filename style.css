@@ -2740,3 +2740,86 @@ html, body {
         font-size: 0.88rem;
     }
 }
+
+/* ========================================================
+   מועדי משחקים: שורת מועד בכרטיס המשחק ורצועת "המשחקים הבאים"
+   ======================================================== */
+.match-schedule-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #57493a;
+    background: #fbf5ea;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.match-schedule-row.is-unset .match-schedule-text {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.btn-schedule-match {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-family: inherit;
+    color: #4a3c2e;
+    background: #fffdf8;
+    border: 1px solid #c4b08f;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-schedule-match:hover {
+    background: #f4ebdc;
+}
+
+.upcoming-matches {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 20px;
+}
+
+.upcoming-title {
+    margin: 0 0 8px 0;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.upcoming-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.upcoming-item {
+    background: #f4ebdc;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.upcoming-teams {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text-main);
+}
+
+.upcoming-vs {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.upcoming-meta {
+    margin-top: 3px;
+    font-size: 0.78rem;
+    color: #57493a;
+}

@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.20">
+    <link rel="stylesheet" href="./style.css?v=4.21">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -253,6 +253,11 @@
                     <!-- באנר מעקב אישי לאורח/צופה -->
                     <!-- סינון בית/קבוצה בראש העמוד - מסונכרן תמיד עם הסינון שמעל לוח המשחקים -->
                     <div id="group-filter-container-top" class="filter-tabs filter-tabs-top">
+                        <!-- ייווצר דינמית ע"י ה-JS -->
+                    </div>
+
+                    <!-- המשחקים הבאים: משחקים עם מועד שטרם שוחקו (מוסתר כשאין כאלה) -->
+                    <div id="upcoming-matches-container" class="upcoming-matches hidden">
                         <!-- ייווצר דינמית ע"י ה-JS -->
                     </div>
 
@@ -749,8 +754,35 @@ git push -u origin main</pre>
         </div>
     </div>
 
+    <!-- מודאל קביעת מועד ומיקום למשחק (Admin/Owner) -->
+    <div id="match-schedule-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 480px;">
+            <button class="modal-close-btn" onclick="app.closeScheduleModal()">✕</button>
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
+                🗓️ קביעת מועד משחק
+            </h2>
+            <p id="scheduleMatchTitle" style="font-size:0.9rem; color:#6b5b45; margin-bottom:12px; font-weight:700;"></p>
+            <form onsubmit="event.preventDefault(); app.submitMatchSchedule();">
+                <input type="hidden" id="scheduleMatchId">
+                <div class="login-field">
+                    <label for="scheduleDateTimeInput">🕒 תאריך ושעה:</label>
+                    <input type="datetime-local" id="scheduleDateTimeInput" class="login-input" style="direction:ltr;">
+                </div>
+                <div class="login-field" style="margin-top:12px;">
+                    <label for="scheduleLocationInput">📍 מיקום / מגרש (אופציונלי):</label>
+                    <input type="text" id="scheduleLocationInput" class="login-input" maxlength="60" placeholder="למשל: מגרש 1">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; gap:8px; flex-wrap:wrap;">
+                    <button type="submit" class="btn-primary">💾 שמור מועד</button>
+                    <button type="button" class="btn-secondary" onclick="app.submitMatchSchedule(true)">🧹 נקה מועד</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeScheduleModal()">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.20"></script>
+    <script src="./app.js?v=4.21"></script>
 </body>
 </html>
 
