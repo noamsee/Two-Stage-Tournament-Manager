@@ -3545,7 +3545,6 @@ class TournamentApp {
             <div class="bracket-editor-backdrop" onclick="if (event.target === this) app.closePlayoffMatch()">
                 <div class="bracket-editor">
                     ${renderPlayoffCard(openMatch, openMatch.id === 'final')}
-                    <button type="button" class="btn-secondary" onclick="app.closePlayoffMatch()">סגור</button>
                 </div>
             </div>
         ` : '';
