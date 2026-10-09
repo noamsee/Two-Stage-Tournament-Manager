@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.1">
+    <link rel="stylesheet" href="./style.css?v=4.2">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -171,9 +171,14 @@
                     ✨ טורניר חדש
                 </button>
 
-                <!-- כפתור עריכת מבנה טורניר קיים -->
-                <button class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת מבנה הטורניר הנוכחי (סוג, בתים, קבוצות, נקודות)">
+                <!-- כפתור עריכת טורניר קיים -->
+                <button class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת שם הטורניר ושיטת הניקוד">
                     ⚙️ ערוך טורניר
+                </button>
+
+                <!-- כפתור מחיקת טורניר (Owner בלבד) -->
+                <button type="button" class="btn-danger-delete btn-sm owner-only" onclick="app.deleteActiveTournament()" title="מחיקת הטורניר הנוכחי לצמיתות (Owner בלבד)">
+                    🗑️ מחק טורניר
                 </button>
 
                 <!-- כפתורי ייצוא -->
@@ -219,15 +224,18 @@
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
                         <h2 id="setup-header-title" style="margin: 0;">הזנת קבוצות הטורניר</h2>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            <button type="button" class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()">
-                                ⚙️ ערוך מבנה טורניר
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                            <button type="button" class="btn-secondary btn-sm admin-editable" onclick="app.openEditTournamentModal()" title="עריכת שם הטורניר ושיטת הניקוד">
+                                ⚙️ ערוך טורניר
                             </button>
-                            <button type="button" class="btn-success btn-sm admin-editable btn-new-tourney" onclick="app.openTournamentWizard()">
-                                ✨ אשף טורניר חדש
+                            <button type="button" class="btn-success btn-sm admin-editable btn-new-tourney" onclick="app.openTournamentWizard()" title="הקמת טורניר חדש באשף">
+                                ✨ טורניר חדש
                             </button>
                             <button type="button" id="setupCloseTournamentBtn" class="btn-secondary btn-sm admin-editable" onclick="app.toggleCloseActiveTournament()" title="סגירת טורניר או פתיחתו מחדש">
                                 🔒 סגור טורניר
+                            </button>
+                            <button type="button" id="setupDeleteTournamentBtn" class="btn-danger-delete btn-sm owner-only" onclick="app.deleteActiveTournament()" title="מחיקת הטורניר הנוכחי לצמיתות מהמערכת (Owner בלבד)">
+                                🗑️ מחק טורניר
                             </button>
                         </div>
                     </div>
@@ -632,7 +640,7 @@ git push -u origin main</pre>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                         <div class="login-field">
                             <label for="wizardNumGroups">🏠 כמות בתים:</label>
-                            <select id="wizardNumGroups" class="login-input" onchange="app.updateWizardSummary()">
+                            <select id="wizardNumGroups" class="login-input" onchange="app.onWizardGroupsOrTeamsChange()">
                                 <option value="1">&rlm;1 - בית יחיד</option>
                                 <option value="2">&rlm;2 - בתים (א', ב')</option>
                                 <option value="3" selected>&rlm;3 - בתים (א', ב', ג')</option>
@@ -644,7 +652,7 @@ git push -u origin main</pre>
 
                         <div class="login-field">
                             <label for="wizardTeamsPerGroup">👥 כמות קבוצות בכל בית:</label>
-                            <select id="wizardTeamsPerGroup" class="login-input" onchange="app.updateWizardSummary()">
+                            <select id="wizardTeamsPerGroup" class="login-input" onchange="app.onWizardGroupsOrTeamsChange()">
                                 <option value="2">&rlm;2 קבוצות בכל בית</option>
                                 <option value="3">&rlm;3 קבוצות בכל בית</option>
                                 <option value="4">&rlm;4 קבוצות בכל בית</option>
@@ -758,7 +766,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.1"></script>
+    <script src="./app.js?v=4.2"></script>
 </body>
 </html>
 
