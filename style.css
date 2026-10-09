@@ -1514,6 +1514,13 @@ body.role-admin .tab-btn.owner-only {
     background-color: #f4ebdc;
     color: var(--text-main);
     transition: all 0.18s ease;
+    direction: rtl;
+    text-align: right;
+    font-family: inherit;
+}
+
+input.login-input[type="email"],
+input.login-input[type="password"] {
     direction: ltr;
     text-align: left;
 }
@@ -1535,6 +1542,16 @@ body.role-admin .tab-btn.owner-only {
     background-color: #f4ebdc;
     color: var(--text-main);
     cursor: pointer;
+    direction: rtl;
+    text-align: right;
+    font-family: inherit;
+}
+
+.login-tournament-select:focus {
+    outline: none;
+    border-color: #6b5b45;
+    background-color: #fffdf8;
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15);
 }
 
 .login-btn-primary {
@@ -1566,13 +1583,14 @@ body.role-admin .tab-btn.owner-only {
 .login-choice-btn {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 14px;
     width: 100%;
-    padding: 16px 18px;
+    padding: 16px 20px;
     font-family: inherit;
     text-align: right;
     color: #271e16;
-    background: #fffdf8;
+    background: #f4ebdc;
     border: 1px solid #c4b08f;
     border-radius: 12px;
     cursor: pointer;
@@ -1583,7 +1601,7 @@ body.role-admin .tab-btn.owner-only {
 .login-choice-btn:hover,
 .login-choice-btn:focus-visible {
     outline: none;
-    background: #f4ebdc;
+    background: #ede2cf;
     border-color: #a08c6c;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
 }
@@ -1611,6 +1629,8 @@ body.role-admin .tab-btn.owner-only {
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    flex: 1;
+    text-align: right;
 }
 
 .login-choice-text strong {
@@ -1619,9 +1639,9 @@ body.role-admin .tab-btn.owner-only {
 }
 
 .login-choice-text small {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 500;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 .login-back-link {

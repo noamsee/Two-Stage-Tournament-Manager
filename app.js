@@ -327,6 +327,18 @@ class TournamentApp {
             const name = user.displayName || email.split('@')[0];
             const picture = user.photoURL || '';
 
+            const isOwner = (email === this.OWNER_EMAIL.toLowerCase());
+            const existingUser = this.getUserByEmail(email);
+            const isAdmin = existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner');
+
+            if (!isOwner && !isAdmin) {
+                this.showAlert(`החשבון ${email} אינו מוגדר כמנהל במערכת. כניסת מנהל מיועדת למנהלים מורשים בלבד.`, "error");
+                if (this.auth) {
+                    try { await this.auth.signOut(); } catch (e) {}
+                }
+                return;
+            }
+
             this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
             this.authenticateUser(email, true, name, 'google');
 
@@ -357,6 +369,18 @@ class TournamentApp {
             const email = (user.email || '').toLowerCase();
             const name = user.displayName || email.split('@')[0];
             const picture = user.photoURL || '';
+
+            const isOwner = (email === this.OWNER_EMAIL.toLowerCase());
+            const existingUser = this.getUserByEmail(email);
+            const isAdmin = existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner');
+
+            if (!isOwner && !isAdmin) {
+                this.showAlert(`החשבון ${email} אינו מוגדר כמנהל במערכת. כניסת מנהל מיועדת למנהלים מורשים בלבד.`, "error");
+                if (this.auth) {
+                    try { await this.auth.signOut(); } catch (e) {}
+                }
+                return;
+            }
 
             this.showAlert(`ברוך הבא ${name}! התחברת בהצלחה עם Google.`, "success");
             this.authenticateUser(email, true, name, 'google');
@@ -409,8 +433,9 @@ class TournamentApp {
             const el = document.getElementById(`login-step-${name}`);
             if (el) el.classList.toggle('hidden', name !== step);
         });
-        if (step === 'manager') {
-            this.switchAuthMode('login');
+        if (step === 'viewer') {
+            this.populateTournamentSelectors();
+        } else if (step === 'manager') {
             document.getElementById('loginEmail')?.focus();
         }
     }
@@ -679,63 +704,33 @@ class TournamentApp {
         const enteredEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
         const enteredPass = passInput ? passInput.value.trim() : '';
 
-        const tourneySelect = document.getElementById('loginTournamentSelect');
-        const houseSelect = document.getElementById('loginHouseSelect');
-        const teamSelect = document.getElementById('loginTeamSelect');
-
-        if (tourneySelect && tourneySelect.value) {
-            this.switchTournament(tourneySelect.value, false);
-        }
-
-        const selectedGroup = (houseSelect && houseSelect.value) ? houseSelect.value : 'all';
-        const selectedTeam = (teamSelect && teamSelect.value) ? teamSelect.value.trim() : '';
-        if (tourneySelect && tourneySelect.value) {
-            this.guestPreferences = {
-                tourneyId: tourneySelect.value,
-                groupKey: selectedGroup,
-                teamName: selectedTeam
-            };
-            try {
-                localStorage.setItem('tournament_guest_pref', JSON.stringify(this.guestPreferences));
-            } catch (e) {}
-
-            this.applyPreferenceFilters();
-        }
-
         if (!enteredEmail || !enteredEmail.includes('@')) {
             this.showAlert("אנא הזן כתובת אימייל חוקית לכניסה.", "error");
             return;
         }
 
+        const isOwner = (enteredEmail === this.OWNER_EMAIL.toLowerCase());
         const user = this.getUserByEmail(enteredEmail);
-        if (user) {
-            const expectedPass = user.password || '1234';
-            if (enteredPass !== expectedPass) {
-                this.showAlert(`סיסמה שגויה עבור ${enteredEmail}. (סיסמת ברירת מחדל: 1234)`, "error");
-                return;
-            }
-            this.authenticateUser(enteredEmail, true, user.name, 'email');
+
+        if (!user && !isOwner) {
+            this.showAlert("אימייל זה אינו מוגדר כמנהל במערכת. הרשאת כניסה ניתנת רק למנהלים שהוגדרו מראש.", "error");
             return;
         }
 
-        // משתמש חדש לגמרי שנכנס עם סיסמת ברירת מחדל 1234
-        if (enteredPass !== '1234') {
-            this.showAlert("משתמש לא נמצא או סיסמה שגויה. עבור משתמשים חדשים הסיסמה הראשונית היא: 1234", "warning");
+        const role = isOwner ? 'owner' : (user?.role || 'viewer');
+        if (role !== 'owner' && role !== 'admin') {
+            this.showAlert("משתמש זה אינו מוגדר כמנהל במערכת. לצפייה בטורניר יש לבחור 'המשך כצופה'.", "warning");
             return;
         }
 
-        const users = this.getUnifiedUsers();
-        users.push({
-            name: enteredEmail.split('@')[0],
-            email: enteredEmail,
-            role: 'viewer',
-            password: '1234',
-            registeredAt: new Date().toLocaleDateString('he-IL'),
-            provider: 'email',
-            isProtected: false
-        });
-        this.saveUnifiedUsers(users);
-        this.authenticateUser(enteredEmail, true, enteredEmail.split('@')[0], 'email');
+        const expectedPass = user?.password || '1234';
+        if (enteredPass !== expectedPass) {
+            this.showAlert(`סיסמה שגויה עבור ${enteredEmail}.`, "error");
+            return;
+        }
+
+        const userName = user?.name || (isOwner ? 'בעלים' : enteredEmail.split('@')[0]);
+        this.authenticateUser(enteredEmail, true, userName, 'email');
     }
 
     loginAsGuest() {
@@ -779,20 +774,20 @@ class TournamentApp {
         const cleanEmail = (email || this.OWNER_EMAIL).trim().toLowerCase();
         let user = this.getUserByEmail(cleanEmail);
 
-        if (!user && cleanEmail.includes('@') && !cleanEmail.includes('guest')) {
-            const newUser = {
-                name: displayName || cleanEmail.split('@')[0],
+        if (!user && cleanEmail === this.OWNER_EMAIL.toLowerCase()) {
+            const ownerUser = {
+                name: displayName || 'Owner',
                 email: cleanEmail,
-                role: (cleanEmail === this.OWNER_EMAIL.toLowerCase()) ? 'owner' : 'viewer',
+                role: 'owner',
                 password: '1234',
                 provider: provider || 'email',
                 registeredAt: new Date().toLocaleDateString('he-IL'),
-                isProtected: (cleanEmail === this.OWNER_EMAIL.toLowerCase())
+                isProtected: true
             };
             const users = this.getUnifiedUsers();
-            users.push(newUser);
+            users.push(ownerUser);
             this.saveUnifiedUsers(users);
-            user = newUser;
+            user = ownerUser;
         }
 
         let role = 'viewer';
@@ -1007,6 +1002,7 @@ class TournamentApp {
             this.renderPlayoffBracket();
         }
         this.updateGuestTournamentBadge();
+        this.populateTournamentSelectors();
     }
 
     getAllUsers() {
@@ -1547,34 +1543,49 @@ class TournamentApp {
 
     populateTournamentSelectors() {
         const loginSelect = document.getElementById('loginTournamentSelect');
-        const signupSelect = document.getElementById('signupTournamentSelect');
         const headerSelect = document.getElementById('headerTournamentSelect');
         const pickerGroup = document.getElementById('loginTournamentPickerGroup');
 
-        // צופים בוחרים רק מתוך טורנירים פעילים; טורנירים בארכיון זמינים למנהלים בלבד (בתפריט העליון)
+        // צופים בוחרים רק מתוך טורנירים פעילים; טורנירים בארכיון זמינים למנהלים בלבד
         const viewerTournaments = this.getViewerTournaments();
 
-        // אם יש רק טורניר אחד לבחירה, מסתירים את הבחירה בלוגין לפי דרישת המשתמש
+        // תיבת בחירת טורניר במסך הצופה מוצגת תמיד
         if (pickerGroup) {
-            pickerGroup.style.display = (viewerTournaments.length <= 1) ? 'none' : 'block';
+            pickerGroup.style.display = 'block';
         }
 
-        const buildOptions = (list) => list.map(t => `
-            <option value="${t.id}" ${t.id === this.activeTournamentId ? 'selected' : ''}>
-                ${t.name} ${t.isArchived ? '(ארכיון)' : '⚡'}
-            </option>
-        `).join('');
+        const buildOptions = (list, isViewer = false) => {
+            if (!list || list.length === 0) {
+                return '<option value="" disabled>אין טורניר פעיל כרגע</option>';
+            }
+            return list.map(t => {
+                let label = t.name;
+                if (isViewer) {
+                    const clean = this.cleanTournamentName(t.name);
+                    label = `⚡ ${clean} (פעיל)`;
+                } else {
+                    label = `${t.name} ${t.isArchived ? '(ארכיון)' : '⚡'}`;
+                }
+                const isSelected = (t.id === this.activeTournamentId) || (!list.some(item => item.id === this.activeTournamentId) && t === list[0]);
+                return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+        };
 
-        const viewerOptionsHtml = buildOptions(viewerTournaments);
-        if (loginSelect) loginSelect.innerHTML = viewerOptionsHtml;
-        if (signupSelect) signupSelect.innerHTML = viewerOptionsHtml;
-        if (headerSelect) headerSelect.innerHTML = buildOptions(this.tournaments);
+        if (loginSelect) {
+            loginSelect.innerHTML = buildOptions(viewerTournaments, true);
+        }
+
+        if (headerSelect) {
+            const isViewerRole = (this.currentRole === 'viewer');
+            const listForHeader = isViewerRole ? viewerTournaments : this.tournaments;
+            headerSelect.innerHTML = buildOptions(listForHeader, isViewerRole);
+        }
 
         // עדכון תג שם הטורניר עבור אורח
         this.updateGuestTournamentBadge();
 
         // סנכרון מיידי של שדות הבית והקבוצה במסך הכניסה
-        const currentLoginTourneyId = loginSelect && loginSelect.value ? loginSelect.value : this.activeTournamentId;
+        const currentLoginTourneyId = loginSelect && loginSelect.value ? loginSelect.value : (viewerTournaments[0]?.id || this.activeTournamentId);
         this.updateLoginHousesAndTeams(currentLoginTourneyId);
     }
 
