@@ -3479,10 +3479,10 @@ class TournamentApp {
 
         // עץ הפלייאוף: הסיבוב הראשון (העלים) משמאל, הגמר מימין
         const rounds = [];
-        if (r16.length > 0) rounds.push({ title: '⚔️ שמינית גמר', matches: r16 });
-        if (qf.length > 0) rounds.push({ title: '⚔️ רבע גמר', matches: qf });
-        if (sf.length > 0) rounds.push({ title: '🔥 חצי גמר', matches: sf });
-        if (final) rounds.push({ title: '👑 משחק הגמר', matches: [final], isFinal: true });
+        if (r16.length > 0) rounds.push({ key: 'r16', title: '⚔️ שמינית גמר', matches: r16 });
+        if (qf.length > 0) rounds.push({ key: 'qf', title: '⚔️ רבע גמר', matches: qf });
+        if (sf.length > 0) rounds.push({ key: 'sf', title: '🔥 חצי גמר', matches: sf });
+        if (final) rounds.push({ key: 'final', title: '👑 משחק הגמר', matches: [final], isFinal: true });
 
         // העץ נחשף בהדרגה, תמיד שכבה אחת קדימה: שני הסיבובים הראשונים מוצגים מההתחלה,
         // וכל סיבוב נוסף מופיע ברגע שבסיבוב שלפניו נקבע משחק עם שתי קבוצות ידועות.
@@ -3492,9 +3492,16 @@ class TournamentApp {
         // קו חיבור יוצא ממשחק רק כאשר שתי הקבוצות המתמודדות בו כבר ידועות
         const isSet = (m) => !!(m && m.team1 && m.team2);
 
+        // לחיצה על כותרת סיבוב מגדילה את המשחקים שלו לצפייה נוחה.
+        // סיבוב שעדיין אין בו אף משחק עם שתי קבוצות ידועות אינו לחיץ.
+        const canEnlarge = (r) => r.matches.some(isSet);
+        const enlargedRound = visibleRounds.find(r => r.key === this.enlargedRoundKey && canEnlarge(r));
+        this.enlargedRoundKey = enlargedRound ? enlargedRound.key : null;
+
         const columnsHtml = visibleRounds.map((r, idx) => `
-            <div class="bracket-round-column">
-                <div class="round-header" style="${r.isFinal ? 'background:#b45309;' : ''}">${r.title}</div>
+            <div class="bracket-round-column ${r === enlargedRound ? 'is-enlarged' : ''}">
+                <div class="round-header ${canEnlarge(r) ? 'is-clickable' : ''}" style="${r.isFinal ? 'background:#b45309;' : ''}"
+                     ${canEnlarge(r) ? `role="button" tabindex="0" aria-pressed="${r === enlargedRound}" title="${r === enlargedRound ? 'לחץ להקטנה' : 'לחץ להגדלת משחקי הסיבוב'}" onclick="app.toggleEnlargedRound('${r.key}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); app.toggleEnlargedRound('${r.key}'); }"` : ''}>${r.title}${r === enlargedRound ? ' 🔍' : ''}</div>
                 <div class="bracket-round-matches">
                     ${r.matches.map((m, i) => {
                         const feeders = idx > 0 ? visibleRounds[idx - 1].matches.slice(i * 2, i * 2 + 2) : [];
@@ -3522,7 +3529,7 @@ class TournamentApp {
         container.innerHTML = `
             ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
             <div class="bracket-tree-scroll">
-                <div class="bracket-tree" style="--rounds: ${visibleRounds.length};">
+                <div class="bracket-tree" style="--rounds: ${visibleRounds.length + (enlargedRound ? 1 : 0)};">
                     ${columnsHtml.join('')}
                 </div>
             </div>
@@ -3533,6 +3540,11 @@ class TournamentApp {
 
         const treeScroll = container.querySelector('.bracket-tree-scroll');
         if (treeScroll) treeScroll.scrollLeft = prevScrollLeft;
+    }
+
+    toggleEnlargedRound(roundKey) {
+        this.enlargedRoundKey = (this.enlargedRoundKey === roundKey) ? null : roundKey;
+        this.renderPlayoffBracket();
     }
 
     openPlayoffMatch(matchId) {

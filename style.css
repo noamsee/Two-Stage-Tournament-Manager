@@ -1015,6 +1015,62 @@ header h1 {
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
+/* כותרת סיבוב לחיצה: מגדילה את משחקי הסיבוב לצפייה נוחה */
+.round-header.is-clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.round-header.is-clickable:hover,
+.round-header.is-clickable:focus-visible {
+    outline: none;
+    border-color: #a08c6c;
+    box-shadow: 0 0 0 2px rgba(160, 140, 108, 0.35);
+}
+
+.bracket-round-column.is-enlarged {
+    flex-grow: 2.2;
+    flex-basis: 380px;
+}
+
+.bracket-round-column.is-enlarged .round-header {
+    border-color: #4a3c2e;
+    box-shadow: 0 0 0 2px rgba(74, 60, 46, 0.25);
+}
+
+.bracket-round-column.is-enlarged .match-header {
+    font-size: 1rem;
+    padding: 10px 14px;
+}
+
+.bracket-round-column.is-enlarged .match-team-row {
+    padding: 16px 16px;
+}
+
+.bracket-round-column.is-enlarged .match-team-row .team-name {
+    font-size: 1.2rem;
+    white-space: normal;
+}
+
+.bracket-round-column.is-enlarged .match-team-row input.score-input,
+.bracket-round-column.is-enlarged .score-display-viewer {
+    width: 68px;
+    min-width: 68px;
+    height: 46px;
+    font-size: 1.35rem;
+}
+
+.bracket-round-column.is-enlarged .mini-row {
+    min-height: 40px;
+    padding: 8px 8px;
+    font-size: 0.95rem;
+}
+
+.bracket-round-column.is-enlarged .mini-name {
+    white-space: normal;
+}
+
 .round-matches-list {
     display: flex;
     flex-direction: column;
@@ -2489,6 +2545,16 @@ html, body {
         line-height: 1.25;
         border-radius: 6px;
         margin-bottom: 6px;
+    }
+
+    /* במובייל הסיבוב המוגדל מקבל את רוב רוחב המסך, והשאר מצטמצמים */
+    .bracket-round-column.is-enlarged {
+        flex: 3 1 0;
+    }
+
+    .bracket-round-column.is-enlarged .round-header {
+        font-size: 0.8rem;
+        padding: 6px 4px;
     }
 
     /* רשימת המדורגות: שתי עמודות קומפקטיות במקום רשימה ארוכה */
