@@ -101,6 +101,7 @@ When writing code or introducing features:
    - Do **not** introduce bundlers, Webpack, or npm dependencies unless explicitly instructed by the user. Keep it zero-build so GitHub Pages deploys immediately on `git push`.
 3. **Data Integrity & No-Ties Rule**:
    - Matches must never end in a draw/tie. The application enforces winner selection based on higher score.
+   - Catchball scoring: a win is worth 2 league points and a loss 1 (`pointsPerWin` / `pointsPerLoss`, editable per tournament). An equal score is an undecided game: it has no winner and is not counted in the standings.
    - When updating team standings:
      - Primary sort: Number of Wins (`W`).
      - Secondary sort: Point Difference (`PD = PF - PA`).

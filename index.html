@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.21">
+    <link rel="stylesheet" href="./style.css?v=4.22">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -643,40 +643,40 @@ git push -u origin main</pre>
                         <div class="login-field">
                             <label for="wizardNumGroups">🏠 כמות בתים:</label>
                             <select id="wizardNumGroups" class="login-input" onchange="app.onWizardGroupsOrTeamsChange()">
-                                <option value="1">&rlm;1 - בית יחיד</option>
-                                <option value="2">&rlm;2 - בתים (א', ב')</option>
-                                <option value="3" selected>&rlm;3 - בתים (א', ב', ג')</option>
-                                <option value="4">&rlm;4 - בתים (א', ב', ג', ד')</option>
-                                <option value="5">&rlm;5 - בתים (א' עד ה')</option>
-                                <option value="6">&rlm;6 - בתים (א' עד ו')</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
                             </select>
                         </div>
 
                         <div class="login-field">
                             <label for="wizardTeamsPerGroup">👥 כמות קבוצות בכל בית:</label>
                             <select id="wizardTeamsPerGroup" class="login-input" onchange="app.onWizardGroupsOrTeamsChange()">
-                                <option value="2">&rlm;2 קבוצות בכל בית</option>
-                                <option value="3">&rlm;3 קבוצות בכל בית</option>
-                                <option value="4">&rlm;4 קבוצות בכל בית</option>
-                                <option value="5" selected>&rlm;5 קבוצות בכל בית</option>
-                                <option value="6">&rlm;6 קבוצות בכל בית</option>
-                                <option value="7">&rlm;7 קבוצות בכל בית</option>
-                                <option value="8">&rlm;8 קבוצות בכל בית</option>
-                                <option value="9">&rlm;9 קבוצות בכל בית</option>
-                                <option value="10">&rlm;10 קבוצות בכל בית</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5" selected>5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
                             </select>
                         </div>
                     </div>
 
-                    <!-- שיטת הניקוד: נקודות לניצחון ונקודות לתיקו -->
+                    <!-- שיטת הניקוד לפי חוקי הכדורשת: נקודות לניצחון ונקודות להפסד (אין תיקו) -->
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:10px;">
                         <div class="login-field">
                             <label for="wizardPointsWin">🥇 נקודות לניצחון במשחק:</label>
-                            <input type="number" id="wizardPointsWin" class="login-input" min="1" max="10" value="3" onchange="app.updateWizardSummary()">
+                            <input type="number" id="wizardPointsWin" class="login-input" min="1" max="10" value="2" onchange="app.updateWizardSummary()">
                         </div>
                         <div class="login-field">
-                            <label for="wizardPointsDraw">🤝 נקודות לתיקו במשחק:</label>
-                            <input type="number" id="wizardPointsDraw" class="login-input" min="0" max="10" value="1" onchange="app.updateWizardSummary()">
+                            <label for="wizardPointsLoss">🥈 נקודות להפסד במשחק:</label>
+                            <input type="number" id="wizardPointsLoss" class="login-input" min="0" max="10" value="1" onchange="app.updateWizardSummary()">
                         </div>
                     </div>
 
@@ -768,7 +768,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.21"></script>
+    <script src="./app.js?v=4.22"></script>
 </body>
 </html>
 
