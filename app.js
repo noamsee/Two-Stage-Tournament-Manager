@@ -743,7 +743,14 @@ class TournamentApp {
         const houseSelect = document.getElementById('loginHouseSelect');
         const teamSelect = document.getElementById('loginTeamSelect');
 
-        const selectedTourneyId = tourneySelect && tourneySelect.value ? tourneySelect.value : this.activeTournamentId;
+        // צופה נכנס רק לטורניר פעיל: אם הבחירה חסרה או מצביעה על טורניר בארכיון, עוברים לטורניר הפעיל הראשון
+        const viewerTournaments = this.getViewerTournaments();
+        if (viewerTournaments.length === 0) {
+            this.showAlert("אין כרגע טורניר פעיל לצפייה.", "warning");
+            return;
+        }
+        const requestedTourneyId = tourneySelect && tourneySelect.value ? tourneySelect.value : this.activeTournamentId;
+        const selectedTourneyId = viewerTournaments.some(t => t.id === requestedTourneyId) ? requestedTourneyId : viewerTournaments[0].id;
         const selectedGroup = (houseSelect && houseSelect.value) ? houseSelect.value : 'all';
         const selectedTeam = (teamSelect && teamSelect.value) ? teamSelect.value.trim() : '';
 
@@ -1536,20 +1543,24 @@ class TournamentApp {
         const headerSelect = document.getElementById('headerTournamentSelect');
         const pickerGroup = document.getElementById('loginTournamentPickerGroup');
 
-        // אם יש רק טורניר אחד, מסתירים את הבחירה בלוגין לפי דרישת המשתמש
+        // צופים בוחרים רק מתוך טורנירים פעילים; טורנירים בארכיון זמינים למנהלים בלבד (בתפריט העליון)
+        const viewerTournaments = this.getViewerTournaments();
+
+        // אם יש רק טורניר אחד לבחירה, מסתירים את הבחירה בלוגין לפי דרישת המשתמש
         if (pickerGroup) {
-            pickerGroup.style.display = (this.tournaments.length <= 1) ? 'none' : 'block';
+            pickerGroup.style.display = (viewerTournaments.length <= 1) ? 'none' : 'block';
         }
 
-        const optionsHtml = this.tournaments.map(t => `
+        const buildOptions = (list) => list.map(t => `
             <option value="${t.id}" ${t.id === this.activeTournamentId ? 'selected' : ''}>
                 ${t.name} ${t.isArchived ? '(ארכיון)' : '⚡'}
             </option>
         `).join('');
 
-        if (loginSelect) loginSelect.innerHTML = optionsHtml;
-        if (signupSelect) signupSelect.innerHTML = optionsHtml;
-        if (headerSelect) headerSelect.innerHTML = optionsHtml;
+        const viewerOptionsHtml = buildOptions(viewerTournaments);
+        if (loginSelect) loginSelect.innerHTML = viewerOptionsHtml;
+        if (signupSelect) signupSelect.innerHTML = viewerOptionsHtml;
+        if (headerSelect) headerSelect.innerHTML = buildOptions(this.tournaments);
 
         // עדכון תג שם הטורניר עבור אורח
         this.updateGuestTournamentBadge();
@@ -1557,6 +1568,11 @@ class TournamentApp {
         // סנכרון מיידי של שדות הבית והקבוצה במסך הכניסה
         const currentLoginTourneyId = loginSelect && loginSelect.value ? loginSelect.value : this.activeTournamentId;
         this.updateLoginHousesAndTeams(currentLoginTourneyId);
+    }
+
+    // הטורנירים שצופה רשאי לבחור: רק כאלה שאינם בארכיון
+    getViewerTournaments() {
+        return this.tournaments.filter(t => !t.isArchived);
     }
 
     onLoginTournamentChange(tourneyId) {
@@ -1829,8 +1845,9 @@ class TournamentApp {
         if (newTourneyId === this.activeTournamentId) return;
         this.openPlayoffMatchId = null;
 
-        // אורח/צופה מחובר אינו רשאי לעבור לטורניר אחר
-        if (this.currentRole === 'viewer') {
+        // אורח/צופה מחובר אינו רשאי לעבור לטורניר אחר.
+        // לפני ההתחברות (במסך הכניסה) אין עדיין משתמש, והבחירה שנעשתה שם חייבת לחול
+        if (this.currentUser && this.currentRole === 'viewer') {
             this.showAlert("כמשתמש אורח, הגישה מוגבלת לטורניר הנבחר בלבד.", "warning");
             return;
         }
@@ -4206,7 +4223,7 @@ class TournamentApp {
         if (!select) return;
 
         const currentId = this.guestPreferences?.tourneyId || this.activeTournamentId;
-        select.innerHTML = this.tournaments.map(t => {
+        select.innerHTML = this.getViewerTournaments().map(t => {
             const formatLabel = (t.format === 'knockout_only') ? 'נוקאאוט' : ((t.format === 'groups_only') ? 'בתים בלבד' : 'בתים+פלייאוף');
             return `
                 <option value="${t.id}" ${t.id === currentId ? 'selected' : ''}>
