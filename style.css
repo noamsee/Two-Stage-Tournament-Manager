@@ -1247,9 +1247,31 @@ body.role-viewer button.admin-editable {
     opacity: 1 !important;
 }
 
+body:not(.role-owner) .owner-only,
 body.role-viewer .tab-btn.owner-only,
 body.role-admin .tab-btn.owner-only {
     display: none !important;
+}
+
+.btn-danger-delete {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-danger-delete:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #991b1b;
 }
 
 .hidden { display: none !important; }
