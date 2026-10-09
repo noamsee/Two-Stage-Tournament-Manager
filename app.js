@@ -110,6 +110,14 @@ class TournamentApp {
         } catch (e) {
             this.guestPreferences = null;
         }
+        this.applyPreferenceFilters();
+    }
+
+    // סינוני לוח המשחקים (בית וקבוצה) נפתחים לפי הבית והקבוצה המועדפים שנבחרו בכניסה
+    applyPreferenceFilters() {
+        const pref = this.guestPreferences;
+        this.currentFilter = (pref && pref.groupKey && pref.groupKey !== 'all') ? pref.groupKey : 'all';
+        this.currentTeamFilter = (pref && pref.teamName) ? pref.teamName : 'all';
     }
 
     init() {
@@ -650,11 +658,7 @@ class TournamentApp {
                 localStorage.setItem('tournament_guest_pref', JSON.stringify(this.guestPreferences));
             } catch (e) {}
 
-            if (selectedGroup && selectedGroup !== 'all') {
-                this.currentFilter = selectedGroup;
-            } else {
-                this.currentFilter = 'all';
-            }
+            this.applyPreferenceFilters();
         }
 
         if (!enteredEmail || !enteredEmail.includes('@')) {
@@ -712,12 +716,8 @@ class TournamentApp {
             localStorage.setItem('tournament_guest_pref', JSON.stringify(this.guestPreferences));
         } catch (e) {}
 
-        // החלת סינון בית
-        if (selectedGroup && selectedGroup !== 'all') {
-            this.currentFilter = selectedGroup;
-        } else {
-            this.currentFilter = 'all';
-        }
+        // החלת סינון בית וקבוצה לפי ההעדפות
+        this.applyPreferenceFilters();
 
         if (selectedTourneyId) {
             this.switchTournament(selectedTourneyId, false);
@@ -2843,17 +2843,18 @@ class TournamentApp {
         const filterContainer = document.getElementById('group-filter-container');
         if (!container) return;
 
-        const groupMatches = this.currentFilter === 'all'
+        // סינון בפועל: בית או קבוצה שאינם קיימים בטורניר המוצג מתעלמים מהם בלי למחוק את הבחירה,
+        // כי הלוח עשוי להתרנדר לפני שנתוני הטורניר הנכון נטענו
+        const groupFilter = (this.currentFilter !== 'all' && this.groups && this.groups[this.currentFilter]) ? this.currentFilter : 'all';
+        const groupMatches = groupFilter === 'all'
             ? this.matches
-            : this.matches.filter(m => m.groupId === this.currentFilter);
+            : this.matches.filter(m => m.groupId === groupFilter);
 
         // רשימת הקבוצות לסינון - רק קבוצות מהבית שנבחר
         const teamNames = [...new Set(groupMatches.flatMap(m => [m.team1Name, m.team2Name]))]
             .filter(Boolean)
             .sort((a, b) => a.localeCompare(b, 'he'));
-        if (this.currentTeamFilter !== 'all' && !teamNames.includes(this.currentTeamFilter)) {
-            this.currentTeamFilter = 'all';
-        }
+        const teamFilter = teamNames.includes(this.currentTeamFilter) ? this.currentTeamFilter : 'all';
 
         // רינדור רשימות סינון נפתחות (בית + קבוצה) לפי נתוני הטורניר
         if (filterContainer && this.groups && Object.keys(this.groups).length > 0) {
@@ -2867,18 +2868,18 @@ class TournamentApp {
                 <label class="filter-select-wrap">
                     <span>🏠 בית</span>
                     <select id="matchGroupFilter" class="filter-select" onchange="app.filterMatches(this.value)">
-                        <option value="all" ${this.currentFilter === 'all' ? 'selected' : ''}>כל הבתים (${this.matches.length})</option>
+                        <option value="all" ${groupFilter === 'all' ? 'selected' : ''}>כל הבתים (${this.matches.length})</option>
                         ${grpKeys.map(k => {
                             const count = this.matches.filter(m => m.groupId === k).length;
-                            return `<option value="${k}" ${this.currentFilter === k ? 'selected' : ''}>${groupHebrew[k] || k} (${count})</option>`;
+                            return `<option value="${k}" ${groupFilter === k ? 'selected' : ''}>${groupHebrew[k] || k} (${count})</option>`;
                         }).join('')}
                     </select>
                 </label>
                 <label class="filter-select-wrap">
                     <span>👥 קבוצה</span>
                     <select id="matchTeamFilter" class="filter-select" onchange="app.filterMatchesByTeam(this.value)">
-                        <option value="all" ${this.currentTeamFilter === 'all' ? 'selected' : ''}>כל הקבוצות</option>
-                        ${teamNames.map(name => `<option value="${escAttr(name)}" ${this.currentTeamFilter === name ? 'selected' : ''}>${escAttr(name)}</option>`).join('')}
+                        <option value="all" ${teamFilter === 'all' ? 'selected' : ''}>כל הקבוצות</option>
+                        ${teamNames.map(name => `<option value="${escAttr(name)}" ${teamFilter === name ? 'selected' : ''}>${escAttr(name)}</option>`).join('')}
                     </select>
                 </label>
             `;
@@ -2889,9 +2890,9 @@ class TournamentApp {
             }
         }
 
-        const filteredMatches = this.currentTeamFilter === 'all'
+        const filteredMatches = teamFilter === 'all'
             ? groupMatches
-            : groupMatches.filter(m => m.team1Name === this.currentTeamFilter || m.team2Name === this.currentTeamFilter);
+            : groupMatches.filter(m => m.team1Name === teamFilter || m.team2Name === teamFilter);
 
         if (filteredMatches.length === 0) {
             container.innerHTML = '<p class="placeholder-text">אין משחקים להצגה.</p>';
@@ -4337,12 +4338,8 @@ class TournamentApp {
             this.switchTournament(tourneyId, false);
         }
 
-        // הגדרת סינון בית
-        if (groupKey && groupKey !== 'all') {
-            this.currentFilter = groupKey;
-        } else {
-            this.currentFilter = 'all';
-        }
+        // הגדרת סינון בית וקבוצה לפי ההעדפות
+        this.applyPreferenceFilters();
 
         this.closeGuestPreferencesModal();
         this.renderGuestFollowedBanner();
@@ -4362,7 +4359,7 @@ class TournamentApp {
     clearGuestPreferences() {
         this.guestPreferences = null;
         localStorage.removeItem('tournament_guest_pref');
-        this.currentFilter = 'all';
+        this.applyPreferenceFilters();
 
         this.renderGuestFollowedBanner();
         this.renderStandings();
