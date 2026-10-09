@@ -2796,7 +2796,8 @@ class TournamentApp {
         }
     }
 
-    renderMatchCardHtml(m, isViewer) {
+    renderMatchCardHtml(m, isViewer, chosenTeam = null) {
+        const chosenClass = (name) => (chosenTeam && name === chosenTeam) ? 'is-chosen-team' : '';
         const row1WinnerClass = m.winner === 'team1' ? 'winner' : (m.winner === 'draw' ? 'draw-match' : '');
         const row2WinnerClass = m.winner === 'team2' ? 'winner' : (m.winner === 'draw' ? 'draw-match' : '');
         const score1Val = m.score1 !== null ? m.score1 : '';
@@ -2826,12 +2827,12 @@ class TournamentApp {
                 </div>
                 
                 <div class="match-team-row ${row1WinnerClass}" id="row-${m.id}-1">
-                    <span class="team-name" title="${m.team1Name}">${m.team1Name}</span>
+                    <span class="team-name ${chosenClass(m.team1Name)}" title="${m.team1Name}">${m.team1Name}</span>
                     ${score1Field}
                 </div>
 
                 <div class="match-team-row ${row2WinnerClass}" id="row-${m.id}-2">
-                    <span class="team-name" title="${m.team2Name}">${m.team2Name}</span>
+                    <span class="team-name ${chosenClass(m.team2Name)}" title="${m.team2Name}">${m.team2Name}</span>
                     ${score2Field}
                 </div>
             </div>
@@ -2840,7 +2841,11 @@ class TournamentApp {
 
     renderMatches() {
         const container = document.getElementById('group-matches-container');
-        const filterContainer = document.getElementById('group-filter-container');
+        // אותו זוג סינונים מוצג פעמיים - בראש העמוד ומעל לוח המשחקים - ושניהם מרונדרים מאותו מצב
+        const filterContainers = [
+            { el: document.getElementById('group-filter-container-top'), suffix: 'Top' },
+            { el: document.getElementById('group-filter-container'), suffix: '' }
+        ].filter(c => c.el);
         if (!container) return;
 
         // סינון בפועל: בית או קבוצה שאינם קיימים בטורניר המוצג מתעלמים מהם בלי למחוק את הבחירה,
@@ -2857,17 +2862,17 @@ class TournamentApp {
         const teamFilter = teamNames.includes(this.currentTeamFilter) ? this.currentTeamFilter : 'all';
 
         // רינדור רשימות סינון נפתחות (בית + קבוצה) לפי נתוני הטורניר
-        if (filterContainer && this.groups && Object.keys(this.groups).length > 0) {
+        if (filterContainers.length > 0 && this.groups && Object.keys(this.groups).length > 0) {
             const groupHebrew = {
                 'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
                 'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
             };
             const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
             const grpKeys = Object.keys(this.groups);
-            const filtersHtml = `
+            const buildFiltersHtml = (suffix) => `
                 <label class="filter-select-wrap">
                     <span>🏠 בית</span>
-                    <select id="matchGroupFilter" class="filter-select" onchange="app.filterMatches(this.value)">
+                    <select id="matchGroupFilter${suffix}" class="filter-select" onchange="app.filterMatches(this.value, this.id)">
                         <option value="all" ${groupFilter === 'all' ? 'selected' : ''}>כל הבתים (${this.matches.length})</option>
                         ${grpKeys.map(k => {
                             const count = this.matches.filter(m => m.groupId === k).length;
@@ -2877,18 +2882,24 @@ class TournamentApp {
                 </label>
                 <label class="filter-select-wrap">
                     <span>👥 קבוצה</span>
-                    <select id="matchTeamFilter" class="filter-select" onchange="app.filterMatchesByTeam(this.value)">
+                    <select id="matchTeamFilter${suffix}" class="filter-select" onchange="app.filterMatchesByTeam(this.value, this.id)">
                         <option value="all" ${teamFilter === 'all' ? 'selected' : ''}>כל הקבוצות</option>
                         ${teamNames.map(name => `<option value="${escAttr(name)}" ${teamFilter === name ? 'selected' : ''}>${escAttr(name)}</option>`).join('')}
                     </select>
                 </label>
             `;
             // עדכון רק כשיש שינוי, כדי לא לסגור רשימה פתוחה בזמן סנכרון נתונים
-            if (filterContainer.dataset.rendered !== filtersHtml) {
-                filterContainer.innerHTML = filtersHtml;
-                filterContainer.dataset.rendered = filtersHtml;
-            }
+            filterContainers.forEach(({ el, suffix }) => {
+                const filtersHtml = buildFiltersHtml(suffix);
+                if (el.dataset.rendered !== filtersHtml) {
+                    el.innerHTML = filtersHtml;
+                    el.dataset.rendered = filtersHtml;
+                }
+            });
         }
+
+        // הקבוצה שמודגשת בלוח המשחקים: זו שנבחרה בסינון, ואם לא נבחרה - הקבוצה המועדפת
+        const chosenTeam = teamFilter !== 'all' ? teamFilter : (this.guestPreferences?.teamName || null);
 
         const filteredMatches = teamFilter === 'all'
             ? groupMatches
@@ -2915,7 +2926,7 @@ class TournamentApp {
                             ⭐ משחקי הקבוצה במעקב: <strong>${followedTeam}</strong> (${followedMatches.length} משחקים)
                         </div>
                         <div class="matches-grid">
-                            ${followedMatches.map(m => this.renderMatchCardHtml(m, isViewer)).join('')}
+                            ${followedMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
                         </div>
                     </div>
                 `;
@@ -2927,14 +2938,14 @@ class TournamentApp {
                         <span>📅 כל שאר משחקי הטורניר (${otherMatches.length})</span>
                     </div>
                     <div class="matches-grid">
-                        ${otherMatches.map(m => this.renderMatchCardHtml(m, isViewer)).join('')}
+                        ${otherMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
                     </div>
                 `;
             }
         } else {
             contentHtml = `
                 <div class="matches-grid">
-                    ${filteredMatches.map(m => this.renderMatchCardHtml(m, isViewer)).join('')}
+                    ${filteredMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
                 </div>
             `;
         }
@@ -2951,16 +2962,17 @@ class TournamentApp {
         }
     }
 
-    filterMatches(groupKey) {
+    // sourceId: הרשימה שממנה בוצעה הבחירה (העליונה או התחתונה), כדי להחזיר אליה את הפוקוס בלי לגלול
+    filterMatches(groupKey, sourceId = 'matchGroupFilter') {
         this.currentFilter = groupKey;
         this.renderMatches();
-        document.getElementById('matchGroupFilter')?.focus();
+        document.getElementById(sourceId)?.focus({ preventScroll: true });
     }
 
-    filterMatchesByTeam(teamName) {
+    filterMatchesByTeam(teamName, sourceId = 'matchTeamFilter') {
         this.currentTeamFilter = teamName;
         this.renderMatches();
-        document.getElementById('matchTeamFilter')?.focus();
+        document.getElementById(sourceId)?.focus({ preventScroll: true });
     }
 
     /* ========================================================

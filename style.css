@@ -428,6 +428,19 @@ header h1 {
     gap: 12px;
 }
 
+/* עותק הסינונים שבראש העמוד */
+.filter-tabs-top {
+    margin-bottom: 20px;
+}
+
+/* הקבוצה הנבחרת בלוח המשחקים: מודגשת במיוחד עם קו תחתון (כמו בטבלת הבתים) */
+.match-team-row .team-name.is-chosen-team {
+    -webkit-text-stroke: 0.7px currentColor;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+
 .filter-select-wrap {
     display: flex;
     align-items: center;
