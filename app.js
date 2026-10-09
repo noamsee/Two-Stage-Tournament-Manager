@@ -856,6 +856,11 @@ class TournamentApp {
             }
         }
 
+        // מנהל שהתחבר כעת (ולא ברענון דף) נשאל איזה טורניר לנהל, או אם ליצור טורניר חדש
+        if (showNotification && (role === 'owner' || role === 'admin')) {
+            this.openAdminTournamentChooser();
+        }
+
         // אם המשתמש הוא אורח/צופה - מחילים ישירות את ההעדפות שנבחרו במסך הכניסה
         if (role === 'viewer') {
             this.renderGuestFollowedBanner();
@@ -872,7 +877,54 @@ class TournamentApp {
         if (tabAllowed) this.switchTab(tabToRestore);
     }
 
+    /* ========================================================
+       בחירת טורניר לניהול לאחר התחברות מנהל
+       ======================================================== */
+
+    openAdminTournamentChooser() {
+        const modal = document.getElementById('admin-tournament-chooser-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        this.renderAdminTournamentChooser();
+    }
+
+    closeAdminTournamentChooser() {
+        document.getElementById('admin-tournament-chooser-modal')?.classList.add('hidden');
+    }
+
+    renderAdminTournamentChooser() {
+        const modal = document.getElementById('admin-tournament-chooser-modal');
+        const list = document.getElementById('adminTournamentChooserList');
+        if (!modal || !list || modal.classList.contains('hidden')) return;
+
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        const formatLabel = (t) => (t.format === 'knockout_only') ? 'נוקאאוט בלבד' : ((t.format === 'groups_only') ? 'בתים בלבד' : 'בתים + פלייאוף');
+
+        list.innerHTML = this.tournaments.map(t => `
+            <button type="button" class="login-choice-btn ${t.isArchived ? 'is-archived' : ''}" onclick="app.chooseAdminTournament('${t.id}')">
+                <span class="login-choice-icon">${t.isArchived ? '🔒' : '⚡'}</span>
+                <span class="login-choice-text">
+                    <strong>${esc(t.name)}</strong>
+                    <small>${formatLabel(t)}${t.isArchived ? ' • סגור (ארכיון)' : ' • פעיל'}</small>
+                </span>
+            </button>
+        `).join('') || '<p class="placeholder-text">עדיין אין טורנירים במערכת.</p>';
+    }
+
+    chooseAdminTournament(tourneyId) {
+        this.closeAdminTournamentChooser();
+        if (tourneyId !== this.activeTournamentId) {
+            this.switchTournament(tourneyId);
+        }
+    }
+
+    adminChooserCreateNew() {
+        this.closeAdminTournamentChooser();
+        this.openTournamentWizard();
+    }
+
     logout() {
+        this.closeAdminTournamentChooser();
         const loggedOutEmail = this.currentUser ? this.currentUser.email : '';
         this.currentUser = null;
         sessionStorage.removeItem('tournament_current_user');
@@ -1583,6 +1635,9 @@ class TournamentApp {
 
         // עדכון תג שם הטורניר עבור אורח
         this.updateGuestTournamentBadge();
+
+        // אם חלון בחירת הטורניר של המנהל פתוח - מעדכנים גם את הרשימה שבו
+        this.renderAdminTournamentChooser();
 
         // סנכרון מיידי של שדות הבית והקבוצה במסך הכניסה
         const currentLoginTourneyId = loginSelect && loginSelect.value ? loginSelect.value : (viewerTournaments[0]?.id || this.activeTournamentId);
