@@ -3520,7 +3520,6 @@ class TournamentApp {
         ` : '';
 
         container.innerHTML = `
-            ${seedsSummaryHtml}
             ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
             <div class="bracket-tree-scroll">
                 <div class="bracket-tree" style="--rounds: ${visibleRounds.length};">
@@ -3528,6 +3527,7 @@ class TournamentApp {
                 </div>
             </div>
             ${championBannerHtml}
+            ${seedsSummaryHtml}
             ${editorHtml}
         `;
 
