@@ -2833,3 +2833,8 @@ html, body {
 .tab-btn.board-hidden {
     display: none !important;
 }
+
+/* רכיבי עריכה של שלב הבתים שמוסתרים לאחר נעילת השלב ושיבוץ הפלייאוף */
+.stage-locked-hidden {
+    display: none !important;
+}

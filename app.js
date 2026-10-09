@@ -2891,6 +2891,8 @@ class TournamentApp {
             const isManager = this.currentRole === 'owner' || this.currentRole === 'admin';
             if (tabId === 'setup' && this.boardCreated) {
                 tabId = 'group-stage';
+            } else if (tabId === 'playoffs' && this.boardCreated && !this.isPlayoffOpen()) {
+                tabId = 'group-stage';
             } else if ((tabId === 'group-stage' || tabId === 'playoffs') && !this.boardCreated && isManager) {
                 tabId = 'setup';
             }
@@ -3076,6 +3078,11 @@ class TournamentApp {
         return this.format === 'knockout_only' || !!this.boardCreated;
     }
 
+    // שלב הבתים ננעל והפלייאוף שובץ (רלוונטי רק לטורניר של בתים + פלייאוף)
+    isPlayoffOpen() {
+        return this.format === 'groups_and_playoff' && !!this.playoffSeeds && this.playoffSeeds.length > 0;
+    }
+
     createGameBoard() {
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
@@ -3105,7 +3112,13 @@ class TournamentApp {
 
         setHidden('setup', hasHouses && this.boardCreated);
         setHidden('group-stage', hasHouses && !this.boardCreated);
-        setHidden('playoffs', hasHouses && !this.boardCreated);
+        // טאב הפלייאוף מוצג (לכולם) רק לאחר נעילת שלב הבתים ושיבוץ הפלייאוף
+        setHidden('playoffs', hasHouses && (!this.boardCreated || !this.isPlayoffOpen()));
+
+        // לאחר הנעילה כפתור הנעילה וסרגל הפעולות של שלב הבתים נעלמים: המנהל רואה את שלב הבתים כמו צופה
+        const stageLocked = this.isPlayoffOpen();
+        document.querySelectorAll('.btn-seed-playoffs-action, #tab-group-stage .top-action-toolbar')
+            .forEach(el => el.classList.toggle('stage-locked-hidden', stageLocked));
 
         // אם הטאב הפתוח כרגע הוסתר, עוברים לטאב המתאים למצב הטורניר
         const activeBtn = document.querySelector('.tab-btn.active');
@@ -3678,6 +3691,15 @@ class TournamentApp {
             return;
         }
 
+        // הנעילה אינה הפיכה, ולכן היא מותרת רק כשלכל משחקי הבתים יש מנצחת
+        if (!this.isPlayoffOpen()) {
+            const undecided = (this.matches || []).filter(m => !(m.winner === 'team1' || m.winner === 'team2') || this.isTiedScore(m)).length;
+            if (undecided > 0) {
+                this.showAlert(`לא ניתן לנעול את שלב הבתים: ${undecided} משחקים עדיין ללא הכרעה.`, "warning");
+                return;
+            }
+        }
+
         const playoffSize = this.playoffSize || (this.teams.length >= 8 ? 8 : 4);
         const groupHebrew = {
             'Group A': "בית א'", 'Group B': "בית ב'", 'Group C': "בית ג'",
@@ -3717,6 +3739,8 @@ class TournamentApp {
 
         this.playoffMatches = this.buildInitialKnockoutBracket(this.playoffSeeds, playoffSize);
 
+        // שלב הבתים ננעל: לוח המשחקים מרונדר מחדש במצב קריאה בלבד גם עבור המנהל
+        this.renderMatches();
         this.renderPlayoffBracket();
         this.saveActiveTournamentData();
         this.switchTab('playoffs');
@@ -3938,6 +3962,7 @@ class TournamentApp {
 
         // הכרעת הגמר (או ביטולה) קובעת אם כפתור "העבר לארכיון" מוצג
         this.updateArchiveButtonUI();
+        this.updateBoardStateUI();
 
         if (focusedInputId && document.activeElement?.id !== focusedInputId) {
             this.refocusScoreInput(document.getElementById(focusedInputId));
