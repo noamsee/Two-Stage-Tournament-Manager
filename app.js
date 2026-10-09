@@ -1646,7 +1646,7 @@ class TournamentApp {
 
     // הטורנירים שצופה רשאי לבחור: רק כאלה שאינם בארכיון
     getViewerTournaments() {
-        return this.tournaments.filter(t => !t.isArchived);
+        return this.tournaments.filter(t => !t.isArchived && t.boardCreated !== false);
     }
 
     onLoginTournamentChange(tourneyId) {
@@ -1742,6 +1742,10 @@ class TournamentApp {
         this.numGroups = parseInt(tData.numGroups, 10) || (tData.groups ? Object.keys(tData.groups).length : 2);
         this.teamsPerGroup = parseInt(tData.teamsPerGroup, 10) || 4;
         this.playoffSize = parseInt(tData.playoffSize, 10) || (this.numGroups * this.teamsPerGroup >= 8 ? 8 : 4);
+        // לוח המשחקים נוצר רק בלחיצה על "ייצר לוח משחקים" לאחר הזנת כל שמות הקבוצות.
+        // טורניר שנשמר לפני שהדגל הזה נוסף כבר נמצא בשימוש, ולכן נחשב כמי שהלוח שלו נוצר.
+        this.boardCreated = (tData.boardCreated !== undefined) ? !!tData.boardCreated : true;
+
         // חוקי הכדורשת, קבועים לכל הטורנירים: 2 נקודות לניצחון, נקודה אחת להפסד, ואין תיקו
         this.pointsPerWin = 2;
         this.pointsPerLoss = 1;
@@ -1906,6 +1910,7 @@ class TournamentApp {
             this.tournaments[idx].playoffSize = this.playoffSize;
             this.tournaments[idx].pointsPerWin = this.pointsPerWin;
             this.tournaments[idx].pointsPerLoss = this.pointsPerLoss;
+            this.tournaments[idx].boardCreated = this.boardCreated;
             this.tournaments[idx].teams = [...this.teams];
             this.tournaments[idx].groups = this.groups;
             this.tournaments[idx].matches = this.matches;
@@ -2017,7 +2022,7 @@ class TournamentApp {
         } else {
             if (modalTitle) modalTitle.innerHTML = `✨ אשף הקמת טורניר חדש`;
             if (modalSub) modalSub.textContent = `הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר.`;
-            if (submitBtn) submitBtn.innerHTML = `🚀 צור טורניר והפעל לוח משחקים`;
+            if (submitBtn) submitBtn.innerHTML = `🚀 צור טורניר`;
 
             if (nameInp) nameInp.value = `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
             const rad = document.querySelector('input[name="wizardFormat"][value="groups_and_playoff"]');
@@ -2249,10 +2254,13 @@ class TournamentApp {
             }
         }
 
-        // שימור שמות קבוצות ברירת מחדל
+        // טורניר עם בתים נפתח עם שמות ריקים: המנהל מזין את כל השמות ורק אז יוצר את לוח המשחקים.
+        // טורניר נוקאאוט בלבד ממשיך להיפתח עם שמות ברירת מחדל.
         const teams = [];
         for (let i = 0; i < totalTeams; i++) {
-            if (i < this.defaultTeams.length) {
+            if (format !== 'knockout_only') {
+                teams.push('');
+            } else if (i < this.defaultTeams.length) {
                 teams.push(this.defaultTeams[i]);
             } else {
                 teams.push(`קבוצה ${i + 1}`);
@@ -2309,6 +2317,7 @@ class TournamentApp {
             playoffSize,
             pointsPerWin,
             pointsPerLoss,
+            boardCreated: format === 'knockout_only',
             createdAt: new Date().toLocaleDateString('he-IL'),
             isArchived: false,
             teams,
@@ -2624,6 +2633,7 @@ class TournamentApp {
 
     updateCloseButtonUI() {
         this.updateArchiveButtonUI();
+        this.updateBoardStateUI();
         const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
         const isClosed = curr ? curr.isArchived : false;
 
@@ -2866,6 +2876,15 @@ class TournamentApp {
     }
 
     switchTab(tabId) {
+        // טורניר עם בתים: אחרי יצירת הלוח אין טאב הגדרות, ולפניה מנהל רואה רק אותו
+        if (this.format !== 'knockout_only') {
+            const isManager = this.currentRole === 'owner' || this.currentRole === 'admin';
+            if (tabId === 'setup' && this.boardCreated) {
+                tabId = 'group-stage';
+            } else if ((tabId === 'group-stage' || tabId === 'playoffs') && !this.boardCreated && isManager) {
+                tabId = 'setup';
+            }
+        }
         this.openPlayoffMatchId = null;
         try { sessionStorage.setItem('tournament_active_tab', tabId); } catch (e) {}
         document.querySelectorAll('.tab-section').forEach(el => el.classList.add('hidden'));
@@ -2965,7 +2984,9 @@ class TournamentApp {
     updateTeamName(index, newName) {
         if (this.isCurrentTournamentClosed()) return;
         const trimmed = newName.trim();
-        this.teams[index] = trimmed || `קבוצה ${index + 1}`;
+        // לפני יצירת לוח המשחקים שם ריק נשאר ריק, כדי שהמנהל יידרש להזין שם לכל קבוצה
+        const allowEmpty = this.format !== 'knockout_only' && !this.boardCreated;
+        this.teams[index] = trimmed || (allowEmpty ? '' : `קבוצה ${index + 1}`);
 
         if (this.format === 'knockout_only') {
             if (this.playoffSeeds && this.playoffSeeds[index]) {
@@ -3035,6 +3056,53 @@ class TournamentApp {
     /* ========================================================
        אלגוריתם 1: Round-Robin דינמי לכל כמות בתים וקבוצות
        ======================================================== */
+
+    /* ========================================================
+       יצירת לוח המשחקים: פעולה חד-פעמית שנועלת את שמות הקבוצות
+       ======================================================== */
+
+    // האם לוח המשחקים כבר נוצר (רלוונטי לטורנירים עם בתים; בנוקאאוט בלבד אין שלב כזה)
+    isBoardReady() {
+        return this.format === 'knockout_only' || !!this.boardCreated;
+    }
+
+    createGameBoard() {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+
+        if (this.format !== 'knockout_only') {
+            if (this.boardCreated) return;
+            const missing = (this.teams || []).filter(name => !String(name || '').trim()).length;
+            if (missing > 0) {
+                this.showAlert(`יש להזין שם לכל הקבוצות לפני יצירת לוח המשחקים (חסרים ${missing} שמות).`, "warning");
+                return;
+            }
+            this.boardCreated = true;
+        }
+
+        this.generateTournamentGroups(true);
+        this.populateTournamentSelectors();
+        this.updateBoardStateUI();
+    }
+
+    // לפני יצירת הלוח מוצג רק טאב ההגדרות; אחריה טאב ההגדרות נעלם והשמות נעולים
+    updateBoardStateUI() {
+        const hasHouses = this.format !== 'knockout_only';
+        const tabBtn = (name) => document.querySelector(`.tab-btn[onclick*="'${name}'"]`);
+        const setHidden = (name, hidden) => { const btn = tabBtn(name); if (btn) btn.classList.toggle('board-hidden', hidden); };
+
+        setHidden('setup', hasHouses && this.boardCreated);
+        setHidden('group-stage', hasHouses && !this.boardCreated);
+        setHidden('playoffs', hasHouses && !this.boardCreated);
+
+        // אם הטאב הפתוח כרגע הוסתר, עוברים לטאב המתאים למצב הטורניר
+        const activeBtn = document.querySelector('.tab-btn.active');
+        if (activeBtn && activeBtn.classList.contains('board-hidden')) {
+            this.switchTab(this.boardCreated ? 'group-stage' : 'setup');
+        }
+    }
 
     generateTournamentGroups(shouldSwitchTab = true) {
         if (shouldSwitchTab && this.isCurrentTournamentClosed()) {
@@ -3527,6 +3595,13 @@ class TournamentApp {
                                             rowClass = 'row-candidate-qualify';
                                             rankClass = 'rank-third';
                                         }
+                                    }
+
+                                    // לפני המשחק הראשון של הקבוצה אין משמעות לצבע המיקום, ולכן השורה נשארת לבנה
+                                    if (!(t.played > 0)) {
+                                        rowClass = '';
+                                        rankClass = 'rank-out';
+                                        rankDisplay = `${t.groupRank}`;
                                     }
 
                                     const isFollowed = (followedTeam && t.teamName === followedTeam);

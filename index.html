@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.26">
+    <link rel="stylesheet" href="./style.css?v=4.27">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -213,7 +213,7 @@
                     </div>
 
                     <div class="actions-bar">
-                        <button id="btn-generate-groups" class="btn-primary admin-editable" onclick="app.generateTournamentGroups()">
+                        <button id="btn-generate-groups" class="btn-primary admin-editable" onclick="app.createGameBoard()">
                             ⚡ ייצר לוח משחקים לשלב הבתים
                         </button>
                         <button type="button" class="btn-secondary admin-editable" onclick="app.fillDefaultTeamNames()">
@@ -244,9 +244,6 @@
 
                     <!-- סרגל פעולות עזר לשלב הבתים (סרגל יחיד) -->
                     <div class="top-action-toolbar admin-editable">
-                        <button type="button" class="btn-primary btn-sm" onclick="app.generateTournamentGroups()" title="בנה / ייצר מחדש לוח משחקים">
-                            ⚡ בנה לוח משחקים
-                        </button>
                         <button type="button" class="btn-secondary btn-sm" onclick="app.fillSampleScores()" title="מלא תוצאות לכל המשחקים">
                             🎲 מלא תוצאות
                         </button>
@@ -681,7 +678,7 @@ git push -u origin main</pre>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px;">
                     <button type="submit" id="wizardSubmitBtn" class="btn-primary" style="padding:10px 20px; font-size:1rem; font-weight:800;">
-                        🚀 צור טורניר והפעל לוח משחקים
+                        🚀 צור טורניר
                     </button>
                     <button type="button" class="btn-secondary" onclick="app.closeTournamentWizard()">
                         ביטול
@@ -737,7 +734,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.26"></script>
+    <script src="./app.js?v=4.27"></script>
 </body>
 </html>
 

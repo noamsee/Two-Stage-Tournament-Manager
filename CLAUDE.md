@@ -106,6 +106,7 @@ When writing code or introducing features:
      - Primary sort: Number of Wins (`W`).
      - Secondary sort: Point Difference (`PD = PF - PA`).
      - Tertiary sort: Points For (`PF`).
+   - Game board creation is one-time: a new tournament with houses starts with empty team names and `boardCreated: false`. Only the settings tab is shown until every team has a name and "create game board" is pressed; after that the settings tab is hidden and team names are locked. Tournaments saved before this flag existed count as created.
 4. **Cache Busting**:
    - In `index.html`, script and stylesheet links include version query parameters (e.g., `app.js?v=3.6`). Whenever major modifications are pushed, bump the version string in `index.html` to prevent aggressive browser caching.
 5. **Git Workflow**:

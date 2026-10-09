@@ -2828,3 +2828,8 @@ html, body {
         font-size: 16px;
     }
 }
+
+/* טאב שמוסתר לפי מצב לוח המשחקים (לפני/אחרי יצירת הלוח) */
+.tab-btn.board-hidden {
+    display: none !important;
+}
