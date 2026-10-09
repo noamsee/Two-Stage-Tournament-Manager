@@ -3361,26 +3361,6 @@ class TournamentApp {
 
         const isViewer = (this.currentRole === 'viewer') || this.isCurrentTournamentClosed();
 
-        const seedsSummaryHtml = (this.playoffSeeds && this.playoffSeeds.length > 0) ? `
-            <div class="seed-summary-card">
-                <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color:#271e16;">
-                    ${this.playoffSeeds.length} הקבוצות שעלו לפלייאוף:
-                </div>
-                <div class="seed-grid">
-                    ${this.playoffSeeds.map(s => `
-                        <div class="seed-chip">
-                            <span style="font-weight: 700; color: #382c21;">
-                                <span class="seed-badge">${s.seed}</span> ${s.teamName}
-                            </span>
-                            <span style="font-size: 0.78rem; color: #6b5b45;">
-                                ${s.origin || ''}
-                            </span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        ` : '';
-
         const r16 = this.playoffMatches?.r16 || [];
         const qf = this.playoffMatches?.qf || [];
         const sf = this.playoffMatches?.sf || [];
@@ -3569,7 +3549,6 @@ class TournamentApp {
                 </div>
             </div>
             ${championBannerHtml}
-            ${seedsSummaryHtml}
             ${editorHtml}
         `;
 
