@@ -78,6 +78,14 @@ class TournamentApp {
         this.tournaments = this.loadTournaments();
         this.activeTournamentId = this.tournaments[0]?.id || 'tourney_active_2026';
 
+        // ברענון דף ממשיכים באותו טורניר שהוצג, ולא חוזרים לטורניר ברירת המחדל
+        try {
+            const savedTourneyId = sessionStorage.getItem('tournament_active_tournament');
+            if (savedTourneyId && this.tournaments.some(t => t.id === savedTourneyId)) {
+                this.activeTournamentId = savedTourneyId;
+            }
+        } catch (e) {}
+
         // נתוני הטורניר הפעיל הנוכחי
         this.teams = [...this.defaultTeams];
         this.groups = { 'Group A': [], 'Group B': [], 'Group C': [] };
@@ -110,14 +118,47 @@ class TournamentApp {
         } catch (e) {
             this.guestPreferences = null;
         }
-        this.applyPreferenceFilters();
+        // ברענון דף ממשיכים עם הסינון האחרון שנבחר; ההעדפות קובעות רק את הסינון ההתחלתי
+        let savedFilters = null;
+        try { savedFilters = JSON.parse(sessionStorage.getItem('tournament_active_filters') || 'null'); } catch (e) {}
+        if (savedFilters && savedFilters.group && savedFilters.team) {
+            this.currentFilter = savedFilters.group;
+            this.currentTeamFilter = savedFilters.team;
+        } else {
+            this.applyPreferenceFilters();
+        }
     }
 
-    // סינוני לוח המשחקים (בית וקבוצה) נפתחים לפי הבית והקבוצה המועדפים שנבחרו בכניסה
+    // הבית והקבוצה המועדפים שנבחרו בכניסה משמשים אך ורק כערך ההתחלתי של סינוני הבית והקבוצה.
+    // מרגע זה כל התצוגה (טבלאות, לוח משחקים, הדגשות) נקבעת לפי הסינון הנוכחי בלבד.
     applyPreferenceFilters() {
         const pref = this.guestPreferences;
         this.currentFilter = (pref && pref.groupKey && pref.groupKey !== 'all') ? pref.groupKey : 'all';
         this.currentTeamFilter = (pref && pref.teamName) ? pref.teamName : 'all';
+        this.saveActiveFilters();
+    }
+
+    saveActiveFilters() {
+        try {
+            sessionStorage.setItem('tournament_active_filters', JSON.stringify({ group: this.currentFilter, team: this.currentTeamFilter }));
+        } catch (e) {}
+    }
+
+    // הסינון בפועל: בית או קבוצה שאינם קיימים בטורניר המוצג מתעלמים מהם בלי למחוק את הבחירה,
+    // כי התצוגה עשויה להתרנדר לפני שנתוני הטורניר הנכון נטענו
+    getActiveFilters() {
+        const groupFilter = (this.currentFilter !== 'all' && this.groups && this.groups[this.currentFilter]) ? this.currentFilter : 'all';
+        const groupMatches = groupFilter === 'all'
+            ? this.matches
+            : this.matches.filter(m => m.groupId === groupFilter);
+
+        // רשימת הקבוצות לסינון - רק קבוצות מהבית שנבחר
+        const teamNames = [...new Set(groupMatches.flatMap(m => [m.team1Name, m.team2Name]))]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'he'));
+        const teamFilter = teamNames.includes(this.currentTeamFilter) ? this.currentTeamFilter : 'all';
+
+        return { groupFilter, groupMatches, teamNames, teamFilter };
     }
 
     init() {
@@ -1605,6 +1646,7 @@ class TournamentApp {
             tData = this.tournaments[0];
             this.activeTournamentId = tData.id;
         }
+        try { sessionStorage.setItem('tournament_active_tournament', tData.id); } catch (e) {}
 
         this.format = tData.format || 'groups_and_playoff';
         this.numGroups = parseInt(tData.numGroups, 10) || (tData.groups ? Object.keys(tData.groups).length : 2);
@@ -2776,6 +2818,7 @@ class TournamentApp {
         // איפוס סינון בתים כדי שלא יישאר מסונן על בית ישן שנמחק (כמו בית ג')
         this.currentFilter = 'all';
         this.currentTeamFilter = 'all';
+        this.saveActiveFilters();
 
         this.matches = this.generateDynamicRoundRobin(groups, this.teams, teamsPerGroup);
         this.renderTeamInputs();
@@ -2848,18 +2891,7 @@ class TournamentApp {
         ].filter(c => c.el);
         if (!container) return;
 
-        // סינון בפועל: בית או קבוצה שאינם קיימים בטורניר המוצג מתעלמים מהם בלי למחוק את הבחירה,
-        // כי הלוח עשוי להתרנדר לפני שנתוני הטורניר הנכון נטענו
-        const groupFilter = (this.currentFilter !== 'all' && this.groups && this.groups[this.currentFilter]) ? this.currentFilter : 'all';
-        const groupMatches = groupFilter === 'all'
-            ? this.matches
-            : this.matches.filter(m => m.groupId === groupFilter);
-
-        // רשימת הקבוצות לסינון - רק קבוצות מהבית שנבחר
-        const teamNames = [...new Set(groupMatches.flatMap(m => [m.team1Name, m.team2Name]))]
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b, 'he'));
-        const teamFilter = teamNames.includes(this.currentTeamFilter) ? this.currentTeamFilter : 'all';
+        const { groupFilter, groupMatches, teamNames, teamFilter } = this.getActiveFilters();
 
         // רינדור רשימות סינון נפתחות (בית + קבוצה) לפי נתוני הטורניר
         if (filterContainers.length > 0 && this.groups && Object.keys(this.groups).length > 0) {
@@ -2898,8 +2930,8 @@ class TournamentApp {
             });
         }
 
-        // הקבוצה שמודגשת בלוח המשחקים: זו שנבחרה בסינון, ואם לא נבחרה - הקבוצה המועדפת
-        const chosenTeam = teamFilter !== 'all' ? teamFilter : (this.guestPreferences?.teamName || null);
+        // הקבוצה שמודגשת בלוח המשחקים: זו שנבחרה בסינון הקבוצה
+        const chosenTeam = teamFilter !== 'all' ? teamFilter : null;
 
         const filteredMatches = teamFilter === 'all'
             ? groupMatches
@@ -2912,43 +2944,11 @@ class TournamentApp {
 
         const isViewer = (this.currentRole === 'viewer') || this.isCurrentTournamentClosed();
 
-        const followedTeam = this.guestPreferences?.teamName;
-        let contentHtml = '';
-
-        if (followedTeam) {
-            const followedMatches = filteredMatches.filter(m => m.team1Name === followedTeam || m.team2Name === followedTeam);
-            const otherMatches = filteredMatches.filter(m => m.team1Name !== followedTeam && m.team2Name !== followedTeam);
-
-            if (followedMatches.length > 0) {
-                contentHtml += `
-                    <div class="followed-matches-container">
-                        <div class="followed-matches-title">
-                            ⭐ משחקי הקבוצה במעקב: <strong>${followedTeam}</strong> (${followedMatches.length} משחקים)
-                        </div>
-                        <div class="matches-grid">
-                            ${followedMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (otherMatches.length > 0) {
-                contentHtml += `
-                    <div class="all-matches-divider">
-                        <span>📅 כל שאר משחקי הטורניר (${otherMatches.length})</span>
-                    </div>
-                    <div class="matches-grid">
-                        ${otherMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
-                    </div>
-                `;
-            }
-        } else {
-            contentHtml = `
-                <div class="matches-grid">
-                    ${filteredMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
-                </div>
-            `;
-        }
+        const contentHtml = `
+            <div class="matches-grid">
+                ${filteredMatches.map(m => this.renderMatchCardHtml(m, isViewer, chosenTeam)).join('')}
+            </div>
+        `;
 
         // שמירת הפוקוס בשדה התוצאה שבעריכה גם כשהלוח מרונדר מחדש בעקבות סנכרון מהענן
         const focusedEl = document.activeElement;
@@ -2965,12 +2965,16 @@ class TournamentApp {
     // sourceId: הרשימה שממנה בוצעה הבחירה (העליונה או התחתונה), כדי להחזיר אליה את הפוקוס בלי לגלול
     filterMatches(groupKey, sourceId = 'matchGroupFilter') {
         this.currentFilter = groupKey;
+        this.saveActiveFilters();
+        this.renderStandings();
         this.renderMatches();
         document.getElementById(sourceId)?.focus({ preventScroll: true });
     }
 
     filterMatchesByTeam(teamName, sourceId = 'matchTeamFilter') {
         this.currentTeamFilter = teamName;
+        this.saveActiveFilters();
+        this.renderStandings();
         this.renderMatches();
         document.getElementById(sourceId)?.focus({ preventScroll: true });
     }
@@ -3155,24 +3159,15 @@ class TournamentApp {
         };
 
         let entries = Object.entries(this.standings);
-        const followedTeam = this.guestPreferences?.teamName;
-        const followedGroup = this.guestPreferences?.groupKey;
-
-        // אם המשתמש בחר קבוצה או בית למעקב - מציגים את הבית שלו ראשון בראש העמוד
-        if (followedTeam) {
-            entries.sort(([keyA, teamsA], [keyB, teamsB]) => {
-                const hasA = teamsA.some(t => t.teamName === followedTeam);
-                const hasB = teamsB.some(t => t.teamName === followedTeam);
-                if (hasA && !hasB) return -1;
-                if (!hasA && hasB) return 1;
-                return 0;
-            });
-        } else if (followedGroup && followedGroup !== 'all') {
-            entries.sort(([keyA], [keyB]) => {
-                if (keyA === followedGroup && keyB !== followedGroup) return -1;
-                if (keyA !== followedGroup && keyB === followedGroup) return 1;
-                return 0;
-            });
+        // טבלאות הבתים מסוננות לפי אותו סינון בית/קבוצה שבראש העמוד:
+        // בית שנבחר מציג רק את הטבלה שלו, וקבוצה שנבחרה מציגה את טבלת הבית שלה ומודגשת בה
+        const { groupFilter, teamFilter } = this.getActiveFilters();
+        const followedTeam = teamFilter !== 'all' ? teamFilter : null;
+        if (groupFilter !== 'all') {
+            entries = entries.filter(([key]) => key === groupFilter);
+        } else if (followedTeam) {
+            const teamEntries = entries.filter(([, teams]) => teams.some(t => t.teamName === followedTeam));
+            if (teamEntries.length > 0) entries = teamEntries;
         }
 
         let html = '';
