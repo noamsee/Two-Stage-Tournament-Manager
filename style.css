@@ -3063,3 +3063,92 @@ body:not(.role-owner):not(.role-developer) .can-delete-only {
 body:not(.role-owner):not(.role-developer) .debug-only {
     display: none !important;
 }
+
+/* ==========================================================================
+   מצב ללא טורניר פעיל
+   ========================================================================== */
+#noTournamentState {
+    display: none;
+    text-align: center;
+    padding: 44px 20px;
+}
+
+body.no-tournament #noTournamentState {
+    display: block;
+}
+
+.no-tournament-icon {
+    font-size: 2.6rem;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+
+.no-tournament-state h2 {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.no-tournament-state p {
+    margin: 0 auto 18px;
+    max-width: 440px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.no-tournament-create {
+    padding: 12px 24px;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+/* ההודעה לצופים מוצגת רק לצופים; החלק של המנהלים מוסתר מצופים דרך admin-editable */
+body:not(.role-viewer) .no-tournament-viewer {
+    display: none;
+}
+
+/* בלי טורניר מוצג אין טאבים, תוכן טורניר או פעולות על טורניר */
+body.no-tournament nav.tabs,
+body.no-tournament .tab-section,
+body.no-tournament #archiveBanner,
+body.no-tournament .btn-csv,
+body.no-tournament #headerRenameTeamsBtn,
+body.no-tournament #headerArchiveTournamentBtn,
+body.no-tournament #headerBtnNewTourney,
+body.no-tournament .can-delete-only,
+body.no-tournament .guest-tournament-badge,
+body.zero-tournaments .tournament-select-wrap {
+    display: none !important;
+}
+
+/* מסך הכניסה לצופים כשאין טורניר פעיל */
+.viewer-waiting {
+    display: none;
+    text-align: center;
+    padding: 8px 4px 4px;
+    color: var(--text-main);
+}
+
+.viewer-waiting strong {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.viewer-waiting p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+#login-step-viewer.no-active .viewer-waiting {
+    display: block;
+}
+
+#login-step-viewer.no-active .login-field,
+#login-step-viewer.no-active .login-btn-primary {
+    display: none !important;
+}

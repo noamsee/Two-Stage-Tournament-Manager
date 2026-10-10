@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.37">
+    <link rel="stylesheet" href="./style.css?v=4.38">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -48,6 +48,12 @@
 
             <!-- שלב 2א: כניסת צופה - בחירת טורניר, בית וקבוצה למעקב -->
             <div id="login-step-viewer" class="login-step login-form hidden">
+                <!-- מוצג במקום שדות הבחירה כשאין טורניר פעיל לצפייה -->
+                <div class="viewer-waiting">
+                    <div class="no-tournament-icon">⏳</div>
+                    <strong>עדיין אין טורניר פעיל</strong>
+                    <p>שבו בנוח, הטורניר ייפתח בקרוב. המסך יתעדכן מעצמו ברגע שהטורניר ייפתח.</p>
+                </div>
                 <div class="login-field" id="loginTournamentPickerGroup">
                     <label for="loginTournamentSelect">🏆 1. בחר טורניר לצפייה:</label>
                     <select id="loginTournamentSelect" class="login-tournament-select" onchange="app.onLoginTournamentChange(this.value)">
@@ -191,6 +197,21 @@
         </div>
 
         <!-- ניווט טאבים (גלוי לכולם, למעט הגדרות שמוסתר מצופים) -->
+        <!-- מצב ללא טורניר פעיל: למנהלים כפתור הקמה בלבד, לצופים הודעת המתנה -->
+        <div id="noTournamentState" class="card no-tournament-state">
+            <div class="no-tournament-manager admin-editable">
+                <div class="no-tournament-icon">🏆</div>
+                <h2>אין כרגע טורניר פעיל</h2>
+                <p>כדי להתחיל, צרו טורניר חדש.</p>
+                <button type="button" class="btn-success no-tournament-create" onclick="app.openTournamentWizard()">✨ צור טורניר חדש</button>
+            </div>
+            <div class="no-tournament-viewer">
+                <div class="no-tournament-icon">⏳</div>
+                <h2>עדיין אין טורניר פעיל</h2>
+                <p>שבו בנוח, הטורניר ייפתח בקרוב. העמוד יתעדכן מעצמו ברגע שהטורניר ייפתח.</p>
+            </div>
+        </div>
+
         <nav class="tabs">
             <button class="tab-btn admin-editable active" onclick="app.switchTab('setup')">⚙️ הגדרת טורניר</button>
             <button class="tab-btn" onclick="app.switchTab('group-stage')">⚽ שלב הבתים</button>
@@ -769,7 +790,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.37"></script>
+    <script src="./app.js?v=4.38"></script>
 </body>
 </html>
 

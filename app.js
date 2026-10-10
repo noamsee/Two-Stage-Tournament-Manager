@@ -82,7 +82,8 @@ class TournamentApp {
 
         // מאגר הטורנירים (טורניר פעיל + ארכיון תוצאות עבר)
         this.tournaments = this.loadTournaments();
-        this.activeTournamentId = this.tournaments[0]?.id || 'tourney_active_2026';
+        // טורניר ברירת המחדל הוא הטורניר הפעיל הראשון; אם אין כזה, אין טורניר מוצג (מצב "ללא טורניר")
+        this.activeTournamentId = this.tournaments.find(t => !t.isArchived)?.id || null;
 
         // ברענון דף ממשיכים באותו טורניר שהוצג, ולא חוזרים לטורניר ברירת המחדל
         try {
@@ -258,16 +259,28 @@ class TournamentApp {
                     this.renderOwnerTournamentsList();
 
                     // טעינה ורענון הנתונים של הטורניר הנוכחי המוצג
-                    const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.tournaments[0];
+                    // הטורניר המוצג, ואם נמחק - הטורניר הפעיל הבא. אם אין כזה עוברים למצב "ללא טורניר"
+                    const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.getFallbackTournament();
                     if (currentDoc) {
                         this.activeTournamentId = currentDoc.id;
                         this.loadTournamentData(currentDoc.id);
+                    } else {
+                        this.loadTournamentData(null);
                     }
                     console.log("[Firestore] Real-time sync: Received updated tournaments from cloud (" + cloudTournaments.length + ")");
                 } else if (snapshot && snapshot.empty) {
-                    // אם מסד הנתונים בענן עדיין ריק, נעלה את הטורנירים הראשוניים לענן!
-                    console.log("[Firestore] Cloud database is empty. Uploading initial tournaments...");
-                    this.uploadAllTournamentsToCloud();
+                    // אין טורנירים בענן: זה מצב תקין (0 טורנירים), ולא מעלים טורנירים ראשוניים במקומם.
+                    // תשובה ריקה מהמטמון המקומי בלבד אינה נחשבת, כדי לא למחוק נתונים לפני שהשרת ענה.
+                    if (snapshot.metadata && snapshot.metadata.fromCache) return;
+                    const justCreated = this.pendingCreatedTournamentId
+                        ? this.tournaments.find(t => t.id === this.pendingCreatedTournamentId)
+                        : null;
+                    this.tournaments = justCreated ? [justCreated] : [];
+                    this.saveTournamentsListLocally();
+                    this.populateTournamentSelectors();
+                    this.renderOwnerTournamentsList();
+                    this.loadTournamentData(justCreated ? justCreated.id : null);
+                    console.log("[Firestore] Real-time sync: no tournaments in the cloud.");
                 }
             }, err => {
                 console.warn("[Firestore] Tournaments snapshot error:", err);
@@ -1058,6 +1071,7 @@ class TournamentApp {
     switchRole(newRole) {
         this.currentRole = newRole;
         document.body.className = `role-${newRole}`;
+        this.updateEmptyStateUI();
 
         const isClosed = this.isCurrentTournamentClosed();
         // אם הטורניר סגור - נעול לחלוטין לשינויים לכולם (כולל Admin ו-Owner)!
@@ -1699,8 +1713,18 @@ class TournamentApp {
         if (headerSelect) {
             const isViewerRole = (this.currentRole === 'viewer');
             const listForHeader = isViewerRole ? viewerTournaments : this.tournaments;
-            headerSelect.innerHTML = buildOptions(listForHeader, isViewerRole);
+            // ללא טורניר מוצג, הבורר נפתח על "בחר טורניר..." ולא מסמן בטעות את הראשון ברשימה
+            const hasActive = listForHeader.some(item => item.id === this.activeTournamentId);
+            if (hasActive || listForHeader.length === 0) {
+                headerSelect.innerHTML = buildOptions(listForHeader, isViewerRole);
+            } else {
+                headerSelect.innerHTML = '<option value="" selected disabled hidden>בחר טורניר...</option>'
+                    + buildOptions(listForHeader, isViewerRole).replace(' selected>', '>');
+            }
         }
+
+        // מסך הכניסה לצופים: כשאין טורניר פעיל מוצגת הודעת המתנה במקום שדות הבחירה
+        document.getElementById('login-step-viewer')?.classList.toggle('no-active', viewerTournaments.length === 0);
 
         // עדכון תג שם הטורניר עבור אורח
         this.updateGuestTournamentBadge();
@@ -1799,13 +1823,53 @@ class TournamentApp {
         `;
     }
 
+    // הטורניר שאליו עוברים כשהטורניר המוצג אינו קיים עוד: הטורניר הפעיל הראשון שמותר למשתמש לראות
+    getFallbackTournament() {
+        const isViewer = this.currentRole === 'viewer';
+        return (isViewer ? this.getViewerTournaments() : this.tournaments.filter(t => !t.isArchived))[0] || null;
+    }
+
+    // מצב "ללא טורניר": אין טורניר פעיל להציג. מנהלים רואים כפתור הקמה בלבד, צופים רואים הודעת המתנה.
+    enterNoTournamentState() {
+        this.activeTournamentId = null;
+        try { sessionStorage.removeItem('tournament_active_tournament'); } catch (e) {}
+        this.format = 'groups_and_playoff';
+        this.numGroups = 0;
+        this.teamsPerGroup = 0;
+        this.setsPerMatch = 1;
+        this.boardCreated = false;
+        this.teams = [];
+        this.groups = {};
+        this.matches = [];
+        this.standings = {};
+        this.playoffSeeds = [];
+        this.playoffMatches = null;
+        this.scoreDrafts = {};
+        this.playoffDraft = {};
+        this.openPlayoffMatchId = null;
+        this.updateEmptyStateUI();
+    }
+
+    updateEmptyStateUI() {
+        if (!document.body) return;
+        const hasTournament = !!this.activeTournamentId && this.tournaments.some(t => t.id === this.activeTournamentId);
+        document.body.classList.toggle('no-tournament', !hasTournament);
+        // בורר הטורנירים של המנהל נשאר רק אם יש טורנירים (למשל ארכיון) שאפשר לפתוח
+        document.body.classList.toggle('zero-tournaments', this.tournaments.length === 0);
+    }
+
     loadTournamentData(tourneyId) {
         let tData = this.tournaments.find(t => t.id === tourneyId);
         if (!tData) {
-            tData = this.tournaments[0];
+            tData = this.getFallbackTournament();
+            if (!tData) {
+                this.enterNoTournamentState();
+                return;
+            }
             this.activeTournamentId = tData.id;
         }
         try { sessionStorage.setItem('tournament_active_tournament', tData.id); } catch (e) {}
+        this.updateEmptyStateUI();
 
         this.format = tData.format || 'groups_and_playoff';
         this.numGroups = parseInt(tData.numGroups, 10) || (tData.groups ? Object.keys(tData.groups).length : 2);
@@ -2773,78 +2837,11 @@ class TournamentApp {
         const deletedName = tourney.name;
         const wasActive = (this.activeTournamentId === tourneyId);
 
-        if (this.tournaments.length <= 1) {
-            if (!confirm(`הטורניר "${deletedName}" הוא הטורניר היחיד במערכת. מחיקתו תאפס את הנתונים ותקים טורניר ברירת מחדל חדש ונקי. האם להמשיך?`)) {
-                return;
-            }
-
-            // מחיקה מ-Firestore
-            if (this.db) {
-                try {
-                    await this.db.collection('tournaments').doc(tourneyId).delete();
-                } catch (err) {
-                    console.error("[Firestore] Error deleting tournament from Firestore:", err);
-                }
-            }
-
-            const newTourneyId = `tourney_${Date.now()}`;
-            const numGroups = 3;
-            const teamsPerGroup = 5;
-            const playoffSize = 8;
-            const teams = [...this.defaultTeams];
-            const groupLetters = ['A', 'B', 'C'];
-            const groups = {};
-            const standings = {};
-            for (let g = 0; g < numGroups; g++) {
-                const grpKey = `Group ${groupLetters[g]}`;
-                const grpTeams = [];
-                for (let t = 0; t < teamsPerGroup; t++) {
-                    const idx = g * teamsPerGroup + t;
-                    grpTeams.push({ index: idx, name: teams[idx], group: grpKey });
-                }
-                groups[grpKey] = grpTeams;
-                standings[grpKey] = grpTeams.map(item => ({
-                    teamIndex: item.index,
-                    teamName: teams[item.index],
-                    group: grpKey,
-                    played: 0, wins: 0, draws: 0, losses: 0,
-                    pointsFor: 0, pointsAgainst: 0, pointDiff: 0,
-                    pts: 0, groupRank: 0
-                }));
-            }
-            const matches = this.generateDynamicRoundRobin(groups, teams, teamsPerGroup);
-            const playoffMatches = this.createEmptyPlayoffMatches(playoffSize);
-            const freshTourney = {
-                id: newTourneyId,
-                name: 'טורניר חדש',
-                format: 'groups_and_playoff',
-                numGroups,
-                teamsPerGroup,
-                playoffSize,
-                pointsPerWin: 2,
-                pointsPerLoss: 1,
-                createdAt: new Date().toLocaleDateString('he-IL'),
-                isArchived: false,
-                teams,
-                groups,
-                matches,
-                standings,
-                playoffSeeds: [],
-                playoffMatches
-            };
-
-            this.tournaments = [freshTourney];
-            this.saveTournamentsList();
-            this.activeTournamentId = newTourneyId;
-            this.loadTournamentData(newTourneyId);
-            this.populateTournamentSelectors();
-            this.renderOwnerTournamentsList();
-            this.updateCloseButtonUI();
-            this.showAlert(`הטורניר "${deletedName}" נמחק. נוצר טורניר חדש ונקי.`, "success");
-            return;
-        }
-
-        if (!confirm(`האם אתה בטוח שברצונך למחוק לצמיתות את הטורניר "${tourney.name}"? פעולה זו תמחק את כל המשחקים והנתונים של הטורניר ממסד הנתונים ולא ניתן לשחזרה.`)) {
+        const isLastTournament = this.tournaments.length <= 1;
+        const confirmText = isLastTournament
+            ? `הטורניר "${deletedName}" הוא הטורניר האחרון במערכת. לאחר המחיקה לא יהיו טורנירים עד שייווצר טורניר חדש. למחוק לצמיתות?`
+            : `האם אתה בטוח שברצונך למחוק לצמיתות את הטורניר "${deletedName}"? פעולה זו אינה ניתנת לביטול.`;
+        if (!confirm(confirmText)) {
             return;
         }
 
@@ -2863,11 +2860,11 @@ class TournamentApp {
             }
         }
 
-        // אם הטורניר שנמחק היה הפעיל, מעבר לטורניר הבא
+        // אם הטורניר שנמחק היה המוצג: מעבר לטורניר הפעיל הבא, ואם אין כזה - למצב "ללא טורניר"
         if (wasActive) {
-            const nextTourney = this.tournaments[0];
-            this.activeTournamentId = nextTourney.id;
-            this.loadTournamentData(nextTourney.id);
+            const nextTourney = this.getFallbackTournament();
+            this.activeTournamentId = nextTourney ? nextTourney.id : null;
+            this.loadTournamentData(this.activeTournamentId);
         }
 
         this.populateTournamentSelectors();
