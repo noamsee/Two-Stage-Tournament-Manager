@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.32">
+    <link rel="stylesheet" href="./style.css?v=4.33">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -167,6 +167,11 @@
                     📊 Excel
                 </button>
 
+                <!-- כפתור שינוי שמות קבוצות (מנהלים בלבד) - פותח טאב ייעודי -->
+                <button type="button" id="headerRenameTeamsBtn" class="btn-secondary btn-sm admin-editable" onclick="app.openTeamNamesTab()" title="שינוי שמות הקבוצות בטורניר">
+                    ✏️ שינוי שמות קבוצות
+                </button>
+
                 <!-- כפתור התאמת צפייה אישית לאורח -->
                 <button class="btn-primary btn-sm guest-only-btn" onclick="app.openGuestPreferencesModal()" title="בחר קבוצה ובית למעקב אישי">
                     ⭐ מעקב אישי
@@ -321,6 +326,20 @@
                         <div id="playoff-bracket-container" class="bracket-view">
                             <p class="placeholder-text">שלב הפלייאוף יופעל רק לאחר סיום שלב הבתים ונעילתו ע"י האדמין בלחיצה על "נעל שלב בתים ושבץ פלייאוף".</p>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- טאב שינוי שמות קבוצות (מנהלים בלבד, נפתח מהכפתור בסרגל העליון) -->
+            <section id="tab-team-names" class="tab-section hidden">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+                        <h2 style="margin: 0;">✏️ שינוי שמות קבוצות</h2>
+                        <button type="button" class="btn-secondary btn-sm" onclick="app.closeTeamNamesTab()">חזרה לטורניר →</button>
+                    </div>
+                    <p class="section-subtitle">שנה שם ועבור לשדה הבא: השם מתעדכן מיד בכל הטבלאות, המשחקים ועץ הפלייאוף. התוצאות אינן מושפעות.</p>
+                    <div id="team-names-container" class="teams-grid">
+                        <!-- ייווצר דינמית ע"י ה-JS -->
                     </div>
                 </div>
             </section>
@@ -745,7 +764,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.32"></script>
+    <script src="./app.js?v=4.33"></script>
 </body>
 </html>
 

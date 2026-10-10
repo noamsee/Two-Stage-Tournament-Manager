@@ -887,7 +887,7 @@ class TournamentApp {
 
         // שחזור הטאב לאחר רענון, רק אם הוא קיים ומותר לתפקיד הנוכחי
         const tabAllowed = tabToRestore && document.getElementById(`tab-${tabToRestore}`)
-            && !(role === 'viewer' && (tabToRestore === 'setup' || tabToRestore === 'users'))
+            && !(role === 'viewer' && (tabToRestore === 'setup' || tabToRestore === 'users' || tabToRestore === 'team-names'))
             && !(role !== 'owner' && tabToRestore === 'users');
         if (tabAllowed) this.switchTab(tabToRestore);
     }
@@ -2925,6 +2925,10 @@ class TournamentApp {
         );
         if (targetBtn) targetBtn.classList.add('active');
 
+        if (tabId === 'team-names') {
+            this.renderTeamNamesTab();
+        }
+
         if (tabId === 'users') {
             this.renderUsersManagement();
             this.renderOwnerTournamentsList();
@@ -3120,8 +3124,122 @@ class TournamentApp {
     }
 
     // לפני יצירת הלוח מוצג רק טאב ההגדרות; אחריה טאב ההגדרות נעלם והשמות נעולים
+    /* ========================================================
+       טאב שינוי שמות קבוצות (מנהלים)
+       ======================================================== */
+
+    openTeamNamesTab() {
+        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') return;
+        // לפני יצירת לוח המשחקים השמות מוזנים בטאב ההגדרות
+        if (!this.isBoardReady()) {
+            this.switchTab('setup');
+            return;
+        }
+        this.switchTab('team-names');
+    }
+
+    closeTeamNamesTab() {
+        this.switchTab(this.format === 'knockout_only' ? 'playoffs' : 'group-stage');
+    }
+
+    renderTeamNamesTab() {
+        const container = document.getElementById('team-names-container');
+        if (!container) return;
+        const isClosed = this.isCurrentTournamentClosed();
+        const escAttr = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const input = (teamName, index, label) => `
+            <div class="team-input-group">
+                <label class="team-label-rtl">
+                    <span class="team-num-prefix">${label}</span>
+                    <span>קבוצה ${label}</span>
+                </label>
+                <input type="text" value="${escAttr(teamName)}" data-index="${index}"
+                       ${isClosed ? 'disabled' : ''}
+                       onchange="app.renameTeam(${index}, this.value, this)"
+                       placeholder="הזן שם קבוצה">
+            </div>`;
+
+        const teams = (this.teams || []).map((teamName, index) => ({ teamName, index }));
+        if (this.format === 'knockout_only') {
+            container.innerHTML = teams.map(t => input(t.teamName, t.index, t.index + 1)).join('');
+            return;
+        }
+
+        const teamsPerGroup = this.teamsPerGroup || 5;
+        const groupHebrew = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'"];
+        let html = '';
+        for (let groupIdx = 0; groupIdx * teamsPerGroup < teams.length; groupIdx++) {
+            const houseTeams = teams.slice(groupIdx * teamsPerGroup, (groupIdx + 1) * teamsPerGroup);
+            html += `
+                <div class="team-house-section">
+                    <div class="team-house-title">🏠 בית ${groupHebrew[groupIdx] || (groupIdx + 1)} <span class="team-house-count">${houseTeams.length} קבוצות</span></div>
+                    <div class="teams-grid team-house-grid">
+                        ${houseTeams.map((t, pos) => input(t.teamName, t.index, pos + 1)).join('')}
+                    </div>
+                </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    // שינוי שם קבוצה בטורניר פעיל: מעדכן את השם בכל מקום שבו הקבוצה מופיעה, בלי לגעת בתוצאות
+    renameTeam(index, newName, inputElement) {
+        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') return;
+        const oldName = this.teams[index];
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            if (inputElement) inputElement.value = oldName;
+            return;
+        }
+        const trimmed = String(newName || '').trim();
+        if (!trimmed) {
+            this.showAlert("שם קבוצה לא יכול להיות ריק.", "warning");
+            if (inputElement) inputElement.value = oldName;
+            return;
+        }
+        if (trimmed === oldName) return;
+        if (this.teams.some((name, i) => i !== index && name === trimmed)) {
+            this.showAlert(`כבר קיימת קבוצה בשם "${trimmed}". יש לבחור שם אחר.`, "warning");
+            if (inputElement) inputElement.value = oldName;
+            return;
+        }
+
+        this.teams[index] = trimmed;
+        Object.values(this.groups || {}).forEach(list => (list || []).forEach(t => { if (t.index === index) t.name = trimmed; }));
+        (this.matches || []).forEach(m => {
+            if (m.team1Index === index) m.team1Name = trimmed;
+            if (m.team2Index === index) m.team2Name = trimmed;
+        });
+        const fixTeam = (team) => {
+            if (!team) return;
+            if (team.teamIndex === index || (team.teamIndex === undefined && team.teamName === oldName)) team.teamName = trimmed;
+        };
+        (this.playoffSeeds || []).forEach(fixTeam);
+        const pm = this.playoffMatches || {};
+        [...(pm.r16 || []), ...(pm.qf || []), ...(pm.sf || []), pm.final].forEach(m => { if (m) { fixTeam(m.team1); fixTeam(m.team2); } });
+
+        // סינון שנבחר לפי השם הישן ממשיך לעקוב אחרי אותה קבוצה
+        if (this.currentTeamFilter === oldName) {
+            this.currentTeamFilter = trimmed;
+            this.saveActiveFilters();
+        }
+
+        if (this.format !== 'knockout_only') {
+            this.calculateStandings();
+            this.renderMatches();
+        }
+        if (document.querySelector('#playoff-bracket-container .bracket-tree')) this.renderPlayoffBracket();
+        this.saveActiveTournamentData();
+        this.showAlert(`שם הקבוצה שונה מ"${oldName}" ל"${trimmed}".`, "success");
+    }
+
     updateBoardStateUI() {
         const hasHouses = this.format !== 'knockout_only';
+        // טאב שינוי השמות פתוח: מרעננים אותו כשהנתונים מתעדכנים, אלא אם המנהל מקליד בו כרגע
+        const namesTab = document.getElementById('tab-team-names');
+        if (namesTab && !namesTab.classList.contains('hidden') && !namesTab.contains(document.activeElement)) {
+            this.renderTeamNamesTab();
+        }
+
         const tabBtn = (name) => document.querySelector(`.tab-btn[onclick*="'${name}'"]`);
         const setHidden = (name, hidden) => { const btn = tabBtn(name); if (btn) btn.classList.toggle('board-hidden', hidden); };
 
