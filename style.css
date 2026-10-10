@@ -3152,3 +3152,14 @@ body.zero-tournaments .tournament-select-wrap {
 #login-step-viewer.no-active .login-btn-primary {
     display: none !important;
 }
+
+/* סרגל הפעולות העליון של שלב הבתים מכיל רק כלים לבעלים ולמפתחים (כולל כפתור הנעילה העליון),
+   ולכן מנהל רגיל אינו רואה אותו כלל; כפתור הנעילה התחתון נשאר לכל המנהלים */
+body:not(.role-owner):not(.role-developer) #tab-group-stage .top-action-toolbar {
+    display: none !important;
+}
+
+/* כפתור שם ותאריך הטורניר אינו רלוונטי כשאין טורניר מוצג */
+body.no-tournament #headerTournamentDetailsBtn {
+    display: none !important;
+}

@@ -2454,9 +2454,13 @@ class TournamentApp {
             }
         }
 
+        // שם הטורניר המוצג הוא "<שם> - <תאריך>"; השם והתאריך נשמרים גם בנפרד כדי שאפשר יהיה לערוך אותם
+        const eventDate = this.todayIsoDate();
         let tournamentObj = {
             id: targetId,
-            name: tourneyName,
+            name: this.buildTournamentName(tourneyName, eventDate),
+            baseName: tourneyName,
+            eventDate,
             format,
             numGroups,
             teamsPerGroup,
@@ -3290,6 +3294,85 @@ class TournamentApp {
         if (document.querySelector('#playoff-bracket-container .bracket-tree')) this.renderPlayoffBracket();
         this.saveActiveTournamentData();
         this.showAlert(`שם הקבוצה שונה מ"${oldName}" ל"${trimmed}".`, "success");
+    }
+
+    /* ========================================================
+       שם ותאריך הטורניר
+       ======================================================== */
+
+    todayIsoDate() {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    }
+
+    // 2026-10-10 -> 10.10.2026
+    formatTournamentDate(isoDate) {
+        const parts = String(isoDate || '').split('-');
+        if (parts.length !== 3 || parts.some(p => !/^\d+$/.test(p))) return '';
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+
+    buildTournamentName(baseName, isoDate) {
+        const formatted = this.formatTournamentDate(isoDate);
+        return formatted ? `${baseName} - ${formatted}` : baseName;
+    }
+
+    openTournamentDetailsModal() {
+        if (!this.isManagerRole()) return;
+        const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
+        if (!tourney) return;
+        if (tourney.isArchived) {
+            this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
+            return;
+        }
+        const nameInput = document.getElementById('tournamentDetailsName');
+        const dateInput = document.getElementById('tournamentDetailsDate');
+        // טורניר שנוצר לפני שהשם והתאריך נשמרו בנפרד: השם הקיים כולו הוא השם, והתאריך ריק עד שייבחר
+        if (nameInput) nameInput.value = tourney.baseName || this.cleanTournamentName(tourney.name);
+        if (dateInput) dateInput.value = tourney.eventDate || '';
+        const updatePreview = () => {
+            const preview = document.getElementById('tournamentDetailsPreview');
+            const base = (nameInput?.value || '').trim();
+            if (preview) preview.textContent = base ? `כך יוצג: ${this.buildTournamentName(base, dateInput?.value)}` : '';
+        };
+        if (nameInput) nameInput.oninput = updatePreview;
+        if (dateInput) dateInput.oninput = updatePreview;
+        updatePreview();
+        document.getElementById('tournament-details-modal')?.classList.remove('hidden');
+        nameInput?.focus();
+    }
+
+    closeTournamentDetailsModal() {
+        document.getElementById('tournament-details-modal')?.classList.add('hidden');
+    }
+
+    submitTournamentDetails() {
+        if (!this.isManagerRole()) return;
+        const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
+        if (!tourney || tourney.isArchived) return;
+
+        const baseName = (document.getElementById('tournamentDetailsName')?.value || '').trim();
+        const eventDate = document.getElementById('tournamentDetailsDate')?.value || '';
+        if (!baseName) {
+            this.showAlert("יש להזין שם לטורניר.", "warning");
+            return;
+        }
+        if (!eventDate) {
+            this.showAlert("יש לבחור תאריך לטורניר.", "warning");
+            return;
+        }
+
+        tourney.baseName = baseName;
+        tourney.eventDate = eventDate;
+        tourney.name = this.buildTournamentName(baseName, eventDate);
+
+        this.saveTournamentsList();
+        this.closeTournamentDetailsModal();
+        this.populateTournamentSelectors();
+        this.renderOwnerTournamentsList();
+        this.updateGuestTournamentBadge();
+        this.showAlert(`שם הטורניר עודכן ל"${tourney.name}".`, "success");
     }
 
     updateBoardStateUI() {

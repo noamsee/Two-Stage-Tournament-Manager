@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.38">
+    <link rel="stylesheet" href="./style.css?v=4.39">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -173,6 +173,11 @@
                     📊 Excel
                 </button>
 
+                <!-- כפתור שינוי שם ותאריך הטורניר (מנהלים בלבד) -->
+                <button type="button" id="headerTournamentDetailsBtn" class="btn-secondary btn-sm admin-editable" onclick="app.openTournamentDetailsModal()" title="שינוי שם הטורניר והתאריך שלו">
+                    🏷️ שם ותאריך הטורניר
+                </button>
+
                 <!-- כפתור שינוי שמות קבוצות (מנהלים בלבד) - פותח טאב ייעודי -->
                 <button type="button" id="headerRenameTeamsBtn" class="btn-secondary btn-sm admin-editable" onclick="app.openTeamNamesTab()" title="שינוי שמות הקבוצות בטורניר">
                     ✏️ שינוי שמות קבוצות
@@ -276,7 +281,7 @@
                         <button type="button" class="btn-secondary btn-sm debug-only" onclick="app.resetAllScores()" title="אפס את כל התוצאות">
                             🧹 אפס תוצאות
                         </button>
-                        <button type="button" id="btn-seed-playoffs-top" class="btn-success btn-sm btn-seed-playoffs-action" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
+                        <button type="button" id="btn-seed-playoffs-top" class="btn-success btn-sm btn-seed-playoffs-action debug-only" onclick="app.seedPlayoffs()" title="נעל שלב בתים ושבץ פלייאוף">
                             🚀 נעל שלב בתים ושבץ פלייאוף
                         </button>
                     </div>
@@ -535,6 +540,31 @@ git push -u origin main</pre>
     </div>
 
     <!-- מודאל איפוס סיסמה למשתמש ע"י ה-Owner -->
+    <!-- מודאל שינוי שם ותאריך הטורניר -->
+    <div id="tournament-details-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 460px;">
+            <button class="modal-close-btn" onclick="app.closeTournamentDetailsModal()">✕</button>
+            <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
+                🏷️ שם ותאריך הטורניר
+            </h2>
+            <form onsubmit="event.preventDefault(); app.submitTournamentDetails();">
+                <div class="login-field">
+                    <label for="tournamentDetailsName">🏆 שם הטורניר:</label>
+                    <input type="text" id="tournamentDetailsName" class="login-input" placeholder="למשל: טורניר קיץ">
+                </div>
+                <div class="login-field" style="margin-top:12px;">
+                    <label for="tournamentDetailsDate">📅 תאריך הטורניר:</label>
+                    <input type="date" id="tournamentDetailsDate" class="login-input">
+                </div>
+                <p id="tournamentDetailsPreview" class="section-subtitle" style="margin:12px 0 0;"></p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+                    <button type="submit" class="btn-primary">💾 שמור</button>
+                    <button type="button" class="btn-secondary" onclick="app.closeTournamentDetailsModal()">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="reset-password-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button class="modal-close-btn" onclick="app.closeResetPasswordModal()">✕</button>
@@ -790,7 +820,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.38"></script>
+    <script src="./app.js?v=4.39"></script>
 </body>
 </html>
 
