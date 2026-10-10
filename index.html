@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.43">
+    <link rel="stylesheet" href="./style.css?v=4.44">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -669,7 +669,11 @@ git push -u origin main</pre>
                 <!-- שלב 1: שם הטורניר -->
                 <div class="login-field">
                     <label for="wizardTourneyName">🏆 שם הטורניר:</label>
-                    <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ 2026">
+                    <div class="name-with-date">
+                        <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ" aria-describedby="wizardNameDateHint">
+                        <span id="wizardNameDateSuffix" class="name-date-suffix" aria-hidden="true"></span>
+                    </div>
+                    <small id="wizardNameDateHint" class="name-date-hint">התאריך של היום מתווסף אוטומטית לסוף השם. אפשר לשנות אותו אחר כך בכפתור "שם ותאריך הטורניר".</small>
                 </div>
 
                 <!-- שלב 2: סוג המבנה (3 אפשרויות לבחירה) -->
@@ -830,7 +834,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.43"></script>
+    <script src="./app.js?v=4.44"></script>
 </body>
 </html>
 

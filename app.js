@@ -2121,6 +2121,9 @@ class TournamentApp {
     openTournamentWizard(isEdit = false, targetTourneyId = null) {
         const setsSelect = document.getElementById('wizardSetsPerMatch');
         if (setsSelect) setsSelect.value = '';
+        // התאריך שיתווסף לשם הטורניר מוצג צמוד לשדה השם
+        const dateSuffix = document.getElementById('wizardNameDateSuffix');
+        if (dateSuffix) dateSuffix.textContent = `- ${this.formatTournamentDate(this.todayIsoDate())}`;
         if (!this.isManagerRole()) {
             this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
