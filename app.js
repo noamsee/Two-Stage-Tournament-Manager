@@ -3489,7 +3489,7 @@ class TournamentApp {
                 <div class="match-team-row sets-row ${m.winner === `team${teamNum}` ? 'winner' : ''}" id="row-${m.id}-${teamNum}">
                     <span class="team-name ${chosenClass(name)}" title="${name}">${name}</span>
                     <span class="sets-cells">${sets.map((_, i) => cell(i, teamNum)).join('')}</span>
-                    <span class="sets-total" title="מערכות שנוצחו">${summary.any ? setsWon : '-'}</span>
+                    <span class="sets-total" title="נקודות (מערכות שנוצחו)">${summary.any ? setsWon : '-'}</span>
                 </div>`;
 
         return `
@@ -3501,7 +3501,7 @@ class TournamentApp {
                 <div class="sets-labels">
                     <span class="sets-labels-spacer"></span>
                     <span class="sets-cells">${sets.map((_, i) => `<span class="set-label">מערכה ${i + 1}</span>`).join('')}</span>
-                    <span class="sets-total-label">מערכות</span>
+                    <span class="sets-total-label">נקודות</span>
                 </div>
                 ${row(1, m.team1Name, summary.w1)}
                 ${row(2, m.team2Name, summary.w2)}
@@ -4245,7 +4245,7 @@ class TournamentApp {
                                 <span class="team-name" title="${name}">${name}</span>
                             </div>
                             <span class="sets-cells">${sets.map((_, i) => cell(i, teamNum)).join('')}</span>
-                            <span class="sets-total" title="מערכות שנוצחו">${summary.any ? setsWon : '-'}</span>
+                            <span class="sets-total" title="נקודות (מערכות שנוצחו)">${summary.any ? setsWon : '-'}</span>
                         </div>`;
 
                 return `
@@ -4257,7 +4257,7 @@ class TournamentApp {
                     <div class="sets-labels">
                         <span class="sets-labels-spacer"></span>
                         <span class="sets-cells">${sets.map((_, i) => `<span class="set-label">מערכה ${i + 1}</span>`).join('')}</span>
-                        <span class="sets-total-label">מערכות</span>
+                        <span class="sets-total-label">נקודות</span>
                     </div>
                     <div class="match-teams-list">
                         ${setsRow(1, team1Name, team1Seed, isRow1Winner, summary.w1)}
