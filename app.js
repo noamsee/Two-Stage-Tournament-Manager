@@ -953,10 +953,10 @@ class TournamentApp {
 
         list.innerHTML = this.tournaments.map(t => `
             <button type="button" class="login-choice-btn ${t.isArchived ? 'is-archived' : ''}" onclick="app.chooseAdminTournament('${t.id}')">
-                <span class="login-choice-icon">${t.isArchived ? '🔒' : '⚡'}</span>
+                <span class="login-choice-icon">${t.isArchived ? '🔒' : (t.isFinished ? '🏁' : '⚡')}</span>
                 <span class="login-choice-text">
                     <strong>${esc(t.name)}</strong>
-                    <small>${formatLabel(t)}${t.isArchived ? ' • סגור (ארכיון)' : ' • פעיל'}</small>
+                    <small>${formatLabel(t)}${t.isArchived ? ' • סגור (ארכיון)' : (t.isFinished ? ' • הסתיים' : ' • פעיל')}</small>
                 </span>
             </button>
         `).join('') || '<p class="placeholder-text">עדיין אין טורנירים במערכת.</p>';
@@ -1023,13 +1023,24 @@ class TournamentApp {
         const guestTourneyEl = document.getElementById('guestTournamentName');
         const currTourney = this.tournaments.find(t => t.id === this.activeTournamentId) || this.tournaments[0];
         if (guestTourneyEl && currTourney) {
-            guestTourneyEl.textContent = currTourney.name + (currTourney.isArchived ? ' (סגור)' : '');
+            guestTourneyEl.textContent = currTourney.name + (currTourney.isArchived ? ' (סגור)' : (currTourney.isFinished ? ' (הסתיים)' : ''));
         }
     }
 
+    // נעול לעריכה: טורניר בארכיון, או טורניר שהסתיים (שנשאר גלוי לצופים)
     isCurrentTournamentClosed() {
         const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
+        return !!(curr && (curr.isArchived || curr.isFinished));
+    }
+
+    isCurrentTournamentArchived() {
+        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
         return !!(curr && curr.isArchived);
+    }
+
+    isCurrentTournamentFinished() {
+        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
+        return !!(curr && curr.isFinished);
     }
 
     isGroupStageLocked() {
@@ -1085,7 +1096,8 @@ class TournamentApp {
         const adminButtons = document.querySelectorAll('.admin-editable');
         adminButtons.forEach(btn => {
             // כפתור פתיחת הטורניר מחדש וכפתור פתיחת אשף לטורניר חדש נשארים זמינים עבור מנהלים/בעלים
-            if (btn.id === 'setupCloseTournamentBtn' || btn.id === 'headerBtnNewTourney' || btn.classList.contains('btn-new-tourney')) {
+            if (btn.id === 'setupCloseTournamentBtn' || btn.id === 'headerBtnNewTourney' || btn.classList.contains('btn-new-tourney')
+                || btn.id === 'headerArchiveTournamentBtn' || btn.classList.contains('btn-csv')) {
                 btn.disabled = (newRole === 'viewer');
                 btn.title = "";
             } else {
@@ -1697,9 +1709,9 @@ class TournamentApp {
                 let label = t.name;
                 if (isViewer) {
                     const clean = this.cleanTournamentName(t.name);
-                    label = `⚡ ${clean} (פעיל)`;
+                    label = t.isFinished ? `🏁 ${clean} (הסתיים)` : `⚡ ${clean} (פעיל)`;
                 } else {
-                    label = `${t.name} ${t.isArchived ? '(ארכיון)' : '⚡'}`;
+                    label = `${t.name} ${t.isArchived ? '(ארכיון)' : (t.isFinished ? '🏁 (הסתיים)' : '⚡')}`;
                 }
                 const isSelected = (t.id === this.activeTournamentId) || (!list.some(item => item.id === this.activeTournamentId) && t === list[0]);
                 return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
@@ -2012,7 +2024,12 @@ class TournamentApp {
         const archiveBanner = document.getElementById('archiveBanner');
         if (!archiveBanner) return;
 
-        const isClosed = this.isCurrentTournamentClosed();
+        const finishedBanner = document.getElementById('finishedBanner');
+        if (finishedBanner) {
+            finishedBanner.classList.toggle('hidden', !(this.isCurrentTournamentFinished() && !this.isCurrentTournamentArchived()));
+        }
+
+        const isClosed = this.isCurrentTournamentArchived();
         if (isClosed) {
             archiveBanner.classList.remove('hidden');
             const switchBtn = document.getElementById('btnSwitchToActiveTourney');
@@ -2767,18 +2784,67 @@ class TournamentApp {
         return !!final && (final.winner === 'team1' || final.winner === 'team2');
     }
 
-    // כפתור "העבר לארכיון" בסרגל העליון מוצג רק כשלפלייאוף יש אלופה והטורניר עדיין פתוח
+    canArchiveTournaments(role = this.currentRole) {
+        return role === 'owner' || role === 'developer';
+    }
+
+    // כל נתוני הטורניר הוזנו:
+    // בתים בלבד - כל משחקי הבתים הוכרעו; נוקאאוט בלבד - יש אלופה; בתים + פלייאוף - כל משחקי הבתים הוכרעו ויש אלופה
+    isTournamentComplete() {
+        if (!this.activeTournamentId || !this.boardCreated) return false;
+        const decided = (m) => !!m && (m.winner === 'team1' || m.winner === 'team2') && !this.isTiedScore(m);
+        if (this.format === 'knockout_only') return this.hasPlayoffChampion();
+        const housesDone = Array.isArray(this.matches) && this.matches.length > 0 && this.matches.every(decided);
+        if (this.format === 'groups_only') return housesDone;
+        return housesDone && this.hasPlayoffChampion();
+    }
+
+    // "סיים טורניר" (כל המנהלים) מוצג רק כשכל התוצאות הוזנו והטורניר עדיין פתוח.
+    // "העבר לארכיון" (בעלים ומפתחים) מוצג כשכל התוצאות הוזנו או שהטורניר כבר הסתיים.
     updateArchiveButtonUI() {
-        const btn = document.getElementById('headerArchiveTournamentBtn');
-        if (!btn) return;
-        const canArchive = this.format !== 'groups_only' && this.hasPlayoffChampion() && !this.isCurrentTournamentClosed();
-        btn.classList.toggle('hidden', !canArchive);
+        const archived = this.isCurrentTournamentArchived();
+        const finished = this.isCurrentTournamentFinished();
+        const complete = this.isTournamentComplete();
+        const finalizeBtn = document.getElementById('headerFinalizeTournamentBtn');
+        if (finalizeBtn) finalizeBtn.classList.toggle('hidden', !(complete && !finished && !archived));
+        const archiveBtn = document.getElementById('headerArchiveTournamentBtn');
+        if (archiveBtn) archiveBtn.classList.toggle('hidden', !((complete || finished) && !archived));
+    }
+
+    // סיום טורניר: התוצאות ננעלות לכולם (גם למנהלים), אך הטורניר נשאר גלוי לצופים - בשונה מארכיון
+    finalizeActiveTournament() {
+        if (!this.isManagerRole()) return;
+        const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
+        if (!tourney || tourney.isArchived || tourney.isFinished) return;
+
+        this.flushAllScoreDrafts();
+        this.finishPlayoffEditing();
+        if (!this.isTournamentComplete()) {
+            this.showAlert("ניתן לסיים טורניר רק לאחר שהוזנו תוצאות לכל המשחקים.", "warning");
+            return;
+        }
+        if (!confirm(`לסיים את הטורניר "${tourney.name}"? לאחר הסיום התוצאות סופיות ולא ניתן יהיה לשנות אותן.`)) {
+            return;
+        }
+
+        this.saveActiveTournamentData();
+        tourney.isFinished = true;
+        this.saveTournamentsList();
+        this.loadTournamentData(tourney.id);
+        this.populateTournamentSelectors();
+        this.renderOwnerTournamentsList();
+        this.updateGuestTournamentBadge();
+        this.showAlert(`הטורניר "${tourney.name}" הסתיים. התוצאות סופיות ונעולות.`, "success");
     }
 
     archiveActiveTournament() {
-        if (this.isCurrentTournamentClosed()) return;
-        if (!this.hasPlayoffChampion()) {
-            this.showAlert("ניתן להעביר טורניר לארכיון רק לאחר שנקבעה אלופה בפלייאוף.", "warning");
+        if (!this.canArchiveTournaments()) {
+            this.showAlert("רק בעלים (Owner) או מפתח (Developer) רשאים להעביר טורניר לארכיון.", "warning");
+            return;
+        }
+        if (this.isCurrentTournamentArchived()) return;
+        if (!this.isTournamentComplete() && !this.isCurrentTournamentFinished()) {
+            this.showAlert("ניתן להעביר טורניר לארכיון רק לאחר שהוזנו תוצאות לכל המשחקים.", "warning");
             return;
         }
         this.toggleCloseTournament(this.activeTournamentId);
@@ -3341,7 +3407,7 @@ class TournamentApp {
         if (!this.isManagerRole()) return;
         const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
         if (!tourney) return;
-        if (tourney.isArchived) {
+        if (tourney.isArchived || tourney.isFinished) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
         }
@@ -3369,7 +3435,7 @@ class TournamentApp {
     submitTournamentDetails() {
         if (!this.isManagerRole()) return;
         const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
-        if (!tourney || tourney.isArchived) return;
+        if (!tourney || tourney.isArchived || tourney.isFinished) return;
 
         const baseName = (document.getElementById('tournamentDetailsName')?.value || '').trim();
         const eventDate = document.getElementById('tournamentDetailsDate')?.value || '';
@@ -4038,6 +4104,7 @@ class TournamentApp {
 
         this.standings = calculatedStandings;
         this.renderStandings(groupHeaders);
+        this.updateArchiveButtonUI();
     }
 
     // יחס זכות/חובה (מערכות או נקודות). ללא חובה כלל היחס הוא מקסימלי.

@@ -3163,3 +3163,20 @@ body:not(.role-owner):not(.role-developer) #tab-group-stage .top-action-toolbar 
 body.no-tournament #headerTournamentDetailsBtn {
     display: none !important;
 }
+
+/* פעולות לבעלים ולמפתחים בלבד (למשל העברה לארכיון) */
+body:not(.role-owner):not(.role-developer) .senior-only {
+    display: none !important;
+}
+
+/* באנר טורניר שהסתיים */
+.archive-banner.finished-banner {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #14532d;
+}
+
+body.no-tournament #finishedBanner,
+body.no-tournament #headerFinalizeTournamentBtn {
+    display: none !important;
+}
