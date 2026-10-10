@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.30">
+    <link rel="stylesheet" href="./style.css?v=4.31">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -651,6 +651,15 @@ git push -u origin main</pre>
                         </div>
                     </div>
 
+                    <!-- מספר המערכות בכל משחק של שלב הבתים -->
+                    <div class="login-field" style="margin-top:10px;">
+                        <label for="wizardSetsPerMatch">🏐 מספר מערכות בכל משחק:</label>
+                        <select id="wizardSetsPerMatch" class="login-input">
+                            <option value="1" selected>1</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+
                     <!-- גודל עץ הפלייאוף (מוסתר כשהמבנה הוא שלב בתים בלבד) -->
                     <div id="wizardPlayoffSizeGroup" class="login-field" style="margin-top:10px;">
                         <label for="wizardPlayoffSize">🌳 גודל עץ הפלייאוף (קבוצות עולות):</label>
@@ -734,7 +743,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.30"></script>
+    <script src="./app.js?v=4.31"></script>
 </body>
 </html>
 

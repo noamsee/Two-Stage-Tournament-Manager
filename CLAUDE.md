@@ -102,10 +102,8 @@ When writing code or introducing features:
 3. **Data Integrity & No-Ties Rule**:
    - Matches must never end in a draw/tie. The application enforces winner selection based on higher score.
    - Catchball scoring: a win is worth 2 league points and a loss 1 (fixed for every tournament, not editable). An equal score is an undecided game: it has no winner and is not counted in the standings.
-   - When updating team standings:
-     - Primary sort: Number of Wins (`W`).
-     - Secondary sort: Point Difference (`PD = PF - PA`).
-     - Tertiary sort: Points For (`PF`).
+   - Sets: each tournament has `setsPerMatch` (1 or 3, chosen in the wizard, default 1; applies to house games). With 3 sets a game is best-of-three: `match.sets` holds `{s1, s2}` per set, the game is won by the first team to 2 sets, and `score1`/`score2` then hold sets won. A set with equal points is undecided and not counted.
+   - Standings order (catchball tie-breakers): league points, then wins, then set ratio (sets won / sets lost), then point ratio (points scored / points conceded). See `compareTeamsForRanking`.
    - Game board creation is one-time: a new tournament with houses starts with empty team names and `boardCreated: false`. Only the settings tab is shown until every team has a name and "create game board" is pressed; after that the settings tab is hidden and team names are locked. Tournaments saved before this flag existed count as created.
 4. **Cache Busting**:
    - In `index.html`, script and stylesheet links include version query parameters (e.g., `app.js?v=3.6`). Whenever major modifications are pushed, bump the version string in `index.html` to prevent aggressive browser caching.

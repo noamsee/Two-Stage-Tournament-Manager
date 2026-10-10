@@ -1760,6 +1760,8 @@ class TournamentApp {
         this.numGroups = parseInt(tData.numGroups, 10) || (tData.groups ? Object.keys(tData.groups).length : 2);
         this.teamsPerGroup = parseInt(tData.teamsPerGroup, 10) || 4;
         this.playoffSize = parseInt(tData.playoffSize, 10) || (this.numGroups * this.teamsPerGroup >= 8 ? 8 : 4);
+        // מספר המערכות בכל משחק בשלב הבתים: 1 או 3 (הטוב משלוש). טורניר ישן ללא ההגדרה משוחק במערכה אחת.
+        this.setsPerMatch = (parseInt(tData.setsPerMatch, 10) === 3) ? 3 : 1;
         // לוח המשחקים נוצר רק בלחיצה על "ייצר לוח משחקים" לאחר הזנת כל שמות הקבוצות.
         // טורניר שנשמר לפני שהדגל הזה נוסף כבר נמצא בשימוש, ולכן נחשב כמי שהלוח שלו נוצר.
         this.boardCreated = (tData.boardCreated !== undefined) ? !!tData.boardCreated : true;
@@ -1926,6 +1928,7 @@ class TournamentApp {
             this.tournaments[idx].numGroups = this.numGroups;
             this.tournaments[idx].teamsPerGroup = this.teamsPerGroup;
             this.tournaments[idx].playoffSize = this.playoffSize;
+            this.tournaments[idx].setsPerMatch = this.setsPerMatch;
             this.tournaments[idx].pointsPerWin = this.pointsPerWin;
             this.tournaments[idx].pointsPerLoss = this.pointsPerLoss;
             this.tournaments[idx].boardCreated = this.boardCreated;
@@ -1983,6 +1986,8 @@ class TournamentApp {
        ======================================================== */
 
     openTournamentWizard(isEdit = false, targetTourneyId = null) {
+        const setsSelect = document.getElementById('wizardSetsPerMatch');
+        if (setsSelect) setsSelect.value = '1';
         if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
             this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
@@ -2334,6 +2339,7 @@ class TournamentApp {
             numGroups,
             teamsPerGroup,
             playoffSize,
+            setsPerMatch: (format !== 'knockout_only' && parseInt(document.getElementById('wizardSetsPerMatch')?.value || '1', 10) === 3) ? 3 : 1,
             pointsPerWin,
             pointsPerLoss,
             boardCreated: format === 'knockout_only',
@@ -3215,17 +3221,163 @@ class TournamentApp {
         }
     }
 
+    /* ========================================================
+       משחק במערכות (הטוב משלוש): נתונים, חישוב ותצוגה
+       ======================================================== */
+
+    isMultiSet() {
+        return this.setsPerMatch === 3 && this.format !== 'knockout_only';
+    }
+
+    // מחזיר את מערך המערכות של המשחק, באורך מספר המערכות של הטורניר
+    getMatchSets(m) {
+        if (!Array.isArray(m.sets)) m.sets = [];
+        while (m.sets.length < this.setsPerMatch) m.sets.push({ s1: null, s2: null });
+        return m.sets;
+    }
+
+    // סיכום המערכות: מי ניצחה כל מערכה, כמה מערכות לכל קבוצה, ומי ניצחה במשחק.
+    // מערכה נספרת רק אם הוזנו בה שתי תוצאות שונות, ורק כל עוד המשחק לא הוכרע (2 מערכות מתוך 3).
+    summarizeSets(m) {
+        const sets = this.getMatchSets(m);
+        const needed = Math.floor(sets.length / 2) + 1;
+        let w1 = 0, w2 = 0;
+        const info = sets.map(set => {
+            const notNeeded = w1 >= needed || w2 >= needed;
+            const complete = set.s1 !== null && set.s1 !== undefined && set.s2 !== null && set.s2 !== undefined;
+            const tied = complete && Number(set.s1) === Number(set.s2);
+            const counts = !notNeeded && complete && !tied;
+            let winner = 0;
+            if (counts) {
+                winner = Number(set.s1) > Number(set.s2) ? 1 : 2;
+                if (winner === 1) w1++; else w2++;
+            }
+            return { complete, tied, counts, notNeeded, winner };
+        });
+        return { w1, w2, info, any: info.some(i => i.counts), winner: w1 >= needed ? 'team1' : (w2 >= needed ? 'team2' : null) };
+    }
+
+    // תוצאת המשחק נגזרת מהמערכות: התוצאה היא מספר המערכות שכל קבוצה ניצחה
+    applySetsToMatch(m) {
+        const summary = this.summarizeSets(m);
+        m.score1 = summary.any ? summary.w1 : null;
+        m.score2 = summary.any ? summary.w2 : null;
+        m.winner = summary.winner;
+        return summary;
+    }
+
+    handleSetScoreChange(matchId, setIdx, teamNum, rawValue, inputElement, commit = false) {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+        if (this.isGroupStageLocked()) {
+            this.showAlert("שלב הבתים ננעל ושובץ לפלייאוף. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+
+        // במובייל ההקלדה נאגרת ונרשמת רק ביציאה מהשדה או לאחר הפסקה קצרה
+        if (!commit && this.mobileQuery.matches) {
+            this.bufferScoreInput(matchId, teamNum, rawValue, setIdx);
+            return;
+        }
+
+        const match = this.matches.find(m => m.id === matchId);
+        if (!match) return;
+        const set = this.getMatchSets(match)[setIdx];
+        if (!set) return;
+
+        let value = null;
+        if (rawValue !== '' && rawValue !== null && rawValue !== undefined) {
+            const parsed = Number(rawValue);
+            if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+                this.showAlert("שגיאת תוצאה: יש להזין מספר שלם וחיובי (0 ומעלה) בלבד.", "error");
+            } else {
+                value = parsed;
+            }
+        }
+        if (teamNum === 1) set.s1 = value; else set.s2 = value;
+
+        this.applySetsToMatch(match);
+        this.renderMatches();
+        this.calculateStandings();
+        this.saveActiveTournamentData();
+    }
+
+    checkSetDrawOnBlur(matchId, setIdx) {
+        // יציאה מהשדה: רושמים מיד את מה שנאגר עבור המערכה הזו
+        [1, 2].forEach(teamNum => this.commitScoreDraft(this.draftKey(matchId, teamNum, setIdx)));
+        const match = this.matches.find(m => m.id === matchId);
+        if (!match) return;
+        const info = this.summarizeSets(match).info[setIdx];
+        if (info && info.tied) {
+            this.showAlert(`⚠️ אין תיקו בכדורשת: במערכה ${setIdx + 1} יש להזין תוצאה עם מנצחת.`, "warning");
+        }
+    }
+
+    renderSetsMatchCardHtml(m, isViewer, chosenTeam = null) {
+        const chosenClass = (name) => (chosenTeam && name === chosenTeam) ? 'is-chosen-team' : '';
+        const isReadOnlyStage = isViewer || this.isGroupStageLocked();
+        const sets = this.getMatchSets(m);
+        const summary = this.summarizeSets(m);
+
+        const cell = (setIdx, teamNum) => {
+            const info = summary.info[setIdx];
+            const key = this.draftKey(m.id, teamNum, setIdx);
+            const draft = this.scoreDrafts ? this.scoreDrafts[key] : undefined;
+            const stored = teamNum === 1 ? sets[setIdx].s1 : sets[setIdx].s2;
+            const val = draft !== undefined ? draft.value : (stored !== null && stored !== undefined ? stored : '');
+            const stateClass = `${info.winner === teamNum ? 'set-won' : ''} ${info.notNeeded ? 'set-not-needed' : ''}`;
+            if (isReadOnlyStage) {
+                return `<span class="score-display-viewer set-cell ${stateClass}">${val !== '' ? val : '-'}</span>`;
+            }
+            return `<input type="number" min="0" step="1"
+                           class="score-input set-cell ${stateClass} ${info.tied ? 'score-tie' : ''}"
+                           data-key="${key}"
+                           value="${val}"
+                           placeholder="-"
+                           ${info.notNeeded ? 'disabled' : ''}
+                           aria-label="מערכה ${setIdx + 1}"
+                           oninput="app.handleSetScoreChange('${m.id}', ${setIdx}, ${teamNum}, this.value, this)"
+                           onchange="app.checkSetDrawOnBlur('${m.id}', ${setIdx})">`;
+        };
+
+        const row = (teamNum, name, setsWon) => `
+                <div class="match-team-row sets-row ${m.winner === `team${teamNum}` ? 'winner' : ''}" id="row-${m.id}-${teamNum}">
+                    <span class="team-name ${chosenClass(name)}" title="${name}">${name}</span>
+                    <span class="sets-cells">${sets.map((_, i) => cell(i, teamNum)).join('')}</span>
+                    <span class="sets-total" title="מערכות שנוצחו">${summary.any ? setsWon : '-'}</span>
+                </div>`;
+
+        return `
+            <div class="match-card multi-set" id="card-${m.id}" data-match-id="${m.id}">
+                <div class="match-header">
+                    <span>${m.groupNameHe} • מחזור ${m.round}</span>
+                    <span class="match-badge">משחק #${m.matchNumber}</span>
+                </div>
+                <div class="sets-labels">
+                    <span class="sets-labels-spacer"></span>
+                    <span class="sets-cells">${sets.map((_, i) => `<span class="set-label">מערכה ${i + 1}</span>`).join('')}</span>
+                    <span class="sets-total-label">מערכות</span>
+                </div>
+                ${row(1, m.team1Name, summary.w1)}
+                ${row(2, m.team2Name, summary.w2)}
+            </div>
+        `;
+    }
+
     renderMatchCardHtml(m, isViewer, chosenTeam = null) {
+        if (this.isMultiSet()) return this.renderSetsMatchCardHtml(m, isViewer, chosenTeam);
         const chosenClass = (name) => (chosenTeam && name === chosenTeam) ? 'is-chosen-team' : '';
         const isReadOnlyStage = isViewer || this.isGroupStageLocked();
         // אין תיקו בכדורשת: תוצאה שווה מסומנת כלא מוכרעת ואינה נספרת בטבלה
         const isTie = this.isTiedScore(m);
         const row1WinnerClass = isTie ? 'draw-match' : (m.winner === 'team1' ? 'winner' : '');
         const row2WinnerClass = isTie ? 'draw-match' : (m.winner === 'team2' ? 'winner' : '');
-        const groupDraft1 = this.scoreDrafts ? this.scoreDrafts[`${m.id}:1`] : undefined;
-        const groupDraft2 = this.scoreDrafts ? this.scoreDrafts[`${m.id}:2`] : undefined;
-        const score1Val = groupDraft1 !== undefined ? groupDraft1 : (m.score1 !== null ? m.score1 : '');
-        const score2Val = groupDraft2 !== undefined ? groupDraft2 : (m.score2 !== null ? m.score2 : '');
+        const groupDraft1 = this.scoreDrafts ? this.scoreDrafts[this.draftKey(m.id, 1)] : undefined;
+        const groupDraft2 = this.scoreDrafts ? this.scoreDrafts[this.draftKey(m.id, 2)] : undefined;
+        const score1Val = groupDraft1 !== undefined ? groupDraft1.value : (m.score1 !== null ? m.score1 : '');
+        const score2Val = groupDraft2 !== undefined ? groupDraft2.value : (m.score2 !== null ? m.score2 : '');
 
         const score1Field = isReadOnlyStage
             ? `<span class="score-display-viewer">${score1Val !== '' ? score1Val : '-'}</span>`
@@ -3337,10 +3489,14 @@ class TournamentApp {
         const focusedEl = document.activeElement;
         const focusedRow = (focusedEl && container.contains(focusedEl)) ? focusedEl.closest('.match-team-row') : null;
         const focusedRowId = focusedRow ? focusedRow.id : null;
+        const focusedKey = (focusedRow && focusedEl.dataset) ? focusedEl.dataset.key : null;
 
         container.innerHTML = contentHtml;
 
-        if (focusedRowId) {
+        if (focusedKey) {
+            const sameField = [...container.querySelectorAll('.score-input[data-key]')].find(el => el.dataset.key === focusedKey);
+            this.refocusScoreInput(sameField);
+        } else if (focusedRowId) {
             this.refocusScoreInput(document.getElementById(focusedRowId)?.querySelector('.score-input'));
         }
     }
@@ -3451,9 +3607,14 @@ class TournamentApp {
             && Number(match.score1) === Number(match.score2);
     }
 
-    bufferScoreInput(matchId, teamNum, rawValue) {
-        const key = `${matchId}:${teamNum}`;
-        this.scoreDrafts[key] = rawValue;
+    // מפתח החוצץ של שדה תוצאה: משחק + קבוצה, ובמשחק במערכות גם מספר המערכה
+    draftKey(matchId, teamNum, setIdx = null) {
+        return setIdx === null ? `${matchId}:${teamNum}` : `${matchId}:set${setIdx}:${teamNum}`;
+    }
+
+    bufferScoreInput(matchId, teamNum, rawValue, setIdx = null) {
+        const key = this.draftKey(matchId, teamNum, setIdx);
+        this.scoreDrafts[key] = { matchId, teamNum, setIdx, value: rawValue };
         clearTimeout(this.scoreDraftTimers[key]);
         this.scoreDraftTimers[key] = setTimeout(() => this.commitScoreDraft(key), 900);
     }
@@ -3461,11 +3622,14 @@ class TournamentApp {
     commitScoreDraft(key) {
         clearTimeout(this.scoreDraftTimers[key]);
         delete this.scoreDraftTimers[key];
-        const rawValue = this.scoreDrafts[key];
-        if (rawValue === undefined) return;
+        const draft = this.scoreDrafts[key];
+        if (draft === undefined) return;
         delete this.scoreDrafts[key];
-        const sep = key.lastIndexOf(':');
-        this.handleScoreChange(key.slice(0, sep), Number(key.slice(sep + 1)), rawValue, null, true);
+        if (draft.setIdx === null) {
+            this.handleScoreChange(draft.matchId, draft.teamNum, draft.value, null, true);
+        } else {
+            this.handleSetScoreChange(draft.matchId, draft.setIdx, draft.teamNum, draft.value, null, true);
+        }
     }
 
     flushAllScoreDrafts() {
@@ -3507,6 +3671,8 @@ class TournamentApp {
                 wins: 0,
                 draws: 0,
                 losses: 0,
+                setsWon: 0,
+                setsLost: 0,
                 pointsFor: 0,
                 pointsAgainst: 0,
                 pointDiff: 0,
@@ -3521,8 +3687,24 @@ class TournamentApp {
                     const t2 = stats.find(s => s.teamIndex === m.team2Index);
                     if (t1 && t2) {
                         t1.played++; t2.played++;
-                        t1.pointsFor += m.score1; t1.pointsAgainst += m.score2;
-                        t2.pointsFor += m.score2; t2.pointsAgainst += m.score1;
+
+                        // מערכות ונקודות המשחק: במשחק במערכות נספרות המערכות שנכללו בהכרעה,
+                        // ובמשחק של מערכה אחת התוצאה עצמה היא המערכה
+                        let sets1, sets2, points1 = 0, points2 = 0;
+                        if (this.isMultiSet() && Array.isArray(m.sets)) {
+                            const summary = this.summarizeSets(m);
+                            sets1 = summary.w1; sets2 = summary.w2;
+                            summary.info.forEach((info, i) => {
+                                if (info.counts) { points1 += Number(m.sets[i].s1); points2 += Number(m.sets[i].s2); }
+                            });
+                        } else {
+                            sets1 = m.winner === 'team1' ? 1 : 0; sets2 = 1 - sets1;
+                            points1 = Number(m.score1); points2 = Number(m.score2);
+                        }
+                        t1.setsWon += sets1; t1.setsLost += sets2;
+                        t2.setsWon += sets2; t2.setsLost += sets1;
+                        t1.pointsFor += points1; t1.pointsAgainst += points2;
+                        t2.pointsFor += points2; t2.pointsAgainst += points1;
                         if (m.winner === 'team1') {
                             t1.wins++;
                             t1.pts += ptsWin;
@@ -3540,14 +3722,7 @@ class TournamentApp {
 
             stats.forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
 
-            // שובר שוויון מדויק לפי דרישת המשתמש: נקודות -> הפרש שערים -> זכות -> ניצחונות
-            stats.sort((a, b) => {
-                if (b.pts !== a.pts) return b.pts - a.pts;
-                if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
-                if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
-                if (b.wins !== a.wins) return b.wins - a.wins;
-                return (a.teamName || '').localeCompare(b.teamName || '');
-            });
+            stats.sort((a, b) => this.compareTeamsForRanking(a, b));
 
             stats.forEach((s, idx) => { s.groupRank = idx + 1; });
             calculatedStandings[grpKey] = stats;
@@ -3555,6 +3730,31 @@ class TournamentApp {
 
         this.standings = calculatedStandings;
         this.renderStandings(groupHeaders);
+    }
+
+    // יחס זכות/חובה (מערכות או נקודות). ללא חובה כלל היחס הוא מקסימלי.
+    ratioValue(won, lost) {
+        if (!lost) return won > 0 ? Infinity : 0;
+        return won / lost;
+    }
+
+    formatRatio(won, lost) {
+        if (!won && !lost) return '-';
+        if (!lost) return 'MAX';
+        return (won / lost).toFixed(2);
+    }
+
+    // דירוג לפי חוקי הכדורשת: נקודות ליגה, ניצחונות, יחס מערכות, ואז יחס נקודות
+    compareTeamsForRanking(a, b) {
+        if ((b.pts || 0) !== (a.pts || 0)) return (b.pts || 0) - (a.pts || 0);
+        if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
+        const setsA = this.ratioValue(a.setsWon || 0, a.setsLost || 0);
+        const setsB = this.ratioValue(b.setsWon || 0, b.setsLost || 0);
+        if (setsA !== setsB) return setsB > setsA ? 1 : -1;
+        const pointsA = this.ratioValue(a.pointsFor || 0, a.pointsAgainst || 0);
+        const pointsB = this.ratioValue(b.pointsFor || 0, b.pointsAgainst || 0);
+        if (pointsA !== pointsB) return pointsB > pointsA ? 1 : -1;
+        return (a.teamName || '').localeCompare(b.teamName || '');
     }
 
     renderStandings(groupHeaders) {
@@ -3628,9 +3828,8 @@ class TournamentApp {
                                     <th>משחקים</th>
                                     <th>ניצחונות</th>
                                     <th>הפסדים</th>
-                                    <th class="col-stat-detail">נקודות זכות</th>
-                                    <th class="col-stat-detail">נקודות חובה</th>
-                                    <th class="col-stat-detail">הפרש</th>
+                                    <th class="col-stat-detail">יחס מערכות</th>
+                                    <th class="col-stat-detail">יחס נקודות</th>
                                     <th class="pts-th">נקודות</th>
                                 </tr>
                             </thead>
@@ -3691,9 +3890,8 @@ class TournamentApp {
                                             <td>${t.played}</td>
                                             <td style="color:#16a34a; font-weight:800;">${t.wins}</td>
                                             <td style="color:#dc2626;">${t.losses}</td>
-                                            <td class="col-stat-detail">${t.pointsFor}</td>
-                                            <td class="col-stat-detail">${t.pointsAgainst}</td>
-                                            <td class="col-stat-detail ${diffClass}">${diffStr}</td>
+                                            <td class="col-stat-detail ratio-cell"><span class="ratio-main">${this.formatRatio(t.setsWon || 0, t.setsLost || 0)}</span><small class="ratio-sub"><bdi>${t.setsWon || 0}:${t.setsLost || 0}</bdi></small></td>
+                                            <td class="col-stat-detail ratio-cell"><span class="ratio-main">${this.formatRatio(t.pointsFor || 0, t.pointsAgainst || 0)}</span><small class="ratio-sub"><bdi>${t.pointsFor || 0}:${t.pointsAgainst || 0}</bdi></small></td>
                                             <td class="pts-td"><span class="pts-pill">${t.pts}</span></td>
                                         </tr>
                                     `;
@@ -3747,13 +3945,7 @@ class TournamentApp {
             'Group D': "בית ד'", 'Group E': "בית ה'", 'Group F': "בית ו'"
         };
 
-        const sortPerformance = (a, b) => {
-            if (b.pts !== a.pts) return b.pts - a.pts;
-            if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
-            if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
-            if (b.wins !== a.wins) return b.wins - a.wins;
-            return (a.teamName || '').localeCompare(b.teamName || '');
-        };
+        const sortPerformance = (a, b) => this.compareTeamsForRanking(a, b);
 
         const allTeamsByRank = [];
         const maxRank = Math.max(...grpKeys.map(k => (this.standings[k] || []).length));
@@ -4190,14 +4382,28 @@ class TournamentApp {
             return;
         }
 
+        // תוצאות לדוגמה בסגנון כדורשת: מערכה עד 21, ללא תיקו
+        const randomSet = () => {
+            const loserPoints = 8 + Math.floor(Math.random() * 12);
+            return Math.random() < 0.5 ? { s1: 21, s2: loserPoints } : { s1: loserPoints, s2: 21 };
+        };
         this.matches.forEach(m => {
-            let s1 = 60 + Math.floor(Math.random() * 40);
-            let s2 = 60 + Math.floor(Math.random() * 40);
-            // אין תיקו בכדורשת: אם יצאה תוצאה שווה, מזיזים אותה בנקודה
-            if (s1 === s2) s2 = s1 - 1;
-            m.score1 = s1;
-            m.score2 = s2;
-            m.winner = s1 > s2 ? 'team1' : 'team2';
+            if (this.isMultiSet()) {
+                const sets = [];
+                let w1 = 0, w2 = 0;
+                while (w1 < 2 && w2 < 2) {
+                    const set = randomSet();
+                    sets.push(set);
+                    if (set.s1 > set.s2) w1++; else w2++;
+                }
+                m.sets = sets;
+                this.applySetsToMatch(m);
+            } else {
+                const set = randomSet();
+                m.score1 = set.s1;
+                m.score2 = set.s2;
+                m.winner = set.s1 > set.s2 ? 'team1' : 'team2';
+            }
         });
 
         this.renderMatches();
@@ -4221,6 +4427,7 @@ class TournamentApp {
             m.score1 = null;
             m.score2 = null;
             m.winner = null;
+            if (Array.isArray(m.sets)) m.sets = [];
         });
 
         this.renderMatches();
@@ -4331,7 +4538,7 @@ class TournamentApp {
             rows.push([escapeCSV("=== טבלאות דירוג שלב הבתים ===")]);
             rows.push([
                 escapeCSV("בית"), escapeCSV("מיקום"), escapeCSV("קבוצה"),
-                escapeCSV("משחקים שוחקו"), escapeCSV("ניצחונות"), escapeCSV("הפסדים"),
+                escapeCSV("משחקים שוחקו"), escapeCSV("ניצחונות"), escapeCSV("הפסדים"), escapeCSV("מערכות זכות"), escapeCSV("מערכות חובה"),
                 escapeCSV("נקודות זכות"), escapeCSV("נקודות חובה"), escapeCSV("הפרש נקודות"),
                 escapeCSV("נקודות ליגה"), escapeCSV("סטטוס")
             ]);
@@ -4345,7 +4552,7 @@ class TournamentApp {
 
                     rows.push([
                         escapeCSV(groupLabels[grpKey] || grpKey), escapeCSV(s.groupRank), escapeCSV(s.teamName),
-                        escapeCSV(s.played), escapeCSV(s.wins), escapeCSV(s.losses),
+                        escapeCSV(s.played), escapeCSV(s.wins), escapeCSV(s.losses), escapeCSV(s.setsWon || 0), escapeCSV(s.setsLost || 0),
                         escapeCSV(s.pointsFor), escapeCSV(s.pointsAgainst),
                         escapeCSV(s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff),
                         escapeCSV(s.pts || 0),
@@ -4359,7 +4566,7 @@ class TournamentApp {
             rows.push([
                 escapeCSV("מספר משחק"), escapeCSV("בית"), escapeCSV("מחזור"),
                 escapeCSV("קבוצה 1"), escapeCSV("תוצאה 1"), escapeCSV("תוצאה 2"),
-                escapeCSV("קבוצה 2"), escapeCSV("מנצחת המשחק"), escapeCSV("סטטוס משחק")
+                escapeCSV("קבוצה 2"), escapeCSV("מנצחת המשחק"), escapeCSV("סטטוס משחק"), escapeCSV("פירוט מערכות")
             ]);
 
             this.matches.forEach(m => {
@@ -4377,7 +4584,10 @@ class TournamentApp {
                 rows.push([
                     escapeCSV(m.matchNumber), escapeCSV(m.groupNameHe), escapeCSV(`מחזור ${m.round}`),
                     escapeCSV(m.team1Name), escapeCSV(score1Str), escapeCSV(score2Str),
-                    escapeCSV(m.team2Name), escapeCSV(winnerStr), escapeCSV(statusStr)
+                    escapeCSV(m.team2Name), escapeCSV(winnerStr), escapeCSV(statusStr),
+                    escapeCSV((this.isMultiSet() && Array.isArray(m.sets))
+                        ? m.sets.filter(set => set.s1 !== null && set.s1 !== undefined && set.s2 !== null && set.s2 !== undefined).map(set => `${set.s1}-${set.s2}`).join(' | ')
+                        : "")
                 ]);
             });
             rows.push([]);
