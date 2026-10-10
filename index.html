@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.34">
+    <link rel="stylesheet" href="./style.css?v=4.35">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -608,7 +608,7 @@ git push -u origin main</pre>
                 <!-- שלב 1: שם הטורניר -->
                 <div class="login-field">
                     <label for="wizardTourneyName">🏆 שם הטורניר:</label>
-                    <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ 2026" required>
+                    <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ 2026">
                 </div>
 
                 <!-- שלב 2: סוג המבנה (3 אפשרויות לבחירה) -->
@@ -616,7 +616,7 @@ git push -u origin main</pre>
                     <label>🎯 בחר שיטת מבנה לטורניר:</label>
                     <div class="wizard-format-options">
                         <label class="wizard-format-card active" id="cardFormatGroups">
-                            <input type="radio" name="wizardFormat" value="groups_and_playoff" checked onchange="app.onWizardFormatChange()">
+                            <input type="radio" name="wizardFormat" value="groups_and_playoff" onchange="app.onWizardFormatChange()">
                             <div class="wizard-card-icon">⚽+🌳</div>
                             <div class="wizard-card-title">בתים + פלייאוף</div>
                             <div class="wizard-card-desc">שלב בתים Round-Robin ולאחריו הצלבות ונוקאאוט</div>
@@ -645,9 +645,10 @@ git push -u origin main</pre>
                         <div class="login-field">
                             <label for="wizardNumGroups">🏠 כמות בתים:</label>
                             <select id="wizardNumGroups" class="login-input" onchange="app.onWizardGroupsOrTeamsChange()">
+                                <option value="" selected disabled hidden>בחר...</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>
-                                <option value="3" selected>3</option>
+                                <option value="3">3</option>
                                 <option value="4">4</option>
                                 <option value="5">5</option>
                                 <option value="6">6</option>
@@ -657,10 +658,11 @@ git push -u origin main</pre>
                         <div class="login-field">
                             <label for="wizardTeamsPerGroup">👥 כמות קבוצות בכל בית:</label>
                             <select id="wizardTeamsPerGroup" class="login-input" onchange="app.onWizardGroupsOrTeamsChange()">
+                                <option value="" selected disabled hidden>בחר...</option>
                                 <option value="2">2</option>
                                 <option value="3">3</option>
                                 <option value="4">4</option>
-                                <option value="5" selected>5</option>
+                                <option value="5">5</option>
                                 <option value="6">6</option>
                                 <option value="7">7</option>
                                 <option value="8">8</option>
@@ -674,9 +676,10 @@ git push -u origin main</pre>
                     <div id="wizardPlayoffSizeGroup" class="login-field" style="margin-top:10px;">
                         <label for="wizardPlayoffSize">🌳 גודל עץ הפלייאוף (קבוצות עולות):</label>
                         <select id="wizardPlayoffSize" class="login-input" onchange="app.updateWizardSummary()">
+                            <option value="" selected disabled hidden>בחר...</option>
                             <option value="2">&rlm;2 קבוצות (משחק גמר בלבד)</option>
                             <option value="4">&rlm;4 קבוצות (חצי גמר וגמר)</option>
-                            <option value="8" selected>&rlm;8 קבוצות (רבע גמר, חצי גמר וגמר)</option>
+                            <option value="8">&rlm;8 קבוצות (רבע גמר, חצי גמר וגמר)</option>
                             <option value="16">&rlm;16 קבוצות (שמינית, רבע, חצי וגמר)</option>
                         </select>
                     </div>
@@ -687,9 +690,10 @@ git push -u origin main</pre>
                     <div class="login-field">
                         <label for="wizardKnockoutTeams">👥 כמות קבוצות בעץ הנוקאאוט:</label>
                         <select id="wizardKnockoutTeams" class="login-input" onchange="app.updateWizardSummary()">
+                            <option value="" selected disabled hidden>בחר...</option>
                             <option value="2">&rlm;2 קבוצות (משחק גמר בלבד)</option>
                             <option value="4">&rlm;4 קבוצות (חצי גמר + גמר)</option>
-                            <option value="8" selected>&rlm;8 קבוצות (רבע גמר + חצי גמר + גמר)</option>
+                            <option value="8">&rlm;8 קבוצות (רבע גמר + חצי גמר + גמר)</option>
                             <option value="16">&rlm;16 קבוצות (שמינית + רבע + חצי + גמר)</option>
                         </select>
                     </div>
@@ -700,7 +704,8 @@ git push -u origin main</pre>
                     <div class="login-field">
                         <label for="wizardSetsPerMatch">🏐 מספר מערכות בכל משחק:</label>
                         <select id="wizardSetsPerMatch" class="login-input">
-                            <option value="1" selected>1</option>
+                            <option value="" selected disabled hidden>בחר...</option>
+                            <option value="1">1</option>
                             <option value="3">3</option>
                         </select>
                     </div>
@@ -764,7 +769,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.34"></script>
+    <script src="./app.js?v=4.35"></script>
 </body>
 </html>
 

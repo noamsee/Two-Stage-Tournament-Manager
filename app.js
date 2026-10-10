@@ -1987,7 +1987,7 @@ class TournamentApp {
 
     openTournamentWizard(isEdit = false, targetTourneyId = null) {
         const setsSelect = document.getElementById('wizardSetsPerMatch');
-        if (setsSelect) setsSelect.value = '1';
+        if (setsSelect) setsSelect.value = '';
         if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
             this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
@@ -2048,28 +2048,15 @@ class TournamentApp {
             if (modalSub) modalSub.textContent = `הגדר את מבנה הטורניר באופן דינמי: שלב בתים בלבד (ליגה), בתים משולב פלייאוף, או נוקאאוט ישיר.`;
             if (submitBtn) submitBtn.innerHTML = `🚀 צור טורניר`;
 
-            if (nameInp) nameInp.value = `טורניר חדש ${new Date().toLocaleDateString('he-IL')}`;
-            const rad = document.querySelector('input[name="wizardFormat"][value="groups_and_playoff"]');
-            if (rad) rad.checked = true;
-
-            // שחרור שדות מבנה להקמת טורניר חדש
-            formatRadios.forEach(r => r.disabled = false);
-            if (numGroupsSelect) {
-                numGroupsSelect.value = '3';
-                numGroupsSelect.disabled = false;
-            }
-            if (teamsPerGroupSelect) {
-                teamsPerGroupSelect.value = '5';
-                teamsPerGroupSelect.disabled = false;
-            }
-            if (playoffSizeSelect) {
-                playoffSizeSelect.value = '8';
-                playoffSizeSelect.disabled = false;
-            }
-            if (knockoutTeamsSelect) {
-                knockoutTeamsSelect.value = '8';
-                knockoutTeamsSelect.disabled = false;
-            }
+            // אשף חדש נפתח ריק: אין ערכי ברירת מחדל, וכל שדה חייב להיבחר במפורש
+            if (nameInp) nameInp.value = '';
+            formatRadios.forEach(r => { r.disabled = false; r.checked = false; });
+            [numGroupsSelect, teamsPerGroupSelect, playoffSizeSelect, knockoutTeamsSelect].forEach(sel => {
+                if (sel) {
+                    sel.value = '';
+                    sel.disabled = false;
+                }
+            });
         }
 
         this.updateWizardPlayoffOptions();
@@ -2110,6 +2097,7 @@ class TournamentApp {
         let validOptions = [];
 
         Array.from(playoffSelect.options).forEach(opt => {
+            if (opt.value === '') return; // שורת "בחר..."
             const val = parseInt(opt.value, 10);
             if (val > totalTeams) {
                 opt.disabled = true;
@@ -2121,18 +2109,15 @@ class TournamentApp {
             }
         });
 
-        // אם הערך שנבחר כרגע גבוה מסך הקבוצות, בחירה אוטומטית של האפשרות הגבוהה ביותר המותרת
-        if (currentValue > totalTeams || !validOptions.includes(currentValue)) {
-            if (validOptions.length > 0) {
-                const maxValid = Math.max(...validOptions);
-                playoffSelect.value = String(maxValid);
-            }
+        // אין בחירה אוטומטית: אם הגודל שנבחר כבר אינו אפשרי, השדה מתרוקן והמנהל בוחר מחדש
+        if (playoffSelect.value !== '' && (currentValue > totalTeams || !validOptions.includes(currentValue))) {
+            playoffSelect.value = '';
         }
     }
 
     onWizardFormatChange() {
         const radFormat = document.querySelector('input[name="wizardFormat"]:checked');
-        const format = radFormat ? radFormat.value : 'groups_and_playoff';
+        const format = radFormat ? radFormat.value : null;
 
         const cardGroups = document.getElementById('cardFormatGroups');
         const cardGroupsOnly = document.getElementById('cardFormatGroupsOnly');
@@ -2145,7 +2130,11 @@ class TournamentApp {
         if (cardGroupsOnly) cardGroupsOnly.classList.toggle('active', format === 'groups_only');
         if (cardKnockout) cardKnockout.classList.toggle('active', format === 'knockout_only');
 
-        if (format === 'knockout_only') {
+        if (!format) {
+            // עדיין לא נבחר מבנה: שדות המבנה מוסתרים עד לבחירה
+            if (boxGroups) boxGroups.classList.add('hidden');
+            if (boxKnockout) boxKnockout.classList.add('hidden');
+        } else if (format === 'knockout_only') {
             if (boxGroups) boxGroups.classList.add('hidden');
             if (boxKnockout) boxKnockout.classList.remove('hidden');
         } else if (format === 'groups_only') {
@@ -2253,7 +2242,25 @@ class TournamentApp {
             return;
         }
 
-        // הקמת טורניר חדש בלבד:
+        // הקמת טורניר חדש בלבד: אין ברירות מחדל, ולכן כל שדה רלוונטי חייב להיות מלא
+        const wizardValue = (id) => document.getElementById(id)?.value || '';
+        const chosenFormat = document.querySelector('input[name="wizardFormat"]:checked')?.value || null;
+        const missing = [];
+        if (!nameInp || !nameInp.value.trim()) missing.push('שם הטורניר');
+        if (!chosenFormat) missing.push('מבנה הטורניר');
+        if (chosenFormat === 'knockout_only') {
+            if (!wizardValue('wizardKnockoutTeams')) missing.push('כמות הקבוצות');
+        } else if (chosenFormat) {
+            if (!wizardValue('wizardNumGroups')) missing.push('כמות בתים');
+            if (!wizardValue('wizardTeamsPerGroup')) missing.push('כמות קבוצות בכל בית');
+            if (chosenFormat === 'groups_and_playoff' && !wizardValue('wizardPlayoffSize')) missing.push('גודל עץ הפלייאוף');
+        }
+        if (!wizardValue('wizardSetsPerMatch')) missing.push('מספר מערכות בכל משחק');
+        if (missing.length > 0) {
+            this.showAlert(`יש למלא את כל שדות האשף. חסר: ${missing.join(', ')}.`, "warning");
+            return;
+        }
+
         const radFormat = document.querySelector('input[name="wizardFormat"]:checked');
         const format = radFormat ? radFormat.value : 'groups_and_playoff';
 
