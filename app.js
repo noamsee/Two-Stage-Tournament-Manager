@@ -48,6 +48,9 @@ class TournamentApp {
         // מפתחים: הרשאות מנהל, ובנוסף מחיקת טורנירים וכלי בדיקה (מילוי/איפוס תוצאות, סימולציית פלייאוף).
         // כניסת מפתח מתבצעת אך ורק דרך Google, כדי שהזהות תאומת ולא תסתמך על סיסמת ברירת מחדל.
         this.DEVELOPER_EMAILS = ["tomerseel@gmail.com"];
+        // מנהלים קבועים בקוד (בנוסף למנהלים שהבעלים מוסיף בניהול המשתמשים).
+        // נכנסים במייל וסיסמה; ללא רשומת משתמש הסיסמה היא ברירת המחדל 1234.
+        this.BUILT_IN_ADMIN_EMAILS = ["tom@gmail.com"];
         this.currentRole = 'viewer';
         this.currentUser = null;
         this.db = db;
@@ -347,7 +350,7 @@ class TournamentApp {
 
             const isOwner = (email === this.OWNER_EMAIL.toLowerCase());
             const existingUser = this.getUserByEmail(email);
-            const isAdmin = this.isDeveloperEmail(email) || (existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner'));
+            const isAdmin = this.isDeveloperEmail(email) || this.isBuiltInAdminEmail(email) || (existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner'));
 
             if (!isOwner && !isAdmin) {
                 this.showAlert(`החשבון ${email} אינו מוגדר כמנהל במערכת. כניסת מנהל מיועדת למנהלים מורשים בלבד.`, "error");
@@ -390,7 +393,7 @@ class TournamentApp {
 
             const isOwner = (email === this.OWNER_EMAIL.toLowerCase());
             const existingUser = this.getUserByEmail(email);
-            const isAdmin = this.isDeveloperEmail(email) || (existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner'));
+            const isAdmin = this.isDeveloperEmail(email) || this.isBuiltInAdminEmail(email) || (existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner'));
 
             if (!isOwner && !isAdmin) {
                 this.showAlert(`החשבון ${email} אינו מוגדר כמנהל במערכת. כניסת מנהל מיועדת למנהלים מורשים בלבד.`, "error");
@@ -735,12 +738,14 @@ class TournamentApp {
         const isOwner = (enteredEmail === this.OWNER_EMAIL.toLowerCase());
         const user = this.getUserByEmail(enteredEmail);
 
-        if (!user && !isOwner) {
+        const isBuiltInAdmin = this.isBuiltInAdminEmail(enteredEmail);
+
+        if (!user && !isOwner && !isBuiltInAdmin) {
             this.showAlert("אימייל זה אינו מוגדר כמנהל במערכת. הרשאת כניסה ניתנת רק למנהלים שהוגדרו מראש.", "error");
             return;
         }
 
-        const role = isOwner ? 'owner' : (user?.role || 'viewer');
+        const role = isOwner ? 'owner' : (isBuiltInAdmin ? 'admin' : (user?.role || 'viewer'));
         if (role !== 'owner' && role !== 'admin') {
             this.showAlert("משתמש זה אינו מוגדר כמנהל במערכת. לצפייה בטורניר יש לבחור 'המשך כצופה'.", "warning");
             return;
@@ -822,6 +827,9 @@ class TournamentApp {
         } else if (this.isDeveloperEmail(cleanEmail) && provider === 'google') {
             // מפתח מזוהה לפי כתובת המייל, ורק לאחר התחברות מאומתת דרך Google
             role = 'developer';
+        } else if (this.isBuiltInAdminEmail(cleanEmail)) {
+            role = 'admin';
+            if (user) cleanName = user.name;
         } else if (user && user.role === 'admin') {
             role = 'admin';
             cleanName = user.name;
@@ -1017,6 +1025,10 @@ class TournamentApp {
             return true;
         }
         return false;
+    }
+
+    isBuiltInAdminEmail(email) {
+        return this.BUILT_IN_ADMIN_EMAILS.includes(String(email || '').trim().toLowerCase());
     }
 
     isDeveloperEmail(email) {
