@@ -3050,3 +3050,16 @@ html, body {
 .bracket-tree.has-sets {
     max-width: calc(var(--rounds, 3) * 380px);
 }
+
+/* ==========================================================================
+   הרשאות מפתח (Developer): כמו מנהל, ובנוסף מחיקת טורנירים וכלי בדיקה
+   ========================================================================== */
+/* מחיקת טורניר: בעלים ומפתח בלבד */
+body:not(.role-owner):not(.role-developer) .can-delete-only {
+    display: none !important;
+}
+
+/* כלי בדיקה (מילוי/איפוס תוצאות, סימולציית פלייאוף, שמות לדוגמה): בעלים ומפתח בלבד */
+body:not(.role-owner):not(.role-developer) .debug-only {
+    display: none !important;
+}

@@ -44,6 +44,7 @@ A web-based, mobile-responsive application for managing multi-stage sports/gamin
 ### 3. Permission System (RBAC)
 - **Viewer**: Read-only access to schedules, standings, and playoff brackets. Match inputs and administrative buttons are disabled or hidden.
 - **Admin**: Can create tournaments, close/reopen tournaments, enter match scores, generate playoff brackets, and export data.
+- **Developer** (`DEVELOPER_EMAILS` in `app.js`, currently `tomerseel@gmail.com`): Everything an Admin can do, plus deleting tournaments and the debugging tools (fill sample results, reset results, simulate/reset playoff, sample team names). No access to User Management. Developer sign-in is Google-only; the password form refuses developer emails. The debugging tools are hidden from Admins (`.debug-only`, `canUseDebugTools`).
 - **Owner** (`noamsee@gmail.com`): Full administrative control **plus** access to User Management (grant/revoke admin rights) and permission to permanently delete tournaments.
 
 ### 4. Firestore Sync Architecture

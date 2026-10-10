@@ -45,6 +45,9 @@ try {
 class TournamentApp {
     constructor() {
         this.OWNER_EMAIL = "noamsee@gmail.com";
+        // מפתחים: הרשאות מנהל, ובנוסף מחיקת טורנירים וכלי בדיקה (מילוי/איפוס תוצאות, סימולציית פלייאוף).
+        // כניסת מפתח מתבצעת אך ורק דרך Google, כדי שהזהות תאומת ולא תסתמך על סיסמת ברירת מחדל.
+        this.DEVELOPER_EMAILS = ["tomerseel@gmail.com"];
         this.currentRole = 'viewer';
         this.currentUser = null;
         this.db = db;
@@ -344,7 +347,7 @@ class TournamentApp {
 
             const isOwner = (email === this.OWNER_EMAIL.toLowerCase());
             const existingUser = this.getUserByEmail(email);
-            const isAdmin = existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner');
+            const isAdmin = this.isDeveloperEmail(email) || (existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner'));
 
             if (!isOwner && !isAdmin) {
                 this.showAlert(`החשבון ${email} אינו מוגדר כמנהל במערכת. כניסת מנהל מיועדת למנהלים מורשים בלבד.`, "error");
@@ -387,7 +390,7 @@ class TournamentApp {
 
             const isOwner = (email === this.OWNER_EMAIL.toLowerCase());
             const existingUser = this.getUserByEmail(email);
-            const isAdmin = existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner');
+            const isAdmin = this.isDeveloperEmail(email) || (existingUser && (existingUser.role === 'admin' || existingUser.role === 'owner'));
 
             if (!isOwner && !isAdmin) {
                 this.showAlert(`החשבון ${email} אינו מוגדר כמנהל במערכת. כניסת מנהל מיועדת למנהלים מורשים בלבד.`, "error");
@@ -724,6 +727,11 @@ class TournamentApp {
             return;
         }
 
+        if (this.isDeveloperEmail(enteredEmail)) {
+            this.showAlert("כניסת מפתח מתבצעת באמצעות חשבון Google בלבד.", "warning");
+            return;
+        }
+
         const isOwner = (enteredEmail === this.OWNER_EMAIL.toLowerCase());
         const user = this.getUserByEmail(enteredEmail);
 
@@ -811,6 +819,9 @@ class TournamentApp {
         if (cleanEmail === this.OWNER_EMAIL.toLowerCase()) {
             role = 'owner';
             if (user) cleanName = user.name;
+        } else if (this.isDeveloperEmail(cleanEmail) && provider === 'google') {
+            // מפתח מזוהה לפי כתובת המייל, ורק לאחר התחברות מאומתת דרך Google
+            role = 'developer';
         } else if (user && user.role === 'admin') {
             role = 'admin';
             cleanName = user.name;
@@ -825,6 +836,8 @@ class TournamentApp {
         let displayLabel = '';
         if (role === 'owner') {
             displayLabel = `👑 בעלים (${cleanName})`;
+        } else if (role === 'developer') {
+            displayLabel = `🛠️ מפתח (${cleanName})`;
         } else if (role === 'admin') {
             displayLabel = `⚡ מנהל (${cleanName})`;
         } else if (provider === 'guest') {
@@ -864,6 +877,8 @@ class TournamentApp {
             const providerText = (provider === 'google') ? 'באמצעות Google / Gmail' : '';
             if (role === 'owner') {
                 this.showAlert(`ברוך הבא! נכנסת כמנהל על (Owner - ${cleanEmail}) ${providerText} עם גישה מלאה.`, "success");
+            } else if (role === 'developer') {
+                this.showAlert(`שלום ${cleanName}! נכנסת כמפתח (Developer) ${providerText}.`, "success");
             } else if (role === 'admin') {
                 this.showAlert(`שלום ${cleanName}! נכנסת כמנהל מורשה (Admin) ${providerText}.`, "success");
             } else {
@@ -872,7 +887,7 @@ class TournamentApp {
         }
 
         // מנהל שהתחבר כעת (ולא ברענון דף) נשאל איזה טורניר לנהל, או אם ליצור טורניר חדש
-        if (showNotification && (role === 'owner' || role === 'admin')) {
+        if (showNotification && this.isManagerRole(role)) {
             this.openAdminTournamentChooser();
         }
 
@@ -1002,6 +1017,30 @@ class TournamentApp {
             return true;
         }
         return false;
+    }
+
+    isDeveloperEmail(email) {
+        return this.DEVELOPER_EMAILS.includes(String(email || '').trim().toLowerCase());
+    }
+
+    // מנהלים לסוגיהם: בעלים, מפתח ומנהל רגיל
+    isManagerRole(role = this.currentRole) {
+        return role === 'owner' || role === 'developer' || role === 'admin';
+    }
+
+    canDeleteTournaments(role = this.currentRole) {
+        return role === 'owner' || role === 'developer';
+    }
+
+    // כלי בדיקה (מילוי תוצאות לדוגמה, איפוס תוצאות, סימולציית פלייאוף, שמות לדוגמה)
+    canUseDebugTools(role = this.currentRole) {
+        return role === 'owner' || role === 'developer';
+    }
+
+    denyDebugTool() {
+        if (this.canUseDebugTools()) return false;
+        this.showAlert("כלי הבדיקה זמינים לבעלים ולמפתחים בלבד.", "warning");
+        return true;
     }
 
     switchRole(newRole) {
@@ -1988,7 +2027,7 @@ class TournamentApp {
     openTournamentWizard(isEdit = false, targetTourneyId = null) {
         const setsSelect = document.getElementById('wizardSetsPerMatch');
         if (setsSelect) setsSelect.value = '';
-        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
+        if (!this.isManagerRole()) {
             this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
         }
@@ -2205,7 +2244,7 @@ class TournamentApp {
     }
 
     submitTournamentWizard() {
-        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
+        if (!this.isManagerRole()) {
             this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
         }
@@ -2595,7 +2634,7 @@ class TournamentApp {
     }
 
     async toggleCloseTournament(tourneyId) {
-        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') {
+        if (!this.isManagerRole()) {
             this.showAlert("רק מנהל (Admin) או Owner רשאים לסגור או לפתוח טורניר!", "error");
             return;
         }
@@ -2708,8 +2747,8 @@ class TournamentApp {
     }
 
     async deleteTournament(tourneyId) {
-        if (this.currentRole !== 'owner') {
-            this.showAlert("רק מנהל העל (Owner) רשאי למחוק טורניר!", "error");
+        if (!this.canDeleteTournaments()) {
+            this.showAlert("רק בעלים (Owner) או מפתח (Developer) רשאים למחוק טורניר!", "error");
             return;
         }
 
@@ -2907,9 +2946,13 @@ class TournamentApp {
     }
 
     switchTab(tabId) {
+        // ניהול המשתמשים שמור לבעלים בלבד (גם אם מנסים להגיע אליו שלא דרך הכפתור)
+        if (tabId === 'users' && this.currentRole !== 'owner') {
+            tabId = this.format === 'knockout_only' ? 'playoffs' : 'group-stage';
+        }
         // טורניר עם בתים: אחרי יצירת הלוח אין טאב הגדרות, ולפניה מנהל רואה רק אותו
         if (this.format !== 'knockout_only') {
-            const isManager = this.currentRole === 'owner' || this.currentRole === 'admin';
+            const isManager = this.isManagerRole();
             if (tabId === 'setup' && this.boardCreated) {
                 tabId = 'group-stage';
             } else if (tabId === 'playoffs' && this.boardCreated && !this.isPlayoffOpen()) {
@@ -3039,6 +3082,7 @@ class TournamentApp {
     }
 
     fillDefaultTeamNames() {
+        if (this.denyDebugTool()) return;
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
@@ -3136,7 +3180,7 @@ class TournamentApp {
        ======================================================== */
 
     openTeamNamesTab() {
-        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') return;
+        if (!this.isManagerRole()) return;
         // לפני יצירת לוח המשחקים השמות מוזנים בטאב ההגדרות
         if (!this.isBoardReady()) {
             this.switchTab('setup');
@@ -3190,7 +3234,7 @@ class TournamentApp {
 
     // שינוי שם קבוצה בטורניר פעיל: מעדכן את השם בכל מקום שבו הקבוצה מופיעה, בלי לגעת בתוצאות
     renameTeam(index, newName, inputElement) {
-        if (this.currentRole !== 'owner' && this.currentRole !== 'admin') return;
+        if (!this.isManagerRole()) return;
         const oldName = this.teams[index];
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
@@ -4675,6 +4719,7 @@ class TournamentApp {
     }
 
     fillSampleScores() {
+        if (this.denyDebugTool()) return;
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
@@ -4721,6 +4766,7 @@ class TournamentApp {
     }
 
     resetAllScores() {
+        if (this.denyDebugTool()) return;
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
@@ -4745,6 +4791,7 @@ class TournamentApp {
     }
 
     simulatePlayoffs() {
+        if (this.denyDebugTool()) return;
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
@@ -4778,6 +4825,7 @@ class TournamentApp {
     }
 
     resetPlayoffs() {
+        if (this.denyDebugTool()) return;
         if (this.isCurrentTournamentClosed()) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
