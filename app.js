@@ -50,7 +50,7 @@ class TournamentApp {
         this.DEVELOPER_EMAILS = ["tomerseel@gmail.com"];
         // מנהלים קבועים בקוד (בנוסף למנהלים שהבעלים מוסיף בניהול המשתמשים).
         // נכנסים במייל וסיסמה; ללא רשומת משתמש הסיסמה היא ברירת המחדל 1234.
-        this.BUILT_IN_ADMIN_EMAILS = ["tom@gmail.com"];
+        this.BUILT_IN_ADMIN_EMAILS = [];
         this.currentRole = 'viewer';
         this.currentUser = null;
         this.db = db;
