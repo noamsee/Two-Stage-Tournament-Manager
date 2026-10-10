@@ -2400,17 +2400,10 @@ class TournamentApp {
             }
         }
 
-        // טורניר עם בתים נפתח עם שמות ריקים: המנהל מזין את כל השמות ורק אז יוצר את לוח המשחקים.
-        // טורניר נוקאאוט בלבד ממשיך להיפתח עם שמות ברירת מחדל.
+        // כל טורניר חדש נפתח עם שמות ריקים: המנהל מזין את כל השמות ורק אז יוצר את לוח המשחקים / עץ הפלייאוף
         const teams = [];
         for (let i = 0; i < totalTeams; i++) {
-            if (format !== 'knockout_only') {
-                teams.push('');
-            } else if (i < this.defaultTeams.length) {
-                teams.push(this.defaultTeams[i]);
-            } else {
-                teams.push(`קבוצה ${i + 1}`);
-            }
+            teams.push('');
         }
 
         let groups = {};
@@ -2468,7 +2461,7 @@ class TournamentApp {
             setsPerMatch: (parseInt(document.getElementById('wizardSetsPerMatch')?.value || '1', 10) === 3) ? 3 : 1,
             pointsPerWin,
             pointsPerLoss,
-            boardCreated: format === 'knockout_only',
+            boardCreated: false,
             createdAt: new Date().toLocaleDateString('he-IL'),
             isArchived: false,
             teams,
@@ -2690,6 +2683,16 @@ class TournamentApp {
     sanitizeTournamentNames() {
         if (!Array.isArray(this.tournaments)) return;
         let changed = false;
+        // שם מוצג נבנה תמיד מהשם והתאריך השמורים (כך גם שמות שנשמרו בפורמט תאריך קודם מתעדכנים)
+        this.tournaments.forEach(t => {
+            if (t.baseName && t.eventDate) {
+                const built = this.buildTournamentName(t.baseName, t.eventDate);
+                if (t.name !== built) {
+                    t.name = built;
+                    changed = true;
+                }
+            }
+        });
         this.tournaments.forEach(t => {
             if (t.name && (t.name.includes('(ארכיון) (ארכיון)') || t.name.includes('(ארכיון)(ארכיון)') || t.name.includes('(ארכיון)  (ארכיון)'))) {
                 t.name = t.name.replace(/(\s*\(ארכיון\))+/g, '').trim();
@@ -2961,17 +2964,21 @@ class TournamentApp {
     switchTab(tabId) {
         // ניהול המשתמשים שמור לבעלים בלבד (גם אם מנסים להגיע אליו שלא דרך הכפתור)
         if (tabId === 'users' && this.currentRole !== 'owner') {
-            tabId = this.format === 'knockout_only' ? 'playoffs' : 'group-stage';
+            tabId = this.getMainViewTab();
         }
-        // טורניר עם בתים: אחרי יצירת הלוח אין טאב הגדרות, ולפניה מנהל רואה רק אותו
-        if (this.format !== 'knockout_only') {
+        // בכל מבנה: אחרי יצירת הלוח אין טאב הגדרות, ולפניה מנהל רואה רק אותו.
+        // בנוקאאוט בלבד אין טאב בתים; בטורניר עם בתים הפלייאוף נפתח רק לאחר נעילת שלב הבתים.
+        {
+            const isKnockout = this.format === 'knockout_only';
             const isManager = this.isManagerRole();
             if (tabId === 'setup' && this.boardCreated) {
-                tabId = 'group-stage';
-            } else if (tabId === 'playoffs' && this.boardCreated && !this.isPlayoffOpen()) {
-                tabId = 'group-stage';
+                tabId = this.getMainViewTab();
             } else if ((tabId === 'group-stage' || tabId === 'playoffs') && !this.boardCreated && isManager) {
                 tabId = 'setup';
+            } else if (isKnockout && tabId === 'group-stage') {
+                tabId = 'playoffs';
+            } else if (!isKnockout && tabId === 'playoffs' && this.boardCreated && !this.isPlayoffOpen()) {
+                tabId = 'group-stage';
             }
         }
         this.flushAllScoreDrafts();
@@ -3015,7 +3022,7 @@ class TournamentApp {
             if (subEl) subEl.textContent = isClosed 
                 ? `🔒 הטורניר סגור ונעול לעריכה (מצב קריאה בלבד). לפתיחתו יש ללחוץ על 'פתח טורניר מחדש'.`
                 : `מיועד ל-Admin/Owner בלבד. הזן את שמות ${this.teams.length} הקבוצות המשתתפות ישירות בעץ הפלייאוף:`;
-            if (genBtn) genBtn.textContent = `🔄 סנכרן שמות קבוצות לעץ הפלייאוף`;
+            if (genBtn) genBtn.textContent = `⚡ ייצר עץ פלייאוף (${this.teams.length} קבוצות)`;
 
             this.teams.forEach((teamName, index) => {
                 const div = document.createElement('div');
@@ -3079,7 +3086,7 @@ class TournamentApp {
         if (this.isCurrentTournamentClosed()) return;
         const trimmed = newName.trim();
         // לפני יצירת לוח המשחקים שם ריק נשאר ריק, כדי שהמנהל יידרש להזין שם לכל קבוצה
-        const allowEmpty = this.format !== 'knockout_only' && !this.boardCreated;
+        const allowEmpty = !this.boardCreated;
         this.teams[index] = trimmed || (allowEmpty ? '' : `קבוצה ${index + 1}`);
 
         if (this.format === 'knockout_only') {
@@ -3158,7 +3165,12 @@ class TournamentApp {
 
     // האם לוח המשחקים כבר נוצר (רלוונטי לטורנירים עם בתים; בנוקאאוט בלבד אין שלב כזה)
     isBoardReady() {
-        return this.format === 'knockout_only' || !!this.boardCreated;
+        return !!this.boardCreated;
+    }
+
+    // הטאב הראשי של הטורניר לאחר יצירת הלוח: בתים, או עץ הפלייאוף בטורניר נוקאאוט בלבד
+    getMainViewTab() {
+        return this.format === 'knockout_only' ? 'playoffs' : 'group-stage';
     }
 
     // שלב הבתים ננעל והפלייאוף שובץ (רלוונטי רק לטורניר של בתים + פלייאוף)
@@ -3171,18 +3183,25 @@ class TournamentApp {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
         }
+        if (this.boardCreated) return;
 
-        if (this.format !== 'knockout_only') {
-            if (this.boardCreated) return;
-            const missing = (this.teams || []).filter(name => !String(name || '').trim()).length;
-            if (missing > 0) {
-                this.showAlert(`יש להזין שם לכל הקבוצות לפני יצירת לוח המשחקים (חסרים ${missing} שמות).`, "warning");
-                return;
-            }
-            this.boardCreated = true;
+        const isKnockout = this.format === 'knockout_only';
+        const missing = (this.teams || []).filter(name => !String(name || '').trim()).length;
+        if (missing > 0) {
+            this.showAlert(`יש להזין שם לכל הקבוצות לפני יצירת ${isKnockout ? 'עץ הפלייאוף' : 'לוח המשחקים'} (חסרים ${missing} שמות).`, "warning");
+            return;
+        }
+        this.boardCreated = true;
+
+        // בנוקאאוט בלבד העץ כבר בנוי: מעדכנים בו ובדירוג את השמות שהוזנו
+        if (isKnockout) {
+            (this.playoffSeeds || []).forEach(seed => {
+                if (seed && seed.teamIndex !== undefined) seed.teamName = this.teams[seed.teamIndex];
+            });
         }
 
         this.generateTournamentGroups(true);
+        if (isKnockout) this.saveActiveTournamentData();
         this.populateTournamentSelectors();
         this.updateBoardStateUI();
     }
@@ -3306,11 +3325,11 @@ class TournamentApp {
         return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     }
 
-    // 2026-10-10 -> 10.10.2026
+    // 2026-10-10 -> 10/10/2026
     formatTournamentDate(isoDate) {
         const parts = String(isoDate || '').split('-');
         if (parts.length !== 3 || parts.some(p => !/^\d+$/.test(p))) return '';
-        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
     buildTournamentName(baseName, isoDate) {
@@ -3376,7 +3395,7 @@ class TournamentApp {
     }
 
     updateBoardStateUI() {
-        const hasHouses = this.format !== 'knockout_only';
+        const isKnockout = this.format === 'knockout_only';
         // טאב שינוי השמות פתוח: מרעננים אותו כשהנתונים מתעדכנים, אלא אם המנהל מקליד בו כרגע
         const namesTab = document.getElementById('tab-team-names');
         if (namesTab && !namesTab.classList.contains('hidden') && !namesTab.contains(document.activeElement)) {
@@ -3386,10 +3405,12 @@ class TournamentApp {
         const tabBtn = (name) => document.querySelector(`.tab-btn[onclick*="'${name}'"]`);
         const setHidden = (name, hidden) => { const btn = tabBtn(name); if (btn) btn.classList.toggle('board-hidden', hidden); };
 
-        setHidden('setup', hasHouses && this.boardCreated);
-        setHidden('group-stage', hasHouses && !this.boardCreated);
-        // טאב הפלייאוף מוצג (לכולם) רק לאחר נעילת שלב הבתים ושיבוץ הפלייאוף
-        setHidden('playoffs', hasHouses && (!this.boardCreated || !this.isPlayoffOpen()));
+        // בכל מבנה: לפני יצירת הלוח רק טאב ההגדרות, ואחריה הוא נעלם
+        setHidden('setup', !!this.boardCreated);
+        // טאב הבתים אינו קיים בטורניר נוקאאוט בלבד
+        setHidden('group-stage', isKnockout || !this.boardCreated);
+        // טאב הפלייאוף: בנוקאאוט בלבד מיד עם יצירת העץ; בטורניר עם בתים רק לאחר נעילת שלב הבתים
+        setHidden('playoffs', !this.boardCreated || (!isKnockout && !this.isPlayoffOpen()));
 
         // לאחר הנעילה כפתור הנעילה וסרגל הפעולות של שלב הבתים נעלמים: המנהל רואה את שלב הבתים כמו צופה
         const stageLocked = this.isPlayoffOpen();
@@ -3399,7 +3420,7 @@ class TournamentApp {
         // אם הטאב הפתוח כרגע הוסתר, עוברים לטאב המתאים למצב הטורניר
         const activeBtn = document.querySelector('.tab-btn.active');
         if (activeBtn && activeBtn.classList.contains('board-hidden')) {
-            this.switchTab(this.boardCreated ? 'group-stage' : 'setup');
+            this.switchTab(this.boardCreated ? this.getMainViewTab() : 'setup');
         }
     }
 
@@ -3419,7 +3440,7 @@ class TournamentApp {
             this.renderPlayoffBracket();
             if (shouldSwitchTab) {
                 this.switchTab('playoffs');
-                this.showAlert("שמות הקבוצות סונכרנו לעץ הפלייאוף!", "success");
+                this.showAlert("עץ הפלייאוף נוצר בהצלחה!", "success");
             }
             return;
         }
