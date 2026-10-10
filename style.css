@@ -3200,7 +3200,8 @@ body.no-tournament #headerFinalizeTournamentBtn {
     align-items: center;
     flex-shrink: 0;
     padding: 0 12px;
-    direction: ltr;
+    /* מימין לשמאל: המקף צמוד לשם (מימין לתאריך), כמו בשם המלא "שם - תאריך" */
+    direction: rtl;
     font-weight: 700;
     font-size: 0.95rem;
     color: var(--text-muted);
