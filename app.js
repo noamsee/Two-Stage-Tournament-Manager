@@ -2339,7 +2339,7 @@ class TournamentApp {
             numGroups,
             teamsPerGroup,
             playoffSize,
-            setsPerMatch: (format !== 'knockout_only' && parseInt(document.getElementById('wizardSetsPerMatch')?.value || '1', 10) === 3) ? 3 : 1,
+            setsPerMatch: (parseInt(document.getElementById('wizardSetsPerMatch')?.value || '1', 10) === 3) ? 3 : 1,
             pointsPerWin,
             pointsPerLoss,
             boardCreated: format === 'knockout_only',
@@ -3226,7 +3226,32 @@ class TournamentApp {
        ======================================================== */
 
     isMultiSet() {
-        return this.setsPerMatch === 3 && this.format !== 'knockout_only';
+        return this.setsPerMatch === 3;
+    }
+
+    randomCatchballSet() {
+        const loserPoints = 8 + Math.floor(Math.random() * 12);
+        return Math.random() < 0.5 ? { s1: 21, s2: loserPoints } : { s1: loserPoints, s2: 21 };
+    }
+
+    // ממלא למשחק תוצאה אקראית לדוגמה: מערכה אחת, או הטוב משלוש
+    fillRandomResult(m) {
+        if (this.isMultiSet()) {
+            const sets = [];
+            let w1 = 0, w2 = 0;
+            while (w1 < 2 && w2 < 2) {
+                const set = this.randomCatchballSet();
+                sets.push(set);
+                if (set.s1 > set.s2) w1++; else w2++;
+            }
+            m.sets = sets;
+            this.applySetsToMatch(m);
+        } else {
+            const set = this.randomCatchballSet();
+            m.score1 = set.s1;
+            m.score2 = set.s2;
+            m.winner = set.s1 > set.s2 ? 'team1' : 'team2';
+        }
     }
 
     // מחזיר את מערך המערכות של המשחק, באורך מספר המערכות של הטורניר
@@ -3723,6 +3748,7 @@ class TournamentApp {
             stats.forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
 
             stats.sort((a, b) => this.compareTeamsForRanking(a, b));
+            this.applyHeadToHead(stats, groupMatches);
 
             stats.forEach((s, idx) => { s.groupRank = idx + 1; });
             calculatedStandings[grpKey] = stats;
@@ -3744,17 +3770,45 @@ class TournamentApp {
         return (won / lost).toFixed(2);
     }
 
-    // דירוג לפי חוקי הכדורשת: נקודות ליגה, ניצחונות, יחס מערכות, ואז יחס נקודות
-    compareTeamsForRanking(a, b) {
-        if ((b.pts || 0) !== (a.pts || 0)) return (b.pts || 0) - (a.pts || 0);
+    // סדר הדירוג לפי חוקת הכדורשת הרשמית:
+    // 1. מספר ניצחונות  2. נקודות דירוג (2 לניצחון, 1 להפסד)  3. יחס מערכות  4. יחס נקודות
+    // מחזיר 0 כששתי הקבוצות שוות בכל ארבעת הקריטריונים
+    compareByOfficialCriteria(a, b) {
         if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
+        if ((b.pts || 0) !== (a.pts || 0)) return (b.pts || 0) - (a.pts || 0);
         const setsA = this.ratioValue(a.setsWon || 0, a.setsLost || 0);
         const setsB = this.ratioValue(b.setsWon || 0, b.setsLost || 0);
         if (setsA !== setsB) return setsB > setsA ? 1 : -1;
         const pointsA = this.ratioValue(a.pointsFor || 0, a.pointsAgainst || 0);
         const pointsB = this.ratioValue(b.pointsFor || 0, b.pointsAgainst || 0);
         if (pointsA !== pointsB) return pointsB > pointsA ? 1 : -1;
-        return (a.teamName || '').localeCompare(b.teamName || '');
+        return 0;
+    }
+
+    compareTeamsForRanking(a, b) {
+        return this.compareByOfficialCriteria(a, b) || (a.teamName || '').localeCompare(b.teamName || '');
+    }
+
+    // 5. שוויון מלא בין שתי קבוצות בלבד: עדיפות למנצחת במשחק האחרון ביניהן
+    applyHeadToHead(sortedStats, groupMatches) {
+        for (let i = 0; i < sortedStats.length - 1; i++) {
+            const a = sortedStats[i], b = sortedStats[i + 1];
+            if (this.compareByOfficialCriteria(a, b) !== 0) continue;
+            const tiedWithPrev = i > 0 && this.compareByOfficialCriteria(sortedStats[i - 1], a) === 0;
+            const tiedWithNext = i + 2 < sortedStats.length && this.compareByOfficialCriteria(b, sortedStats[i + 2]) === 0;
+            if (tiedWithPrev || tiedWithNext) continue; // שוויון של שלוש קבוצות ומעלה אינו מוכרע במפגש ישיר
+
+            const meetings = groupMatches.filter(m =>
+                (m.winner === 'team1' || m.winner === 'team2') && !this.isTiedScore(m) &&
+                ((m.team1Index === a.teamIndex && m.team2Index === b.teamIndex) || (m.team1Index === b.teamIndex && m.team2Index === a.teamIndex)));
+            if (meetings.length === 0) continue;
+            const last = meetings.reduce((latest, m) => ((m.matchNumber || 0) >= (latest.matchNumber || 0) ? m : latest));
+            const winnerIndex = last.winner === 'team1' ? last.team1Index : last.team2Index;
+            if (winnerIndex === b.teamIndex) {
+                sortedStats[i] = b;
+                sortedStats[i + 1] = a;
+            }
+        }
     }
 
     renderStandings(groupHeaders) {
@@ -4036,6 +4090,65 @@ class TournamentApp {
                 statusBadge = '<span class="match-status-pill status-waiting">ממתין לעולות</span>';
             }
 
+            // משחק פלייאוף במערכות (הטוב משלוש): תא לכל מערכה וסך המערכות לכל קבוצה
+            if (this.isMultiSet()) {
+                const sets = this.getMatchSets(m);
+                const summary = this.summarizeSets(m);
+                const anyEntered = sets.some(set => (set.s1 !== null && set.s1 !== undefined) || (set.s2 !== null && set.s2 !== undefined));
+                let setsStatus = '<span class="match-status-pill status-waiting">ממתין לעולות</span>';
+                if (m.winner) setsStatus = '<span class="match-status-pill status-done">✓ הסתיים</span>';
+                else if (anyEntered) setsStatus = '<span class="match-status-pill status-live">⏱️ משוחק</span>';
+                else if (m.team1 && m.team2) setsStatus = '<span class="match-status-pill status-ready">מוכן למשחק</span>';
+
+                const cell = (setIdx, teamNum) => {
+                    const info = summary.info[setIdx];
+                    const key = this.draftKey(m.id, teamNum, setIdx);
+                    const draft = this.playoffDraft ? this.playoffDraft[key] : undefined;
+                    const stored = teamNum === 1 ? sets[setIdx].s1 : sets[setIdx].s2;
+                    const val = draft !== undefined ? draft.value : (stored !== null && stored !== undefined ? stored : '');
+                    const stateClass = `${info.winner === teamNum ? 'set-won' : ''} ${info.notNeeded ? 'set-not-needed' : ''}`;
+                    if (isViewer) {
+                        return `<span class="score-display-viewer set-cell ${stateClass}">${val !== '' ? val : '-'}</span>`;
+                    }
+                    return `<input type="number" min="0" step="1"
+                                   id="playoff-set-${m.id}-${setIdx}-${teamNum}"
+                                   class="score-input set-cell ${stateClass} ${info.tied ? 'score-tie' : ''}"
+                                   value="${val}"
+                                   placeholder="-"
+                                   aria-label="מערכה ${setIdx + 1}"
+                                   ${(disabledInputs || info.notNeeded) ? 'disabled' : ''}
+                                   oninput="app.handlePlayoffSetScore('${m.id}', ${setIdx}, ${teamNum}, this.value, this)"
+                                   onchange="app.checkPlayoffSetDrawOnBlur('${m.id}', ${setIdx})">`;
+                };
+                const setsRow = (teamNum, name, seed, isWinner, setsWon) => `
+                        <div class="match-team-row sets-row ${isWinner ? 'winner' : ''}" id="prow-${m.id}-${teamNum}">
+                            <div class="team-meta-wrap">
+                                ${seed ? `<span class="challonge-seed-badge">#${seed}</span>` : ''}
+                                <span class="team-name" title="${name}">${name}</span>
+                            </div>
+                            <span class="sets-cells">${sets.map((_, i) => cell(i, teamNum)).join('')}</span>
+                            <span class="sets-total" title="מערכות שנוצחו">${summary.any ? setsWon : '-'}</span>
+                        </div>`;
+
+                return `
+                <div class="match-card playoff-match-card multi-set ${isFinal ? 'is-final' : ''}" id="playoff-card-${m.id}">
+                    <div class="match-header" style="${isFinal ? 'background: linear-gradient(135deg, #b45309, #d97706); color: white;' : ''}">
+                        <span class="match-header-title">${m.roundName}</span>
+                        ${setsStatus}
+                    </div>
+                    <div class="sets-labels">
+                        <span class="sets-labels-spacer"></span>
+                        <span class="sets-cells">${sets.map((_, i) => `<span class="set-label">מערכה ${i + 1}</span>`).join('')}</span>
+                        <span class="sets-total-label">מערכות</span>
+                    </div>
+                    <div class="match-teams-list">
+                        ${setsRow(1, team1Name, team1Seed, isRow1Winner, summary.w1)}
+                        ${setsRow(2, team2Name, team2Seed, isRow2Winner, summary.w2)}
+                    </div>
+                </div>
+            `;
+            }
+
             return `
                 <div class="match-card playoff-match-card ${isFinal ? 'is-final' : ''} ${isTie ? 'playoff-tie-card' : ''}" id="playoff-card-${m.id}">
                     <div class="match-header" style="${isFinal ? 'background: linear-gradient(135deg, #b45309, #d97706); color: white;' : ''}">
@@ -4184,7 +4297,7 @@ class TournamentApp {
             ${(isMobile && !isViewer) ? '<p class="bracket-mobile-hint">👆 הקש על משחק לצפייה בפרטים המלאים ולהזנת תוצאה</p>' : ''}
             ${visibleRounds.some(canEnlarge) ? '<p class="bracket-mobile-hint">🔍 לחץ על כותרת סיבוב (למשל רבע גמר) כדי להגדיל את המשחקים שלו. לחיצה נוספת מקטינה חזרה</p>' : ''}
             <div class="bracket-tree-scroll">
-                <div class="bracket-tree" style="--rounds: ${visibleRounds.length + (enlargedRound ? 1 : 0)};">
+                <div class="bracket-tree ${(this.isMultiSet() && !isMobile) ? 'has-sets' : ''}" style="--rounds: ${visibleRounds.length + (enlargedRound ? 1 : 0)};">
                     ${columnsHtml.join('')}
                 </div>
             </div>
@@ -4239,6 +4352,14 @@ class TournamentApp {
                 committed = true;
             }
         });
+        // משחק במערכות: כל תא מערכה שהוקלד נרשם
+        Object.keys(draft).forEach(key => {
+            const entry = draft[key];
+            if (entry && typeof entry === 'object') {
+                this.handlePlayoffSetScore(matchId, entry.setIdx, entry.teamNum, entry.value, null, true);
+                committed = true;
+            }
+        });
         return committed;
     }
 
@@ -4275,6 +4396,54 @@ class TournamentApp {
                     } catch (e) {}
                 }
             }
+        }
+    }
+
+    handlePlayoffSetScore(matchId, setIdx, teamNum, rawValue, inputElement, commit = false) {
+        if (this.isCurrentTournamentClosed()) {
+            this.showAlert("הטורניר סגור ונעול. לא ניתן לשנות תוצאות.", "warning");
+            return;
+        }
+
+        // במובייל, בזמן שכרטיס המשחק פתוח, ההקלדה רק נאגרת ונרשמת ביציאה מהכרטיס
+        if (!commit && this.mobileQuery.matches && this.openPlayoffMatchId === matchId) {
+            this.playoffDraft[this.draftKey(matchId, teamNum, setIdx)] = { teamNum, setIdx, value: rawValue };
+            return;
+        }
+
+        const match = this.findPlayoffMatch(matchId);
+        if (!match) return;
+        const set = this.getMatchSets(match)[setIdx];
+        if (!set) return;
+
+        let value = null;
+        if (rawValue !== '' && rawValue !== null && rawValue !== undefined) {
+            const parsed = Number(rawValue);
+            // לא מוחקים את הקלט בזמן הקלדה רגילה
+            if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) return;
+            value = parsed;
+        }
+        if (teamNum === 1) set.s1 = value; else set.s2 = value;
+
+        // המנצחת עולה (או מוסרת מהשלב הבא) רק כשהכרעת המשחק משתנה, כדי שתיקון מערכה לא ימחק את השלב הבא
+        const previousWinner = match.winner;
+        this.applySetsToMatch(match);
+        if (previousWinner !== match.winner) {
+            const winnerTeam = match.winner === 'team1' ? match.team1 : (match.winner === 'team2' ? match.team2 : null);
+            this.propagatePlayoffWinner(match, winnerTeam);
+        }
+
+        this.renderPlayoffBracketWithFocus(inputElement?.id);
+        this.saveActiveTournamentData();
+    }
+
+    checkPlayoffSetDrawOnBlur(matchId, setIdx) {
+        if (this.openPlayoffMatchId === matchId && this.mobileQuery.matches) return; // נבדק ביציאה מהכרטיס
+        const match = this.findPlayoffMatch(matchId);
+        if (!match) return;
+        const info = this.summarizeSets(match).info[setIdx];
+        if (info && info.tied) {
+            this.showAlert(`⚠️ אין תיקו בכדורשת: במערכה ${setIdx + 1} יש להזין תוצאה עם מנצחת.`, "warning");
         }
     }
 
@@ -4336,6 +4505,14 @@ class TournamentApp {
 
     checkPlayoffDrawOnBlur(matchId) {
         const match = this.findPlayoffMatch(matchId);
+        if (this.isMultiSet()) {
+            // במשחק במערכות 1:1 אינו תיקו אלא משחק שטרם הוכרע; מתריעים רק על מערכה שהסתיימה בשוויון
+            const tiedSet = match ? this.summarizeSets(match).info.findIndex(info => info.tied) : -1;
+            if (tiedSet !== -1) {
+                this.showAlert(`⚠️ אין תיקו בכדורשת: במערכה ${tiedSet + 1} יש להזין תוצאה עם מנצחת.`, "warning");
+            }
+            return;
+        }
         if (match && match.score1 !== null && match.score2 !== null && match.score1 === match.score2) {
             this.showAlert("⚠️ שים לב: המשחק כרגע בתוצאת תיקו. בפלייאוף נדרשת הכרעה לקביעת העולה לשלב הבא.", "warning");
         }
@@ -4362,6 +4539,12 @@ class TournamentApp {
                 nextMatch.score2 = null;
             }
             nextMatch.winner = null;
+            // משחק במערכות: שינוי בקבוצות המתמודדות מאפס את כל המערכות שהוזנו במשחק הבא
+            if (Array.isArray(nextMatch.sets) && nextMatch.sets.length > 0) {
+                nextMatch.sets = [];
+                nextMatch.score1 = null;
+                nextMatch.score2 = null;
+            }
             this.propagatePlayoffWinner(nextMatch, null);
         }
     }
@@ -4448,11 +4631,7 @@ class TournamentApp {
             if (!Array.isArray(roundMatches)) return;
             roundMatches.forEach(m => {
                 if (m.team1 && m.team2) {
-                    const s1 = 70 + Math.floor(Math.random() * 30);
-                    let s2 = 70 + Math.floor(Math.random() * 30);
-                    if (s1 === s2) s2 += 2;
-                    m.score1 = s1; m.score2 = s2;
-                    m.winner = s1 > s2 ? 'team1' : 'team2';
+                    this.fillRandomResult(m);
                     const winnerTeam = m.winner === 'team1' ? m.team1 : m.team2;
                     this.propagatePlayoffWinner(m, winnerTeam);
                 }
@@ -4465,11 +4644,7 @@ class TournamentApp {
 
         const final = this.playoffMatches.final;
         if (final && final.team1 && final.team2) {
-            const s1 = 80 + Math.floor(Math.random() * 20);
-            let s2 = 80 + Math.floor(Math.random() * 20);
-            if (s1 === s2) s2 += 1;
-            final.score1 = s1; final.score2 = s2;
-            final.winner = s1 > s2 ? 'team1' : 'team2';
+            this.fillRandomResult(final);
         }
 
         this.renderPlayoffBracket();

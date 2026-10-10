@@ -2983,3 +2983,70 @@ html, body {
         font-size: 1rem;
     }
 }
+
+/* ==========================================================================
+   פלייאוף במערכות: כרטיס המשחק בעץ מציג תא לכל מערכה
+   ========================================================================== */
+.match-team-row.sets-row .team-meta-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.bracket-tree.has-sets .bracket-round-column {
+    flex-basis: 330px;
+}
+
+.playoff-match-card.multi-set .set-label,
+.playoff-match-card.multi-set .match-team-row.sets-row input.score-input.set-cell,
+.playoff-match-card.multi-set .match-team-row.sets-row .score-display-viewer.set-cell {
+    width: 40px;
+    min-width: 40px;
+}
+
+.playoff-match-card.multi-set .sets-total,
+.playoff-match-card.multi-set .sets-total-label {
+    width: 34px;
+}
+
+.playoff-match-card.multi-set .set-label {
+    font-size: 0.62rem;
+}
+
+/* סיבוב מוגדל: תאי המערכות גדלים במידה, לא לרוחב של שדה תוצאה יחיד */
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .set-label,
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .match-team-row.sets-row input.score-input.set-cell,
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .match-team-row.sets-row .score-display-viewer.set-cell {
+    width: 52px;
+    min-width: 52px;
+    height: 42px;
+    font-size: 1.15rem;
+}
+
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .set-label {
+    height: auto;
+    font-size: 0.72rem;
+}
+
+/* בכרטיס הפלייאוף הצר תוויות המערכות נשארות בשורה אחת, והשם מקבל את מלוא הרוחב שנותר */
+.playoff-match-card.multi-set .set-label {
+    font-size: 0.56rem;
+    white-space: nowrap;
+}
+
+.playoff-match-card.multi-set .match-team-row.sets-row {
+    gap: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.playoff-match-card.multi-set .sets-cells {
+    gap: 4px;
+}
+
+.bracket-tree.has-sets .bracket-round-column {
+    flex-basis: 350px;
+}
+
+.bracket-tree.has-sets {
+    max-width: calc(var(--rounds, 3) * 380px);
+}
