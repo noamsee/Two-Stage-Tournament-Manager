@@ -9,7 +9,7 @@
     <meta property="og:description" content="Mobile Web Tournament Manager for 15 teams across 3 groups with round-robin schedule, live standings, strict no-tie validations, and top-8 playoff bracket." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="./style.css?v=4.40">
+    <link rel="stylesheet" href="./style.css?v=4.47">
     <!-- Firebase SDK (Compat v10) for seamless cross-device cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -158,8 +158,13 @@
                     ✨ טורניר חדש
                 </button>
 
-                <!-- כפתור העברה לארכיון: מופיע רק לאחר שלפלייאוף יש אלופה -->
-                <button type="button" id="headerArchiveTournamentBtn" class="btn-secondary btn-sm admin-editable hidden" onclick="app.archiveActiveTournament()" title="העברת הטורניר שהסתיים לארכיון (קריאה בלבד)">
+                <!-- כפתור סיום טורניר (כל המנהלים): מופיע רק לאחר שהוזנו תוצאות לכל המשחקים -->
+                <button type="button" id="headerFinalizeTournamentBtn" class="btn-success btn-sm admin-editable hidden" onclick="app.finalizeActiveTournament()" title="סיום הטורניר: התוצאות ננעלות לכולם, והטורניר נשאר גלוי לצופים">
+                    🏁 סיים טורניר
+                </button>
+
+                <!-- כפתור העברה לארכיון (בעלים ומפתחים בלבד): לאחר שהוזנו כל התוצאות או שהטורניר הסתיים -->
+                <button type="button" id="headerArchiveTournamentBtn" class="btn-secondary btn-sm admin-editable senior-only hidden" onclick="app.archiveActiveTournament()" title="העברת הטורניר שהסתיים לארכיון (קריאה בלבד)">
                     📦 העבר לארכיון
                 </button>
 
@@ -175,7 +180,7 @@
 
                 <!-- כפתור שינוי שם ותאריך הטורניר (מנהלים בלבד) -->
                 <button type="button" id="headerTournamentDetailsBtn" class="btn-secondary btn-sm admin-editable" onclick="app.openTournamentDetailsModal()" title="שינוי שם הטורניר והתאריך שלו">
-                    🏷️ שם ותאריך הטורניר
+                    🏷️ שנה שם או תאריך
                 </button>
 
                 <!-- כפתור שינוי שמות קבוצות (מנהלים בלבד) - פותח טאב ייעודי -->
@@ -199,6 +204,11 @@
         <div id="archiveBanner" class="archive-banner hidden">
             <span>📜 <strong>שים לב:</strong> אתה צופה בתוצאות ארכיון של טורניר סגור (מצב קריאה בלבד - נעול לשינויים).</span>
             <button id="btnSwitchToActiveTourney" class="btn-secondary btn-sm" onclick="app.switchToActiveTournament()">חזור לטורניר הפעיל</button>
+        </div>
+
+        <!-- באנר טורניר שהסתיים: גלוי לכולם, התוצאות נעולות -->
+        <div id="finishedBanner" class="archive-banner finished-banner hidden">
+            <span>🏁 <strong>הטורניר הסתיים.</strong> התוצאות סופיות ונעולות לעריכה.</span>
         </div>
 
         <!-- ניווט טאבים (גלוי לכולם, למעט הגדרות שמוסתר מצופים) -->
@@ -550,7 +560,7 @@ git push -u origin main</pre>
         <div class="modal-card" style="max-width: 460px;">
             <button class="modal-close-btn" onclick="app.closeTournamentDetailsModal()">✕</button>
             <h2 style="margin-top:0; color:#271e16; display:flex; align-items:center; gap:8px;">
-                🏷️ שם ותאריך הטורניר
+                🏷️ שינוי שם או תאריך
             </h2>
             <form onsubmit="event.preventDefault(); app.submitTournamentDetails();">
                 <div class="login-field">
@@ -664,7 +674,11 @@ git push -u origin main</pre>
                 <!-- שלב 1: שם הטורניר -->
                 <div class="login-field">
                     <label for="wizardTourneyName">🏆 שם הטורניר:</label>
-                    <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ 2026">
+                    <div class="name-with-date">
+                        <input type="text" id="wizardTourneyName" class="login-input" placeholder="למשל: טורניר קיץ" aria-describedby="wizardNameDateHint">
+                        <span id="wizardNameDateSuffix" class="name-date-suffix" aria-hidden="true"></span>
+                    </div>
+                    <small id="wizardNameDateHint" class="name-date-hint">התאריך של היום מתווסף אוטומטית לסוף השם. אפשר לשנות אותו אחר כך בכפתור "שנה שם או תאריך".</small>
                 </div>
 
                 <!-- שלב 2: סוג המבנה (3 אפשרויות לבחירה) -->
@@ -852,7 +866,7 @@ git push -u origin main</pre>
     </div>
 
     <!-- טעינת סקריפט האפליקציה המלא -->
-    <script src="./app.js?v=4.40"></script>
+    <script src="./app.js?v=4.47"></script>
 </body>
 </html>
 

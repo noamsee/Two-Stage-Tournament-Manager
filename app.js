@@ -50,7 +50,7 @@ class TournamentApp {
         this.DEVELOPER_EMAILS = ["tomerseel@gmail.com"];
         // מנהלים קבועים בקוד (בנוסף למנהלים שהבעלים מוסיף בניהול המשתמשים).
         // נכנסים במייל וסיסמה; ללא רשומת משתמש הסיסמה היא ברירת המחדל 1234.
-        this.BUILT_IN_ADMIN_EMAILS = ["tom@gmail.com"];
+        this.BUILT_IN_ADMIN_EMAILS = [];
         this.currentRole = 'viewer';
         this.currentUser = null;
         this.db = db;
@@ -229,59 +229,60 @@ class TournamentApp {
         // 1. האזנה בזמן אמת לשינויים בטורנירים (Firestore -> כל המכשירים)
         try {
             this.unsubscribeTournaments = this.db.collection('tournaments').onSnapshot(snapshot => {
-                if (snapshot && !snapshot.empty) {
-                    const cloudTournaments = [];
-                    snapshot.forEach(doc => {
-                        cloudTournaments.push({ id: doc.id, ...doc.data() });
-                    });
-                    
-                    // טורניר שהוקם זה עתה במכשיר הזה ועדיין לא הגיע מהענן נשמר ברשימה,
-                    // אחרת המנהל היה מוחזר לטורניר אחר באמצע הזנת שמות הקבוצות
-                    if (this.pendingCreatedTournamentId) {
-                        if (cloudTournaments.some(t => t.id === this.pendingCreatedTournamentId)) {
-                            this.pendingCreatedTournamentId = null;
-                        } else {
-                            const localNew = this.tournaments.find(t => t.id === this.pendingCreatedTournamentId);
-                            if (localNew) cloudTournaments.push(localNew);
-                        }
-                    }
+                if (!snapshot) return;
+                // תשובה ריקה מהמטמון המקומי בלבד אינה נחשבת, כדי לא למחוק נתונים לפני שהשרת ענה
+                if (snapshot.empty && snapshot.metadata && snapshot.metadata.fromCache) return;
 
-                    // מיון כך שהטורניר הפעיל יהיה ראשון
-                    cloudTournaments.sort((a, b) => {
-                        if (a.isArchived === b.isArchived) return (b.createdAt || '').localeCompare(a.createdAt || '');
-                        return a.isArchived ? 1 : -1;
-                    });
+                const cloudDocs = [];
+                snapshot.forEach(doc => {
+                    cloudDocs.push({ id: doc.id, ...doc.data() });
+                });
 
-                    this.tournaments = cloudTournaments;
-                    this.sanitizeTournamentNames();
-                    this.saveTournamentsListLocally();
-                    this.populateTournamentSelectors();
-                    this.renderOwnerTournamentsList();
+                // טורניר שסומן isDeleted הוא "מצבה" של הטורניר האחרון שנמחק (ראו deleteTournament):
+                // הוא אינו מוצג לאיש, ונשאר בענן רק כדי שהאוסף לא יתרוקן.
+                const deletedMarkers = cloudDocs.filter(t => t.isDeleted);
+                const cloudTournaments = cloudDocs.filter(t => !t.isDeleted);
+                const liveInCloud = cloudTournaments.length;
 
-                    // טעינה ורענון הנתונים של הטורניר הנוכחי המוצג
-                    // הטורניר המוצג, ואם נמחק - הטורניר הפעיל הבא. אם אין כזה עוברים למצב "ללא טורניר"
-                    const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.getFallbackTournament();
-                    if (currentDoc) {
-                        this.activeTournamentId = currentDoc.id;
-                        this.loadTournamentData(currentDoc.id);
+                // טורניר שהוקם זה עתה במכשיר הזה ועדיין לא הגיע מהענן נשמר ברשימה,
+                // אחרת המנהל היה מוחזר לטורניר אחר באמצע הזנת שמות הקבוצות
+                if (this.pendingCreatedTournamentId) {
+                    if (cloudDocs.some(t => t.id === this.pendingCreatedTournamentId)) {
+                        this.pendingCreatedTournamentId = null;
                     } else {
-                        this.loadTournamentData(null);
+                        const localNew = this.tournaments.find(t => t.id === this.pendingCreatedTournamentId);
+                        if (localNew) cloudTournaments.push(localNew);
                     }
-                    console.log("[Firestore] Real-time sync: Received updated tournaments from cloud (" + cloudTournaments.length + ")");
-                } else if (snapshot && snapshot.empty) {
-                    // אין טורנירים בענן: זה מצב תקין (0 טורנירים), ולא מעלים טורנירים ראשוניים במקומם.
-                    // תשובה ריקה מהמטמון המקומי בלבד אינה נחשבת, כדי לא למחוק נתונים לפני שהשרת ענה.
-                    if (snapshot.metadata && snapshot.metadata.fromCache) return;
-                    const justCreated = this.pendingCreatedTournamentId
-                        ? this.tournaments.find(t => t.id === this.pendingCreatedTournamentId)
-                        : null;
-                    this.tournaments = justCreated ? [justCreated] : [];
-                    this.saveTournamentsListLocally();
-                    this.populateTournamentSelectors();
-                    this.renderOwnerTournamentsList();
-                    this.loadTournamentData(justCreated ? justCreated.id : null);
-                    console.log("[Firestore] Real-time sync: no tournaments in the cloud.");
                 }
+
+                // מיון כך שהטורניר הפעיל יהיה ראשון
+                cloudTournaments.sort((a, b) => {
+                    if (a.isArchived === b.isArchived) return (b.createdAt || '').localeCompare(a.createdAt || '');
+                    return a.isArchived ? 1 : -1;
+                });
+
+                this.tournaments = cloudTournaments;
+                this.sanitizeTournamentNames();
+                this.saveTournamentsListLocally();
+                this.populateTournamentSelectors();
+                this.renderOwnerTournamentsList();
+
+                // הטורניר המוצג, ואם נמחק - הטורניר הפעיל הבא. אם אין כזה עוברים למצב "ללא טורניר"
+                const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.getFallbackTournament();
+                if (currentDoc) {
+                    this.activeTournamentId = currentDoc.id;
+                    this.loadTournamentData(currentDoc.id);
+                } else {
+                    this.loadTournamentData(null);
+                }
+
+                // ניקוי מצבות: ברגע שיש בענן טורניר אמיתי אחר, המצבה כבר אינה נחוצה ונמחקת לצמיתות
+                if (deletedMarkers.length > 0 && liveInCloud > 0 && this.currentUser && this.canDeleteTournaments()) {
+                    deletedMarkers.forEach(t => {
+                        this.db.collection('tournaments').doc(t.id).delete().catch(() => {});
+                    });
+                }
+                console.log("[Firestore] Real-time sync: " + liveInCloud + " tournaments in the cloud.");
             }, err => {
                 console.warn("[Firestore] Tournaments snapshot error:", err);
             });
@@ -953,10 +954,10 @@ class TournamentApp {
 
         list.innerHTML = this.tournaments.map(t => `
             <button type="button" class="login-choice-btn ${t.isArchived ? 'is-archived' : ''}" onclick="app.chooseAdminTournament('${t.id}')">
-                <span class="login-choice-icon">${t.isArchived ? '🔒' : '⚡'}</span>
+                <span class="login-choice-icon">${t.isArchived ? '🔒' : (t.isFinished ? '🏁' : '⚡')}</span>
                 <span class="login-choice-text">
                     <strong>${esc(t.name)}</strong>
-                    <small>${formatLabel(t)}${t.isArchived ? ' • סגור (ארכיון)' : ' • פעיל'}</small>
+                    <small>${formatLabel(t)}${t.isArchived ? ' • סגור (ארכיון)' : (t.isFinished ? ' • הסתיים' : ' • פעיל')}</small>
                 </span>
             </button>
         `).join('') || '<p class="placeholder-text">עדיין אין טורנירים במערכת.</p>';
@@ -1023,13 +1024,24 @@ class TournamentApp {
         const guestTourneyEl = document.getElementById('guestTournamentName');
         const currTourney = this.tournaments.find(t => t.id === this.activeTournamentId) || this.tournaments[0];
         if (guestTourneyEl && currTourney) {
-            guestTourneyEl.textContent = currTourney.name + (currTourney.isArchived ? ' (סגור)' : '');
+            guestTourneyEl.textContent = currTourney.name + (currTourney.isArchived ? ' (סגור)' : (currTourney.isFinished ? ' (הסתיים)' : ''));
         }
     }
 
+    // נעול לעריכה: טורניר בארכיון, או טורניר שהסתיים (שנשאר גלוי לצופים)
     isCurrentTournamentClosed() {
         const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
+        return !!(curr && (curr.isArchived || curr.isFinished));
+    }
+
+    isCurrentTournamentArchived() {
+        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
         return !!(curr && curr.isArchived);
+    }
+
+    isCurrentTournamentFinished() {
+        const curr = this.tournaments.find(t => t.id === this.activeTournamentId);
+        return !!(curr && curr.isFinished);
     }
 
     isGroupStageLocked() {
@@ -1085,7 +1097,8 @@ class TournamentApp {
         const adminButtons = document.querySelectorAll('.admin-editable');
         adminButtons.forEach(btn => {
             // כפתור פתיחת הטורניר מחדש וכפתור פתיחת אשף לטורניר חדש נשארים זמינים עבור מנהלים/בעלים
-            if (btn.id === 'setupCloseTournamentBtn' || btn.id === 'headerBtnNewTourney' || btn.classList.contains('btn-new-tourney')) {
+            if (btn.id === 'setupCloseTournamentBtn' || btn.id === 'headerBtnNewTourney' || btn.classList.contains('btn-new-tourney')
+                || btn.id === 'headerArchiveTournamentBtn' || btn.classList.contains('btn-csv')) {
                 btn.disabled = (newRole === 'viewer');
                 btn.title = "";
             } else {
@@ -1697,9 +1710,9 @@ class TournamentApp {
                 let label = t.name;
                 if (isViewer) {
                     const clean = this.cleanTournamentName(t.name);
-                    label = `⚡ ${clean} (פעיל)`;
+                    label = t.isFinished ? `🏁 ${clean} (הסתיים)` : `⚡ ${clean} (פעיל)`;
                 } else {
-                    label = `${t.name} ${t.isArchived ? '(ארכיון)' : '⚡'}`;
+                    label = `${t.name} ${t.isArchived ? '(ארכיון)' : (t.isFinished ? '🏁 (הסתיים)' : '⚡')}`;
                 }
                 const isSelected = (t.id === this.activeTournamentId) || (!list.some(item => item.id === this.activeTournamentId) && t === list[0]);
                 return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
@@ -2012,7 +2025,12 @@ class TournamentApp {
         const archiveBanner = document.getElementById('archiveBanner');
         if (!archiveBanner) return;
 
-        const isClosed = this.isCurrentTournamentClosed();
+        const finishedBanner = document.getElementById('finishedBanner');
+        if (finishedBanner) {
+            finishedBanner.classList.toggle('hidden', !(this.isCurrentTournamentFinished() && !this.isCurrentTournamentArchived()));
+        }
+
+        const isClosed = this.isCurrentTournamentArchived();
         if (isClosed) {
             archiveBanner.classList.remove('hidden');
             const switchBtn = document.getElementById('btnSwitchToActiveTourney');
@@ -2103,6 +2121,9 @@ class TournamentApp {
     openTournamentWizard(isEdit = false, targetTourneyId = null) {
         const setsSelect = document.getElementById('wizardSetsPerMatch');
         if (setsSelect) setsSelect.value = '';
+        // התאריך שיתווסף לשם הטורניר מוצג צמוד לשדה השם
+        const dateSuffix = document.getElementById('wizardNameDateSuffix');
+        if (dateSuffix) dateSuffix.textContent = `- ${this.formatTournamentDate(this.todayIsoDate())}`;
         if (!this.isManagerRole()) {
             this.showAlert("רק מנהל (Admin) או Owner רשאים להקים או לערוך טורניר!", "error");
             return;
@@ -2400,17 +2421,10 @@ class TournamentApp {
             }
         }
 
-        // טורניר עם בתים נפתח עם שמות ריקים: המנהל מזין את כל השמות ורק אז יוצר את לוח המשחקים.
-        // טורניר נוקאאוט בלבד ממשיך להיפתח עם שמות ברירת מחדל.
+        // כל טורניר חדש נפתח עם שמות ריקים: המנהל מזין את כל השמות ורק אז יוצר את לוח המשחקים / עץ הפלייאוף
         const teams = [];
         for (let i = 0; i < totalTeams; i++) {
-            if (format !== 'knockout_only') {
-                teams.push('');
-            } else if (i < this.defaultTeams.length) {
-                teams.push(this.defaultTeams[i]);
-            } else {
-                teams.push(`קבוצה ${i + 1}`);
-            }
+            teams.push('');
         }
 
         let groups = {};
@@ -2468,7 +2482,7 @@ class TournamentApp {
             setsPerMatch: (parseInt(document.getElementById('wizardSetsPerMatch')?.value || '1', 10) === 3) ? 3 : 1,
             pointsPerWin,
             pointsPerLoss,
-            boardCreated: format === 'knockout_only',
+            boardCreated: false,
             createdAt: new Date().toLocaleDateString('he-IL'),
             isArchived: false,
             teams,
@@ -2690,6 +2704,16 @@ class TournamentApp {
     sanitizeTournamentNames() {
         if (!Array.isArray(this.tournaments)) return;
         let changed = false;
+        // שם מוצג נבנה תמיד מהשם והתאריך השמורים (כך גם שמות שנשמרו בפורמט תאריך קודם מתעדכנים)
+        this.tournaments.forEach(t => {
+            if (t.baseName && t.eventDate) {
+                const built = this.buildTournamentName(t.baseName, t.eventDate);
+                if (t.name !== built) {
+                    t.name = built;
+                    changed = true;
+                }
+            }
+        });
         this.tournaments.forEach(t => {
             if (t.name && (t.name.includes('(ארכיון) (ארכיון)') || t.name.includes('(ארכיון)(ארכיון)') || t.name.includes('(ארכיון)  (ארכיון)'))) {
                 t.name = t.name.replace(/(\s*\(ארכיון\))+/g, '').trim();
@@ -2764,18 +2788,72 @@ class TournamentApp {
         return !!final && (final.winner === 'team1' || final.winner === 'team2');
     }
 
-    // כפתור "העבר לארכיון" בסרגל העליון מוצג רק כשלפלייאוף יש אלופה והטורניר עדיין פתוח
+    canArchiveTournaments(role = this.currentRole) {
+        return role === 'owner' || role === 'developer';
+    }
+
+    // כל נתוני הטורניר הוזנו:
+    // בתים בלבד - כל משחקי הבתים הוכרעו; נוקאאוט בלבד - יש אלופה; בתים + פלייאוף - כל משחקי הבתים הוכרעו ויש אלופה
+    isTournamentComplete() {
+        if (!this.activeTournamentId || !this.boardCreated) return false;
+        const decided = (m) => !!m && (m.winner === 'team1' || m.winner === 'team2') && !this.isTiedScore(m);
+        if (this.format === 'knockout_only') return this.hasPlayoffChampion();
+        const housesDone = Array.isArray(this.matches) && this.matches.length > 0 && this.matches.every(decided);
+        if (this.format === 'groups_only') return housesDone;
+        return housesDone && this.hasPlayoffChampion();
+    }
+
+    // "סיים טורניר" (כל המנהלים) מוצג רק כשכל התוצאות הוזנו והטורניר עדיין פתוח.
+    // "העבר לארכיון" (בעלים ומפתחים) מוצג כשכל התוצאות הוזנו או שהטורניר כבר הסתיים.
     updateArchiveButtonUI() {
-        const btn = document.getElementById('headerArchiveTournamentBtn');
-        if (!btn) return;
-        const canArchive = this.format !== 'groups_only' && this.hasPlayoffChampion() && !this.isCurrentTournamentClosed();
-        btn.classList.toggle('hidden', !canArchive);
+        const archived = this.isCurrentTournamentArchived();
+        const finished = this.isCurrentTournamentFinished();
+        const complete = this.isTournamentComplete();
+        const finalizeBtn = document.getElementById('headerFinalizeTournamentBtn');
+        if (finalizeBtn) finalizeBtn.classList.toggle('hidden', !(complete && !finished && !archived));
+        const archiveBtn = document.getElementById('headerArchiveTournamentBtn');
+        if (archiveBtn) archiveBtn.classList.toggle('hidden', !((complete || finished) && !archived));
+
+        // בטורניר שהסתיים או בארכיון אין מה לערוך: כפתורי שינוי שמות הקבוצות ושם/תאריך הטורניר נעלמים
+        ['headerRenameTeamsBtn', 'headerTournamentDetailsBtn'].forEach(id => {
+            document.getElementById(id)?.classList.toggle('stage-locked-hidden', finished || archived);
+        });
+    }
+
+    // סיום טורניר: התוצאות ננעלות לכולם (גם למנהלים), אך הטורניר נשאר גלוי לצופים - בשונה מארכיון
+    finalizeActiveTournament() {
+        if (!this.isManagerRole()) return;
+        const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
+        if (!tourney || tourney.isArchived || tourney.isFinished) return;
+
+        this.flushAllScoreDrafts();
+        this.finishPlayoffEditing();
+        if (!this.isTournamentComplete()) {
+            this.showAlert("ניתן לסיים טורניר רק לאחר שהוזנו תוצאות לכל המשחקים.", "warning");
+            return;
+        }
+        if (!confirm(`לסיים את הטורניר "${tourney.name}"? לאחר הסיום התוצאות סופיות ולא ניתן יהיה לשנות אותן.`)) {
+            return;
+        }
+
+        this.saveActiveTournamentData();
+        tourney.isFinished = true;
+        this.saveTournamentsList();
+        this.loadTournamentData(tourney.id);
+        this.populateTournamentSelectors();
+        this.renderOwnerTournamentsList();
+        this.updateGuestTournamentBadge();
+        this.showAlert(`הטורניר "${tourney.name}" הסתיים. התוצאות סופיות ונעולות.`, "success");
     }
 
     archiveActiveTournament() {
-        if (this.isCurrentTournamentClosed()) return;
-        if (!this.hasPlayoffChampion()) {
-            this.showAlert("ניתן להעביר טורניר לארכיון רק לאחר שנקבעה אלופה בפלייאוף.", "warning");
+        if (!this.canArchiveTournaments()) {
+            this.showAlert("רק בעלים (Owner) או מפתח (Developer) רשאים להעביר טורניר לארכיון.", "warning");
+            return;
+        }
+        if (this.isCurrentTournamentArchived()) return;
+        if (!this.isTournamentComplete() && !this.isCurrentTournamentFinished()) {
+            this.showAlert("ניתן להעביר טורניר לארכיון רק לאחר שהוזנו תוצאות לכל המשחקים.", "warning");
             return;
         }
         this.toggleCloseTournament(this.activeTournamentId);
@@ -2853,10 +2931,17 @@ class TournamentApp {
         this.tournaments = this.tournaments.filter(t => t.id !== tourneyId);
         this.saveTournamentsListLocally();
 
-        // מחיקה מ-Firestore
+        // מחיקה מ-Firestore.
+        // הטורניר האחרון אינו נמחק פיזית אלא מסומן isDeleted (מצבה מוסתרת): דפדפנים שעדיין מריצים גרסה
+        // ישנה של האתר מעלים מחדש את הטורנירים שבזיכרון שלהם ברגע שהאוסף בענן מתרוקן, וכך הטורניר
+        // "חזר" אחרי המחיקה. כשהאוסף אינו ריק זה לא קורה. המצבה נמחקת מעצמה כשנוצר טורניר חדש.
         if (this.db) {
             try {
-                await this.db.collection('tournaments').doc(tourneyId).delete();
+                if (isLastTournament) {
+                    await this.db.collection('tournaments').doc(tourneyId).set({ ...tourney, isDeleted: true, isArchived: true });
+                } else {
+                    await this.db.collection('tournaments').doc(tourneyId).delete();
+                }
                 console.log(`[Firestore] Tournament ${tourneyId} deleted from Firestore.`);
             } catch (err) {
                 console.error("[Firestore] Error deleting tournament from Firestore:", err);
@@ -2961,17 +3046,21 @@ class TournamentApp {
     switchTab(tabId) {
         // ניהול המשתמשים שמור לבעלים בלבד (גם אם מנסים להגיע אליו שלא דרך הכפתור)
         if (tabId === 'users' && this.currentRole !== 'owner') {
-            tabId = this.format === 'knockout_only' ? 'playoffs' : 'group-stage';
+            tabId = this.getMainViewTab();
         }
-        // טורניר עם בתים: אחרי יצירת הלוח אין טאב הגדרות, ולפניה מנהל רואה רק אותו
-        if (this.format !== 'knockout_only') {
+        // בכל מבנה: אחרי יצירת הלוח אין טאב הגדרות, ולפניה מנהל רואה רק אותו.
+        // בנוקאאוט בלבד אין טאב בתים; בטורניר עם בתים הפלייאוף נפתח רק לאחר נעילת שלב הבתים.
+        {
+            const isKnockout = this.format === 'knockout_only';
             const isManager = this.isManagerRole();
             if (tabId === 'setup' && this.boardCreated) {
-                tabId = 'group-stage';
-            } else if (tabId === 'playoffs' && this.boardCreated && !this.isPlayoffOpen()) {
-                tabId = 'group-stage';
+                tabId = this.getMainViewTab();
             } else if ((tabId === 'group-stage' || tabId === 'playoffs') && !this.boardCreated && isManager) {
                 tabId = 'setup';
+            } else if (isKnockout && tabId === 'group-stage') {
+                tabId = 'playoffs';
+            } else if (!isKnockout && tabId === 'playoffs' && this.boardCreated && !this.isPlayoffOpen()) {
+                tabId = 'group-stage';
             }
         }
         this.flushAllScoreDrafts();
@@ -3015,7 +3104,7 @@ class TournamentApp {
             if (subEl) subEl.textContent = isClosed 
                 ? `🔒 הטורניר סגור ונעול לעריכה (מצב קריאה בלבד). לפתיחתו יש ללחוץ על 'פתח טורניר מחדש'.`
                 : `מיועד ל-Admin/Owner בלבד. הזן את שמות ${this.teams.length} הקבוצות המשתתפות ישירות בעץ הפלייאוף:`;
-            if (genBtn) genBtn.textContent = `🔄 סנכרן שמות קבוצות לעץ הפלייאוף`;
+            if (genBtn) genBtn.textContent = `⚡ ייצר עץ פלייאוף (${this.teams.length} קבוצות)`;
 
             this.teams.forEach((teamName, index) => {
                 const div = document.createElement('div');
@@ -3079,7 +3168,7 @@ class TournamentApp {
         if (this.isCurrentTournamentClosed()) return;
         const trimmed = newName.trim();
         // לפני יצירת לוח המשחקים שם ריק נשאר ריק, כדי שהמנהל יידרש להזין שם לכל קבוצה
-        const allowEmpty = this.format !== 'knockout_only' && !this.boardCreated;
+        const allowEmpty = !this.boardCreated;
         this.teams[index] = trimmed || (allowEmpty ? '' : `קבוצה ${index + 1}`);
 
         if (this.format === 'knockout_only') {
@@ -3158,7 +3247,12 @@ class TournamentApp {
 
     // האם לוח המשחקים כבר נוצר (רלוונטי לטורנירים עם בתים; בנוקאאוט בלבד אין שלב כזה)
     isBoardReady() {
-        return this.format === 'knockout_only' || !!this.boardCreated;
+        return !!this.boardCreated;
+    }
+
+    // הטאב הראשי של הטורניר לאחר יצירת הלוח: בתים, או עץ הפלייאוף בטורניר נוקאאוט בלבד
+    getMainViewTab() {
+        return this.format === 'knockout_only' ? 'playoffs' : 'group-stage';
     }
 
     // שלב הבתים ננעל והפלייאוף שובץ (רלוונטי רק לטורניר של בתים + פלייאוף)
@@ -3171,18 +3265,25 @@ class TournamentApp {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
         }
+        if (this.boardCreated) return;
 
-        if (this.format !== 'knockout_only') {
-            if (this.boardCreated) return;
-            const missing = (this.teams || []).filter(name => !String(name || '').trim()).length;
-            if (missing > 0) {
-                this.showAlert(`יש להזין שם לכל הקבוצות לפני יצירת לוח המשחקים (חסרים ${missing} שמות).`, "warning");
-                return;
-            }
-            this.boardCreated = true;
+        const isKnockout = this.format === 'knockout_only';
+        const missing = (this.teams || []).filter(name => !String(name || '').trim()).length;
+        if (missing > 0) {
+            this.showAlert(`יש להזין שם לכל הקבוצות לפני יצירת ${isKnockout ? 'עץ הפלייאוף' : 'לוח המשחקים'} (חסרים ${missing} שמות).`, "warning");
+            return;
+        }
+        this.boardCreated = true;
+
+        // בנוקאאוט בלבד העץ כבר בנוי: מעדכנים בו ובדירוג את השמות שהוזנו
+        if (isKnockout) {
+            (this.playoffSeeds || []).forEach(seed => {
+                if (seed && seed.teamIndex !== undefined) seed.teamName = this.teams[seed.teamIndex];
+            });
         }
 
         this.generateTournamentGroups(true);
+        if (isKnockout) this.saveActiveTournamentData();
         this.populateTournamentSelectors();
         this.updateBoardStateUI();
     }
@@ -3306,11 +3407,11 @@ class TournamentApp {
         return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     }
 
-    // 2026-10-10 -> 10.10.2026
+    // 2026-10-10 -> 10/10/2026
     formatTournamentDate(isoDate) {
         const parts = String(isoDate || '').split('-');
         if (parts.length !== 3 || parts.some(p => !/^\d+$/.test(p))) return '';
-        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
     buildTournamentName(baseName, isoDate) {
@@ -3322,7 +3423,7 @@ class TournamentApp {
         if (!this.isManagerRole()) return;
         const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
         if (!tourney) return;
-        if (tourney.isArchived) {
+        if (tourney.isArchived || tourney.isFinished) {
             this.showAlert("הטורניר סגור ונעול לעריכה.", "warning");
             return;
         }
@@ -3350,7 +3451,7 @@ class TournamentApp {
     submitTournamentDetails() {
         if (!this.isManagerRole()) return;
         const tourney = this.tournaments.find(t => t.id === this.activeTournamentId);
-        if (!tourney || tourney.isArchived) return;
+        if (!tourney || tourney.isArchived || tourney.isFinished) return;
 
         const baseName = (document.getElementById('tournamentDetailsName')?.value || '').trim();
         const eventDate = document.getElementById('tournamentDetailsDate')?.value || '';
@@ -3376,7 +3477,7 @@ class TournamentApp {
     }
 
     updateBoardStateUI() {
-        const hasHouses = this.format !== 'knockout_only';
+        const isKnockout = this.format === 'knockout_only';
         // טאב שינוי השמות פתוח: מרעננים אותו כשהנתונים מתעדכנים, אלא אם המנהל מקליד בו כרגע
         const namesTab = document.getElementById('tab-team-names');
         if (namesTab && !namesTab.classList.contains('hidden') && !namesTab.contains(document.activeElement)) {
@@ -3386,10 +3487,12 @@ class TournamentApp {
         const tabBtn = (name) => document.querySelector(`.tab-btn[onclick*="'${name}'"]`);
         const setHidden = (name, hidden) => { const btn = tabBtn(name); if (btn) btn.classList.toggle('board-hidden', hidden); };
 
-        setHidden('setup', hasHouses && this.boardCreated);
-        setHidden('group-stage', hasHouses && !this.boardCreated);
-        // טאב הפלייאוף מוצג (לכולם) רק לאחר נעילת שלב הבתים ושיבוץ הפלייאוף
-        setHidden('playoffs', hasHouses && (!this.boardCreated || !this.isPlayoffOpen()));
+        // בכל מבנה: לפני יצירת הלוח רק טאב ההגדרות, ואחריה הוא נעלם
+        setHidden('setup', !!this.boardCreated);
+        // טאב הבתים אינו קיים בטורניר נוקאאוט בלבד
+        setHidden('group-stage', isKnockout || !this.boardCreated);
+        // טאב הפלייאוף: בנוקאאוט בלבד מיד עם יצירת העץ; בטורניר עם בתים רק לאחר נעילת שלב הבתים
+        setHidden('playoffs', !this.boardCreated || (!isKnockout && !this.isPlayoffOpen()));
 
         // לאחר הנעילה כפתור הנעילה וסרגל הפעולות של שלב הבתים נעלמים: המנהל רואה את שלב הבתים כמו צופה
         const stageLocked = this.isPlayoffOpen();
@@ -3399,7 +3502,7 @@ class TournamentApp {
         // אם הטאב הפתוח כרגע הוסתר, עוברים לטאב המתאים למצב הטורניר
         const activeBtn = document.querySelector('.tab-btn.active');
         if (activeBtn && activeBtn.classList.contains('board-hidden')) {
-            this.switchTab(this.boardCreated ? 'group-stage' : 'setup');
+            this.switchTab(this.boardCreated ? this.getMainViewTab() : 'setup');
         }
     }
 
@@ -3419,7 +3522,7 @@ class TournamentApp {
             this.renderPlayoffBracket();
             if (shouldSwitchTab) {
                 this.switchTab('playoffs');
-                this.showAlert("שמות הקבוצות סונכרנו לעץ הפלייאוף!", "success");
+                this.showAlert("עץ הפלייאוף נוצר בהצלחה!", "success");
             }
             return;
         }
@@ -4168,6 +4271,7 @@ class TournamentApp {
 
         this.standings = calculatedStandings;
         this.renderStandings(groupHeaders);
+        this.updateArchiveButtonUI();
     }
 
     // יחס זכות/חובה (מערכות או נקודות). ללא חובה כלל היחס הוא מקסימלי.
