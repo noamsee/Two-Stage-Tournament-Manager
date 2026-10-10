@@ -264,6 +264,39 @@ header h1 {
     margin-bottom: 24px;
 }
 
+/* הגדרות טורניר: הקבוצות מקובצות לפי בתים */
+.team-house-section {
+    grid-column: 1 / -1;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 14px 14px;
+}
+
+.team-house-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.team-house-count {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--neutral-grey);
+    padding: 2px 8px;
+    border-radius: 9999px;
+}
+
+.teams-grid.team-house-grid {
+    margin-bottom: 0;
+    gap: 10px;
+}
+
 .team-input-group {
     display: flex;
     flex-direction: column;
@@ -1644,6 +1677,38 @@ input.login-input[type="password"] {
     opacity: 0.85;
 }
 
+/* חלון בחירת טורניר לניהול (לאחר התחברות מנהל) */
+.admin-chooser-card {
+    max-width: 480px;
+    background: var(--card-bg);
+}
+
+.admin-chooser-title {
+    margin: 0 0 4px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.admin-chooser-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0 12px;
+    max-height: 46vh;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.admin-chooser-list .login-choice-btn.is-archived {
+    background: var(--neutral-grey);
+    color: var(--text-muted);
+}
+
+.admin-chooser-new {
+    margin-top: 4px;
+}
+
 .login-back-link {
     display: block;
     width: 100%;
@@ -2298,14 +2363,14 @@ body.role-viewer .guest-tournament-badge {
     flex-shrink: 0;
 }
 
-/* תוצאת תיקו במשחק */
+/* תוצאה שווה (אין תיקו בכדורשת): מסומנת כמשחק שטרם הוכרע */
 .match-team-row.draw-match {
     background-color: #d9c9ae !important;
     border-right: 4px solid #6b5b45;
 }
 
 .match-team-row.draw-match .team-name::after {
-    content: " 🤝";
+    content: " ⚠️";
     font-size: 0.85rem;
 }
 
@@ -2822,4 +2887,362 @@ html, body {
     margin-top: 3px;
     font-size: 0.78rem;
     color: #57493a;
+}
+
+/* הגדרות טורניר במובייל: שתי קבוצות בשורה בכל בית, כדי שהרשימה לא תהיה ארוכה מדי */
+@media (max-width: 640px) {
+    .team-house-section {
+        padding: 10px;
+    }
+
+    .teams-grid.team-house-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .team-house-grid .team-input-group {
+        padding: 8px;
+        min-width: 0;
+    }
+
+    .team-house-grid .team-input-group input {
+        width: 100%;
+        min-width: 0;
+        font-size: 16px;
+    }
+}
+
+/* טאב שמוסתר לפי מצב לוח המשחקים (לפני/אחרי יצירת הלוח) */
+.tab-btn.board-hidden {
+    display: none !important;
+}
+
+/* רכיבי עריכה של שלב הבתים שמוסתרים לאחר נעילת השלב ושיבוץ הפלייאוף */
+.stage-locked-hidden {
+    display: none !important;
+}
+
+/* ==========================================================================
+   משחק במערכות (הטוב משלוש): כל מערכה מוצגת בתא משלה בכרטיס המשחק
+   ========================================================================== */
+.match-card.multi-set .sets-labels {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.sets-labels-spacer {
+    flex: 1;
+}
+
+.sets-cells {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.set-label {
+    width: 46px;
+    text-align: center;
+}
+
+.sets-total,
+.sets-total-label {
+    width: 40px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.sets-total {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.match-team-row.sets-row {
+    gap: 8px;
+}
+
+.match-team-row.sets-row input.score-input.set-cell,
+.match-team-row.sets-row .score-display-viewer.set-cell {
+    width: 46px;
+    min-width: 46px;
+    height: 34px;
+    padding: 2px;
+    font-size: 0.98rem;
+}
+
+/* המערכה שהקבוצה ניצחה מודגשת בירוק */
+.match-team-row.sets-row .set-cell.set-won {
+    background: #86efac;
+    border-color: #16a34a;
+    color: #065f46;
+}
+
+/* מערכה שלישית שאינה נדרשת (המשחק הוכרע 2:0) */
+.match-team-row.sets-row .set-cell.set-not-needed {
+    opacity: 0.4;
+}
+
+/* טבלת הבתים: יחס (מספר גדול) ומתחתיו זכות:חובה */
+.standings-table td.ratio-cell {
+    line-height: 1.15;
+}
+
+.ratio-main {
+    display: block;
+    font-weight: 800;
+}
+
+.ratio-sub {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+    /* במובייל כרטיס מערכות נשאר שורה לכל קבוצה (ולא שתי קבוצות זו מול זו) */
+    #group-matches-container .match-card.multi-set {
+        display: block;
+    }
+
+    #group-matches-container .match-card.multi-set .match-team-row,
+    #group-matches-container .match-card.multi-set .match-team-row:last-child {
+        flex-direction: row;
+        border-right: none;
+        padding: 6px 8px;
+    }
+
+    #group-matches-container .match-card.multi-set .match-team-row:first-of-type {
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    #group-matches-container .match-card.multi-set .match-team-row:last-child .team-name {
+        text-align: right;
+    }
+
+    #group-matches-container .match-card.multi-set .match-team-row.winner:last-child {
+        box-shadow: inset -4px 0 0 #16a34a;
+    }
+
+    .match-card.multi-set .sets-labels {
+        padding: 5px 8px 0;
+        gap: 6px;
+    }
+
+    .match-team-row.sets-row {
+        gap: 6px;
+    }
+
+    .sets-cells {
+        gap: 4px;
+    }
+
+    .set-label {
+        width: 42px;
+        font-size: 0.62rem;
+    }
+
+    .match-team-row.sets-row input.score-input.set-cell,
+    .match-team-row.sets-row .score-display-viewer.set-cell {
+        width: 42px;
+        min-width: 42px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    .sets-total,
+    .sets-total-label {
+        width: 34px;
+        font-size: 0.62rem;
+    }
+
+    .sets-total {
+        font-size: 1rem;
+    }
+}
+
+/* ==========================================================================
+   פלייאוף במערכות: כרטיס המשחק בעץ מציג תא לכל מערכה
+   ========================================================================== */
+.match-team-row.sets-row .team-meta-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.bracket-tree.has-sets .bracket-round-column {
+    flex-basis: 330px;
+}
+
+.playoff-match-card.multi-set .set-label,
+.playoff-match-card.multi-set .match-team-row.sets-row input.score-input.set-cell,
+.playoff-match-card.multi-set .match-team-row.sets-row .score-display-viewer.set-cell {
+    width: 40px;
+    min-width: 40px;
+}
+
+.playoff-match-card.multi-set .sets-total,
+.playoff-match-card.multi-set .sets-total-label {
+    width: 34px;
+}
+
+.playoff-match-card.multi-set .set-label {
+    font-size: 0.62rem;
+}
+
+/* סיבוב מוגדל: תאי המערכות גדלים במידה, לא לרוחב של שדה תוצאה יחיד */
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .set-label,
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .match-team-row.sets-row input.score-input.set-cell,
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .match-team-row.sets-row .score-display-viewer.set-cell {
+    width: 52px;
+    min-width: 52px;
+    height: 42px;
+    font-size: 1.15rem;
+}
+
+.bracket-round-column.is-enlarged .playoff-match-card.multi-set .set-label {
+    height: auto;
+    font-size: 0.72rem;
+}
+
+/* בכרטיס הפלייאוף הצר תוויות המערכות נשארות בשורה אחת, והשם מקבל את מלוא הרוחב שנותר */
+.playoff-match-card.multi-set .set-label {
+    font-size: 0.56rem;
+    white-space: nowrap;
+}
+
+.playoff-match-card.multi-set .match-team-row.sets-row {
+    gap: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.playoff-match-card.multi-set .sets-cells {
+    gap: 4px;
+}
+
+.bracket-tree.has-sets .bracket-round-column {
+    flex-basis: 350px;
+}
+
+.bracket-tree.has-sets {
+    max-width: calc(var(--rounds, 3) * 380px);
+}
+
+/* ==========================================================================
+   הרשאות מפתח (Developer): כמו מנהל, ובנוסף מחיקת טורנירים וכלי בדיקה
+   ========================================================================== */
+/* מחיקת טורניר: בעלים ומפתח בלבד */
+body:not(.role-owner):not(.role-developer) .can-delete-only {
+    display: none !important;
+}
+
+/* כלי בדיקה (מילוי/איפוס תוצאות, סימולציית פלייאוף, שמות לדוגמה): בעלים ומפתח בלבד */
+body:not(.role-owner):not(.role-developer) .debug-only {
+    display: none !important;
+}
+
+/* ==========================================================================
+   מצב ללא טורניר פעיל
+   ========================================================================== */
+#noTournamentState {
+    display: none;
+    text-align: center;
+    padding: 44px 20px;
+}
+
+body.no-tournament #noTournamentState {
+    display: block;
+}
+
+.no-tournament-icon {
+    font-size: 2.6rem;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+
+.no-tournament-state h2 {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.no-tournament-state p {
+    margin: 0 auto 18px;
+    max-width: 440px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.no-tournament-create {
+    padding: 12px 24px;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+/* ההודעה לצופים מוצגת רק לצופים; החלק של המנהלים מוסתר מצופים דרך admin-editable */
+body:not(.role-viewer) .no-tournament-viewer {
+    display: none;
+}
+
+/* בלי טורניר מוצג אין טאבים, תוכן טורניר או פעולות על טורניר */
+body.no-tournament nav.tabs,
+body.no-tournament .tab-section,
+body.no-tournament #archiveBanner,
+body.no-tournament .btn-csv,
+body.no-tournament #headerRenameTeamsBtn,
+body.no-tournament #headerArchiveTournamentBtn,
+body.no-tournament #headerBtnNewTourney,
+body.no-tournament .can-delete-only,
+body.no-tournament .guest-tournament-badge,
+body.zero-tournaments .tournament-select-wrap {
+    display: none !important;
+}
+
+/* מסך הכניסה לצופים כשאין טורניר פעיל */
+.viewer-waiting {
+    display: none;
+    text-align: center;
+    padding: 8px 4px 4px;
+    color: var(--text-main);
+}
+
+.viewer-waiting strong {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.viewer-waiting p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+#login-step-viewer.no-active .viewer-waiting {
+    display: block;
+}
+
+#login-step-viewer.no-active .login-field,
+#login-step-viewer.no-active .login-btn-primary {
+    display: none !important;
+}
+
+/* סרגל הפעולות העליון של שלב הבתים מכיל רק כלים לבעלים ולמפתחים (כולל כפתור הנעילה העליון),
+   ולכן מנהל רגיל אינו רואה אותו כלל; כפתור הנעילה התחתון נשאר לכל המנהלים */
+body:not(.role-owner):not(.role-developer) #tab-group-stage .top-action-toolbar {
+    display: none !important;
+}
+
+/* כפתור שם ותאריך הטורניר אינו רלוונטי כשאין טורניר מוצג */
+body.no-tournament #headerTournamentDetailsBtn {
+    display: none !important;
 }
