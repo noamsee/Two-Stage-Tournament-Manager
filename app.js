@@ -2810,6 +2810,11 @@ class TournamentApp {
         if (finalizeBtn) finalizeBtn.classList.toggle('hidden', !(complete && !finished && !archived));
         const archiveBtn = document.getElementById('headerArchiveTournamentBtn');
         if (archiveBtn) archiveBtn.classList.toggle('hidden', !((complete || finished) && !archived));
+
+        // בטורניר שהסתיים או בארכיון אין מה לערוך: כפתורי שינוי שמות הקבוצות ושם/תאריך הטורניר נעלמים
+        ['headerRenameTeamsBtn', 'headerTournamentDetailsBtn'].forEach(id => {
+            document.getElementById(id)?.classList.toggle('stage-locked-hidden', finished || archived);
+        });
     }
 
     // סיום טורניר: התוצאות ננעלות לכולם (גם למנהלים), אך הטורניר נשאר גלוי לצופים - בשונה מארכיון
