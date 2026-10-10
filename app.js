@@ -229,59 +229,60 @@ class TournamentApp {
         // 1. האזנה בזמן אמת לשינויים בטורנירים (Firestore -> כל המכשירים)
         try {
             this.unsubscribeTournaments = this.db.collection('tournaments').onSnapshot(snapshot => {
-                if (snapshot && !snapshot.empty) {
-                    const cloudTournaments = [];
-                    snapshot.forEach(doc => {
-                        cloudTournaments.push({ id: doc.id, ...doc.data() });
-                    });
-                    
-                    // טורניר שהוקם זה עתה במכשיר הזה ועדיין לא הגיע מהענן נשמר ברשימה,
-                    // אחרת המנהל היה מוחזר לטורניר אחר באמצע הזנת שמות הקבוצות
-                    if (this.pendingCreatedTournamentId) {
-                        if (cloudTournaments.some(t => t.id === this.pendingCreatedTournamentId)) {
-                            this.pendingCreatedTournamentId = null;
-                        } else {
-                            const localNew = this.tournaments.find(t => t.id === this.pendingCreatedTournamentId);
-                            if (localNew) cloudTournaments.push(localNew);
-                        }
-                    }
+                if (!snapshot) return;
+                // תשובה ריקה מהמטמון המקומי בלבד אינה נחשבת, כדי לא למחוק נתונים לפני שהשרת ענה
+                if (snapshot.empty && snapshot.metadata && snapshot.metadata.fromCache) return;
 
-                    // מיון כך שהטורניר הפעיל יהיה ראשון
-                    cloudTournaments.sort((a, b) => {
-                        if (a.isArchived === b.isArchived) return (b.createdAt || '').localeCompare(a.createdAt || '');
-                        return a.isArchived ? 1 : -1;
-                    });
+                const cloudDocs = [];
+                snapshot.forEach(doc => {
+                    cloudDocs.push({ id: doc.id, ...doc.data() });
+                });
 
-                    this.tournaments = cloudTournaments;
-                    this.sanitizeTournamentNames();
-                    this.saveTournamentsListLocally();
-                    this.populateTournamentSelectors();
-                    this.renderOwnerTournamentsList();
+                // טורניר שסומן isDeleted הוא "מצבה" של הטורניר האחרון שנמחק (ראו deleteTournament):
+                // הוא אינו מוצג לאיש, ונשאר בענן רק כדי שהאוסף לא יתרוקן.
+                const deletedMarkers = cloudDocs.filter(t => t.isDeleted);
+                const cloudTournaments = cloudDocs.filter(t => !t.isDeleted);
+                const liveInCloud = cloudTournaments.length;
 
-                    // טעינה ורענון הנתונים של הטורניר הנוכחי המוצג
-                    // הטורניר המוצג, ואם נמחק - הטורניר הפעיל הבא. אם אין כזה עוברים למצב "ללא טורניר"
-                    const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.getFallbackTournament();
-                    if (currentDoc) {
-                        this.activeTournamentId = currentDoc.id;
-                        this.loadTournamentData(currentDoc.id);
+                // טורניר שהוקם זה עתה במכשיר הזה ועדיין לא הגיע מהענן נשמר ברשימה,
+                // אחרת המנהל היה מוחזר לטורניר אחר באמצע הזנת שמות הקבוצות
+                if (this.pendingCreatedTournamentId) {
+                    if (cloudDocs.some(t => t.id === this.pendingCreatedTournamentId)) {
+                        this.pendingCreatedTournamentId = null;
                     } else {
-                        this.loadTournamentData(null);
+                        const localNew = this.tournaments.find(t => t.id === this.pendingCreatedTournamentId);
+                        if (localNew) cloudTournaments.push(localNew);
                     }
-                    console.log("[Firestore] Real-time sync: Received updated tournaments from cloud (" + cloudTournaments.length + ")");
-                } else if (snapshot && snapshot.empty) {
-                    // אין טורנירים בענן: זה מצב תקין (0 טורנירים), ולא מעלים טורנירים ראשוניים במקומם.
-                    // תשובה ריקה מהמטמון המקומי בלבד אינה נחשבת, כדי לא למחוק נתונים לפני שהשרת ענה.
-                    if (snapshot.metadata && snapshot.metadata.fromCache) return;
-                    const justCreated = this.pendingCreatedTournamentId
-                        ? this.tournaments.find(t => t.id === this.pendingCreatedTournamentId)
-                        : null;
-                    this.tournaments = justCreated ? [justCreated] : [];
-                    this.saveTournamentsListLocally();
-                    this.populateTournamentSelectors();
-                    this.renderOwnerTournamentsList();
-                    this.loadTournamentData(justCreated ? justCreated.id : null);
-                    console.log("[Firestore] Real-time sync: no tournaments in the cloud.");
                 }
+
+                // מיון כך שהטורניר הפעיל יהיה ראשון
+                cloudTournaments.sort((a, b) => {
+                    if (a.isArchived === b.isArchived) return (b.createdAt || '').localeCompare(a.createdAt || '');
+                    return a.isArchived ? 1 : -1;
+                });
+
+                this.tournaments = cloudTournaments;
+                this.sanitizeTournamentNames();
+                this.saveTournamentsListLocally();
+                this.populateTournamentSelectors();
+                this.renderOwnerTournamentsList();
+
+                // הטורניר המוצג, ואם נמחק - הטורניר הפעיל הבא. אם אין כזה עוברים למצב "ללא טורניר"
+                const currentDoc = this.tournaments.find(t => t.id === this.activeTournamentId) || this.getFallbackTournament();
+                if (currentDoc) {
+                    this.activeTournamentId = currentDoc.id;
+                    this.loadTournamentData(currentDoc.id);
+                } else {
+                    this.loadTournamentData(null);
+                }
+
+                // ניקוי מצבות: ברגע שיש בענן טורניר אמיתי אחר, המצבה כבר אינה נחוצה ונמחקת לצמיתות
+                if (deletedMarkers.length > 0 && liveInCloud > 0 && this.currentUser && this.canDeleteTournaments()) {
+                    deletedMarkers.forEach(t => {
+                        this.db.collection('tournaments').doc(t.id).delete().catch(() => {});
+                    });
+                }
+                console.log("[Firestore] Real-time sync: " + liveInCloud + " tournaments in the cloud.");
             }, err => {
                 console.warn("[Firestore] Tournaments snapshot error:", err);
             });
@@ -2922,10 +2923,17 @@ class TournamentApp {
         this.tournaments = this.tournaments.filter(t => t.id !== tourneyId);
         this.saveTournamentsListLocally();
 
-        // מחיקה מ-Firestore
+        // מחיקה מ-Firestore.
+        // הטורניר האחרון אינו נמחק פיזית אלא מסומן isDeleted (מצבה מוסתרת): דפדפנים שעדיין מריצים גרסה
+        // ישנה של האתר מעלים מחדש את הטורנירים שבזיכרון שלהם ברגע שהאוסף בענן מתרוקן, וכך הטורניר
+        // "חזר" אחרי המחיקה. כשהאוסף אינו ריק זה לא קורה. המצבה נמחקת מעצמה כשנוצר טורניר חדש.
         if (this.db) {
             try {
-                await this.db.collection('tournaments').doc(tourneyId).delete();
+                if (isLastTournament) {
+                    await this.db.collection('tournaments').doc(tourneyId).set({ ...tourney, isDeleted: true, isArchived: true });
+                } else {
+                    await this.db.collection('tournaments').doc(tourneyId).delete();
+                }
                 console.log(`[Firestore] Tournament ${tourneyId} deleted from Firestore.`);
             } catch (err) {
                 console.error("[Firestore] Error deleting tournament from Firestore:", err);
